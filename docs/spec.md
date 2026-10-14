@@ -149,6 +149,8 @@ Example:
 
 ## 4. Account Center
 
+**Stack:** Next.js on the Designally NAS, like MA Desk (Buk, 2026-10-14; `decisions/stack-nextjs-on-nas.md`). Address not decided.
+
 - **Real:** creating accounts (below); the list of people (from HR, and created here) with their work emails; apps, actions and roles; giving and removing roles; blocking accounts Account Center created; the change history.
 - **Prototype:** HR screens (HR roles, HR records, blocking an employee's account). They show the future flow and change nothing.
 - Sign-in: Account Center accounts only. Its repo and address: see the open questions.
