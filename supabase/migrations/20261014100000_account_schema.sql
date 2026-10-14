@@ -158,6 +158,17 @@ language sql stable security definer set search_path = '' as $$
   );
 $$;
 
+-- For Account Center's People page: only 'ok', 'blocked' or 'missing', never other account details.
+create function account.login_state(p_auth_user_id uuid) returns text
+language sql stable security definer set search_path = '' as $$
+  select case
+    when p_auth_user_id is null then 'missing'
+    when not exists (select 1 from auth.users u where u.id = p_auth_user_id and u.deleted_at is null) then 'missing'
+    when account.login_ok(p_auth_user_id) then 'ok'
+    else 'blocked'
+  end;
+$$;
+
 create function account.person_can(p_person_id uuid, p_action text) returns boolean
 language sql stable security definer set search_path = '' as $$
   select coalesce((
@@ -250,7 +261,9 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_linked int; v_updated int; v_added int; v_inactive int;
 begin
-  perform set_config('account.actor', 'sync', true);
+  -- Logged as 'sync', or 'sync by <person id>' when an admin pressed "Copy from HR now".
+  perform set_config('account.actor',
+    'sync' || coalesce(' by ' || nullif(current_setting('account.actor', true), ''), ''), true);
 
   -- 1. Link people made in Account Center to their HR row (same account or same email).
   update account.people p set hr_employee_id = s.hr_id
@@ -361,7 +374,8 @@ grant select, insert, update, delete on account.people, account.person_emails, a
   account.actions, account.roles, account.role_actions, account.grants to account_app;
 grant select on account.log to account_app;
 grant execute on function account.can_user(uuid, text), account.can_email(text, text),
-  account.me_by_user(uuid), account.me_by_email(text), account.sync_from_hr() to account_app;
+  account.me_by_user(uuid), account.me_by_email(text), account.sync_from_hr(),
+  account.login_state(uuid) to account_app;
 
 -- Other apps' servers: the checks only, never the tables. Granted to the app users that exist.
 do $$

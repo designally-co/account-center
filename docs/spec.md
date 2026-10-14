@@ -149,6 +149,8 @@ Example:
 
 ## 4. Account Center
 
+**Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone copied from HR with their status, work emails added and removed by admins, "Copy from HR now"; every change in the change log with the admin's id).
+
 **Stack:** Next.js on the Designally NAS, like MA Desk (Buk, 2026-10-14; `decisions/stack-nextjs-on-nas.md`). **Address:** account.designally.co (Buk, 2026-10-14).
 
 - **Real:** creating accounts (below); the list of people (from HR, and created here) with their work emails; apps, actions and roles; giving and removing roles; blocking accounts Account Center created; the change history.

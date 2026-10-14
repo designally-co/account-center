@@ -59,6 +59,11 @@ exception when raise_exception then
   raise notice 'ok: another person''s main email cannot be added as a work email';
 end $$;
 
+-- Login state for the People page
+select pg_temp.ok(account.login_state('00000000-0000-0000-0000-00000000000a') = 'ok', 'login state: ok');
+select pg_temp.ok(account.login_state('00000000-0000-0000-0000-00000000000b') = 'blocked', 'login state: blocked');
+select pg_temp.ok(account.login_state(null) = 'missing' and account.login_state('00000000-0000-0000-0000-0000000000ff') = 'missing', 'login state: missing');
+
 -- me: name and roles, nothing for a blocked login
 select pg_temp.ok(account.me_by_user('00000000-0000-0000-0000-00000000000a') -> 'roles' = '[{"app": "studio", "role": "publisher"}]'::jsonb, 'me shows the roles');
 select pg_temp.ok(account.me_by_user('00000000-0000-0000-0000-00000000000b') is null, 'me is empty for a blocked login');
