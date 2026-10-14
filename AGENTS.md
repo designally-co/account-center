@@ -3,7 +3,7 @@
 Account Center holds every account and all access across the Designally ecosystem. A person's roles here decide which apps they can open (HR, Article Studio, the Knowledge Hub, the survey, MA Desk and the rest) and what they may do in each. It was called the "front desk" until Buk named it on 2026-10-14.
 
 - **Spec:** `docs/spec.md`. Read it before building, and keep it true in the same change as the work.
-- **Status:** nothing live. The database part (schema `account` in Project Friday) is written and tested on a local database only; applying it to Friday waits for P Aek.
+- **Status:** nothing live. Schema `account` and the app's first step (sign-in, access check on every page) are written and tested on a local database only; applying the schema to Friday waits for P Aek (`docs/apply-to-friday.md`). Stack: Next.js on the NAS, address account.designally.co.
 - **Company rules:** start every build from the Designally Brain (the Designally Brain connector, and the repo `designally-co/designally-brain`, file `CLAUDE.md`, "Building or changing an app from this repo").
 - **Real now vs prototype:** access for Buk's apps (MA Desk, Article Studio, the Knowledge Hub, the survey, the brand guideline portal) and account creation are real. Anything that touches HR or gives it rules is a prototype that changes nothing, until P Aek agrees.
 - **Project Friday belongs to P Aek.** Change nothing in it outside schema `account` without his agreement. Never write to HR's tables. Read from HR only the fields listed in `docs/spec.md` (ids, name, email, active, login blocked).

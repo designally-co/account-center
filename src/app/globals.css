@@ -1,0 +1,32 @@
+:root {
+  --bg: #f5f6f7; --panel: #ffffff; --fg: #161d22; --muted: #5a6670; --line: #d3d9de;
+  --accent: #0b7566; --accent-fg: #ffffff; --error: #b42318;
+  color-scheme: light;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #101519; --panel: #171e23; --fg: #e3e8ec; --muted: #9aa7b1; --line: #33404a;
+    --accent: #3fc4ae; --accent-fg: #0b1512; --error: #ff8a80; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); line-height: 1.5; font-size: 16px; }
+main { margin: 0 auto; padding: 48px max(16px, env(safe-area-inset-left)) 64px; display: grid; gap: 24px; }
+main.narrow { max-width: 420px; }
+main.wide { max-width: 960px; }
+h1 { margin: 0; font-size: 28px; line-height: 1.2; }
+h2 { margin: 0; font-size: 18px; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.eyebrow { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.stack { display: grid; gap: 14px; }
+.top { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; }
+.field { display: grid; gap: 6px; font-size: 14px; }
+input { font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); }
+input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button { font: inherit; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg); cursor: pointer; }
+button.secondary { background: transparent; color: var(--fg); border-color: var(--line); }
+button:disabled { opacity: 0.6; cursor: default; }
+.error { color: var(--error); font-size: 14px; }
+.roles { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.roles li { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; display: flex; gap: 10px; }
+ul { margin: 0; padding-left: 20px; }
