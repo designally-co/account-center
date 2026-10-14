@@ -21,8 +21,8 @@ psql "$TEST_URL" -At -f "$HERE/snapshot.sql" > "$OUT/before.txt"
 echo "2. Apply the migration in one transaction"
 psql "$TEST_URL" -1 -f "$HERE/../supabase/migrations/20261014100000_account_schema.sql"
 
-echo "3. Run the copy from HR and the checks"
-psql "$TEST_URL" -f "$HERE/sync-only.sql" > /dev/null
+echo "3. Run the one-time import from HR and the checks"
+psql "$TEST_URL" -f "$HERE/import-only.sql" > /dev/null
 
 echo "4. Snapshot after: must be identical (HR data, HR rules, other schemas, grants)"
 psql "$TEST_URL" -At -f "$HERE/snapshot.sql" > "$OUT/after.txt"

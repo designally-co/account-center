@@ -1,7 +1,7 @@
 // The People page's data code against the real schema `account`, as Account Center's own user.
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addWorkEmail, copyFromHr, listPeople, normalizeEmail, removeWorkEmail } from "../../src/lib/people";
+import { addWorkEmail, listPeople, normalizeEmail, removePerson, removeWorkEmail } from "../../src/lib/people";
 import { createTestDb } from "./setup";
 
 let db: Awaited<ReturnType<typeof createTestDb>>;
@@ -11,17 +11,15 @@ let benId: string;
 
 beforeAll(async () => {
   db = await createTestDb("account_center_people_test");
+  await db.setup`select account.import_from_hr()`;
   app = db.app;
 });
 
 afterAll(async () => { await db?.close(); });
 
 describe("People", () => {
-  it("copies from HR when an admin presses the button, and logs who did it", async () => {
-    const result = await copyFromHr(app, "admin-1");
-    expect(result).toEqual({ added: 3, updated: 0, linked: 0, marked_inactive: 0 });
-    const [log] = await db.setup<{ n: number }[]>`select count(*)::int as n from account.log where actor = 'sync by admin-1'`;
-    expect(log.n).toBe(3);
+  it("cannot import from HR: that is done once, by a person", async () => {
+    await expect(app`select account.import_from_hr()`).rejects.toThrow(/permission denied/);
   });
 
   it("lists people with their status and no HR details", async () => {
@@ -65,5 +63,33 @@ describe("People", () => {
     expect(normalizeEmail("a@b")).toBeNull();
     expect(normalizeEmail("a b@c.co")).toBeNull();
     expect(normalizeEmail(undefined)).toBeNull();
+  });
+});
+
+describe("Removing someone who left", () => {
+  it("takes away every role at once, marks them inactive, and logs who did it", async () => {
+    await db.setup`insert into account.actions (app_key, key) values ('studio', 'studio.article.publish')`;
+    await db.setup`insert into account.roles (app_key, key, name) values ('studio', 'publisher', 'Publisher')`;
+    await db.setup`insert into account.role_actions values ('studio', 'publisher', 'studio.article.publish')`;
+    await db.setup`insert into account.grants (person_id, app_key, role_key) values (${annId}::uuid, 'studio', 'publisher')`;
+    const ann = "00000000-0000-0000-0000-00000000000a";
+    const [before] = await app<{ ok: boolean }[]>`select account.can_user(${ann}::uuid, 'studio.article.publish') as ok`;
+    expect(before.ok).toBe(true);
+
+    expect(await removePerson(app, "admin-1", annId)).toBe("removed");
+
+    const [after] = await app<{ ok: boolean }[]>`select account.can_user(${ann}::uuid, 'studio.article.publish') as ok`;
+    expect(after.ok).toBe(false);
+    const row = (await listPeople(app)).find((p) => p.id === annId)!;
+    expect(row).toMatchObject({ is_active: false, role_count: 0 });
+    const [log] = await db.setup<{ n: number }[]>`select count(*)::int as n from account.log where actor = 'admin-1' and table_name in ('people', 'grants') and row_before->>'person_id' is not distinct from ${annId} or (actor = 'admin-1' and table_name = 'people' and row_after->>'id' = ${annId})`;
+    expect(log.n).toBeGreaterThanOrEqual(2);
+  });
+
+  it("refuses yourself, unknown people, and people already removed", async () => {
+    expect(await removePerson(app, benId, benId)).toBe("yourself");
+    expect(await removePerson(app, "admin-1", "00000000-0000-0000-0000-000000000000")).toBe("not-found");
+    expect(await removePerson(app, "admin-1", "not-a-uuid")).toBe("not-found");
+    expect(await removePerson(app, "admin-1", annId)).toBe("not-found");
   });
 });

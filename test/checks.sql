@@ -6,15 +6,22 @@ begin
   raise notice 'ok: %', msg;
 end $$;
 
--- People copied from HR
-select pg_temp.ok((select count(*) from account.people) = 3, 'three people copied (the HR test fixture is left out)');
+-- People imported once from HR
+select pg_temp.ok((select count(*) from account.people) = 3, 'three people imported (the HR test fixture is left out)');
 select pg_temp.ok((select email from account.people where hr_employee_id = '10000000-0000-0000-0000-00000000000a') = 'ann@example.com', 'emails are stored in lower case');
 select pg_temp.ok((select display_name from account.people where hr_employee_id = '10000000-0000-0000-0000-00000000000b') = 'Ben Example', 'name falls back to the display name');
 select pg_temp.ok(
   (select array_agg(column_name::text order by column_name::text) from information_schema.columns where table_schema = 'account' and table_name = 'people')
   = array['auth_user_id','created_at','display_name','email','hr_employee_id','id','is_active','source','updated_at'],
   'no HR details (phone, birthday, role) in account.people');
-select pg_temp.ok((select account.sync_from_hr()) = '{"added": 0, "linked": 0, "updated": 0, "marked_inactive": 0}'::jsonb, 'a second copy changes nothing');
+do $$ begin
+  perform account.import_from_hr();
+  raise exception 'FAILED: a second import ran';
+exception when raise_exception then
+  if sqlerrm like 'FAILED%' then raise; end if;
+  raise notice 'ok: the HR list is imported only once';
+end $$;
+select pg_temp.ok((select count(*) from account.log where actor = 'import from HR') = 3, 'the import is in the change log');
 
 -- Nobody has access by default
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'account_center.view') = false, 'no role, no access');
@@ -37,7 +44,7 @@ select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'stud
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.settings') = false, 'an action the role does not include is a no');
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'hub.article.publish') = false, 'a role in one app gives nothing in another');
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000b', 'studio.article.publish') = false, 'a blocked login is a no, even with the role');
-select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000c', 'studio.article.publish') = false, 'a person who left HR is a no, even with the role');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000c', 'studio.article.publish') = false, 'a person who was inactive in HR at the import is a no, even with the role');
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000ff', 'studio.article.publish') = false, 'an unknown account is a no');
 select pg_temp.ok((select count(*) from account.log where table_name = 'grants' and actor = 'test-admin') = 3, 'every grant is in the change log with who did it');
 
@@ -68,25 +75,18 @@ select pg_temp.ok(account.login_state(null) = 'missing' and account.login_state(
 select pg_temp.ok(account.me_by_user('00000000-0000-0000-0000-00000000000a') -> 'roles' = '[{"app": "studio", "role": "publisher"}]'::jsonb, 'me shows the roles');
 select pg_temp.ok(account.me_by_user('00000000-0000-0000-0000-00000000000b') is null, 'me is empty for a blocked login');
 
--- HR changes flow in at the next copy
-update public.hr_employees set is_active = false where id = '10000000-0000-0000-0000-00000000000a';
-select pg_temp.ok((select account.sync_from_hr() ->> 'updated') = '1', 'HR marking someone inactive is copied');
-select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.article.publish') = false, 'and their access stops at once');
-update public.hr_employees set is_active = true where id = '10000000-0000-0000-0000-00000000000a';
-select account.sync_from_hr();
-select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.article.publish'), 'access comes back when HR makes them active again');
+-- After the import, HR changes are not copied, but a blocked login stops access at once
+update public.hr_employees set nickname = 'Changed in HR' where id = '10000000-0000-0000-0000-00000000000a';
+select pg_temp.ok((select display_name from account.people where auth_user_id = '00000000-0000-0000-0000-00000000000a') = 'Ann', 'later HR changes are not copied: Account Center''s list is the real list');
+update auth.users set banned_until = now() + interval '100 years' where id = '00000000-0000-0000-0000-00000000000a';
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.article.publish') = false, 'when HR blocks a login (offboarding), access stops at once');
+update auth.users set banned_until = null where id = '00000000-0000-0000-0000-00000000000a';
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.article.publish'), 'and comes back if the login is unblocked');
 
-delete from public.hr_employees where id = '10000000-0000-0000-0000-00000000000b';
-select pg_temp.ok((select account.sync_from_hr() ->> 'marked_inactive') = '1', 'a person removed from HR is marked inactive, not deleted');
-select pg_temp.ok((select count(*) from account.people where email = 'ben@example.com' and not is_active) = 1, 'their row and history stay');
-
--- A person made in Account Center, later added to HR: linked, not copied twice
+-- A person added in Account Center
 insert into account.people (auth_user_id, source, display_name, email)
 values ('00000000-0000-0000-0000-00000000000d', 'account_center', 'Dee', 'dee@example.com');
-insert into public.hr_employees (id, auth_user_id, email, nickname) values
-  ('10000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', 'dee@example.com', 'Dee');
-select pg_temp.ok((select account.sync_from_hr() ->> 'linked') = '1', 'an Account Center person is linked to their new HR row');
-select pg_temp.ok((select count(*) from account.people where email = 'dee@example.com') = 1, 'and not copied a second time');
+select pg_temp.ok(account.login_state('00000000-0000-0000-0000-00000000000d') = 'ok', 'a person added in Account Center uses their account');
 
 -- First admin, once only
 select pg_temp.ok(account.bootstrap_first_admin('ann@example.com') is not null, 'the first admin can be set');
@@ -108,15 +108,20 @@ do $$ begin
 exception when insufficient_privilege then raise notice 'ok: an app user cannot read Account Center''s tables';
 end $$;
 do $$ begin
-  perform account.sync_from_hr();
-  raise exception 'FAILED: an app user ran the copy';
-exception when insufficient_privilege then raise notice 'ok: an app user cannot run the copy from HR';
+  perform account.import_from_hr();
+  raise exception 'FAILED: an app user ran the import';
+exception when insufficient_privilege then raise notice 'ok: an app user cannot run the import from HR';
 end $$;
 reset role;
 
 -- Account Center's own user: its tables yes, HR no, the log read-only
 set role account_app;
 select pg_temp.ok((select count(*) from account.people) = 4, 'Account Center''s user reads its own tables');
+do $$ begin
+  perform account.import_from_hr();
+  raise exception 'FAILED: Account Center''s user ran the import';
+exception when insufficient_privilege then raise notice 'ok: Account Center''s user cannot run the import (a person does it once)';
+end $$;
 do $$ begin
   perform 1 from public.hr_employees;
   raise exception 'FAILED: Account Center''s user read HR directly';

@@ -9,7 +9,7 @@ let app: postgres.Sql;
 
 beforeAll(async () => {
   db = await createTestDb("account_center_access_test");
-  await db.setup`select account.sync_from_hr()`;
+  await db.setup`select account.import_from_hr()`;
   await db.setup`insert into account.grants (person_id, app_key, role_key)
                  select id, 'account_center', 'viewer' from account.people where auth_user_id in (${ANN}::uuid, ${BEN}::uuid)`;
   app = db.app;

@@ -3,7 +3,8 @@ import { ACTIONS, canUser } from "@/lib/access";
 import { db } from "@/lib/db";
 import { listPeople, type PersonRow } from "@/lib/people";
 import { requireAction } from "@/lib/session";
-import { addWorkEmailAction, copyFromHrAction, removeWorkEmailAction } from "./actions";
+import Link from "next/link";
+import { addWorkEmailAction, removePersonAction, removeWorkEmailAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,25 +19,19 @@ const NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
   taken: { tone: "error", text: "That email is already the work email of someone else." },
   "main-email-of-another": { tone: "error", text: "That email is someone else's HR email, so it cannot be a work email here." },
   "no-person": { tone: "error", text: "That person was not found. Reload the page and try again." },
+  "person-removed": { tone: "ok", text: "Removed. They lost every role in every app. Their record and history stay." },
+  "remove-not-found": { tone: "error", text: "That person was not found, or was already removed." },
+  "remove-yourself": { tone: "error", text: "You cannot remove yourself. Ask another admin." },
 };
-
-function num(v: string | string[] | undefined): number {
-  const n = Number(Array.isArray(v) ? v[0] : v);
-  return Number.isInteger(n) && n >= 0 ? n : 0;
-}
 
 function Notice({ search }: { search: Search }) {
   const key = typeof search.notice === "string" ? search.notice : "";
-  if (key === "copied") {
-    const text = `Copied from HR: ${num(search.added)} added, ${num(search.updated)} updated, ${num(search.linked)} linked, ${num(search.inactive)} marked as left.`;
-    return <p className="notice ok" role="status">{text}</p>;
-  }
   const n = NOTICES[key];
   return n ? <p className={`notice ${n.tone}`} role={n.tone === "error" ? "alert" : "status"}>{n.text}</p> : null;
 }
 
 function Status({ p }: { p: PersonRow }) {
-  if (!p.is_active) return <span className="pill muted">Left HR</span>;
+  if (!p.is_active) return <span className="pill muted">Inactive</span>;
   if (p.login === "blocked") return <span className="pill warn">Login blocked</span>;
   if (p.login === "missing") return <span className="pill warn">No login</span>;
   return <span className="pill ok">Active</span>;
@@ -55,22 +50,35 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         <div className="top">
           <div>
             <h1>People</h1>
-            <p className="muted">{active} active, {people.length - active} left HR. Copied from HR, plus people made in Account Center.</p>
+            <p className="muted">{active} active, {people.length - active} inactive. Imported once from HR, plus people added in Account Center. This is the real list.</p>
           </div>
-          {canManage ? (
-            <form action={copyFromHrAction}><button type="submit">Copy from HR now</button></form>
-          ) : null}
         </div>
 
         <Notice search={search} />
 
+        {canManage && typeof search.remove === "string" ? (() => {
+          const target = people.find((p) => p.id === search.remove && p.is_active);
+          return target ? (
+            <div className="confirm" role="alertdialog" aria-labelledby="confirm-title">
+              <p id="confirm-title"><strong>Remove {target.display_name}?</strong> Use this when someone leaves. They lose every role in every app at once. Their record and history stay.</p>
+              <div className="row">
+                <form action={removePersonAction}>
+                  <input type="hidden" name="person_id" value={target.id} />
+                  <button type="submit" className="danger">Remove {target.display_name}</button>
+                </form>
+                <Link href="/people" className="button secondary">Cancel</Link>
+              </div>
+            </div>
+          ) : null;
+        })() : null}
+
         {people.length === 0 ? (
-          <p className="empty">Nobody here yet. {canManage ? "Press \"Copy from HR now\" to bring in the people from HR." : "An admin needs to copy the people from HR."}</p>
+          <p className="empty">Nobody here yet. The people from HR are imported once, when Account Center is set up in Project Friday.</p>
         ) : (
           <div className="tablewrap">
             <table>
               <thead>
-                <tr><th>Name</th><th>HR email</th><th>Work emails</th><th>From</th><th>Status</th><th>Roles</th></tr>
+                <tr><th>Name</th><th>HR email</th><th>Work emails</th><th>From</th><th>Status</th><th>Roles</th>{canManage ? <th><span className="sr-only">Remove</span></th> : null}</tr>
               </thead>
               <tbody>
                 {people.map((p) => (
@@ -102,16 +110,19 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                         {!canManage && p.work_emails.length === 0 ? <span className="muted">None</span> : null}
                       </div>
                     </td>
-                    <td>{p.source === "hr" ? "HR" : "Account Center"}</td>
+                    <td>{p.source === "hr" ? "HR import" : "Account Center"}</td>
                     <td><Status p={p} /></td>
                     <td className="num">{p.role_count}</td>
+                    {canManage ? (
+                      <td>{p.is_active && p.id !== me.person_id ? <Link href={`/people?remove=${p.id}`} className="danger-link">Remove</Link> : null}</td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-        <p className="muted small-text">Work emails let people who still sign in with Google be matched to their account. HR details (phone, birthday, salary) are never copied here.</p>
+        <p className="muted small-text">Work emails let people who still sign in with Google be matched to their account. HR details (phone, birthday, salary) were never imported. When someone leaves, remove them here: they lose every role in every app at once.</p>
       </main>
     </>
   );

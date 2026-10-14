@@ -53,9 +53,22 @@ export async function removeWorkEmail(sql: postgres.Sql, actorId: string, person
   return rows.length === 1;
 }
 
-export type SyncResult = { added: number; updated: number; linked: number; marked_inactive: number };
+export function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
 
-export async function copyFromHr(sql: postgres.Sql, actorId: string): Promise<SyncResult> {
-  const [row] = await withActor(sql, actorId, (tx) => tx<{ result: SyncResult }[]>`select account.sync_from_hr() as result`);
-  return row.result;
+export type RemoveResult = "removed" | "not-found" | "yourself";
+
+// Someone left: every role is taken away and the person is marked inactive, in one logged change.
+// The record and its history stay. Blocking the login (so HR and every app follow) is the
+// account-remove server function, added with account creation (it writes Friday's Auth).
+export async function removePerson(sql: postgres.Sql, actorId: string, personId: string): Promise<RemoveResult> {
+  if (personId === actorId) return "yourself";
+  if (!isUuid(personId)) return "not-found";
+  return withActor(sql, actorId, async (tx) => {
+    const found = await tx`update account.people set is_active = false where id = ${personId}::uuid and is_active returning id`;
+    if (found.length !== 1) return "not-found";
+    await tx`delete from account.grants where person_id = ${personId}::uuid`;
+    return "removed";
+  });
 }

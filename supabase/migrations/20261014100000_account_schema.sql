@@ -3,7 +3,9 @@
 -- Safety rules (docs/spec.md, Buk 2026-10-14: this must not affect the working HR app or any other app):
 --   * Every object is created inside schema `account`, except one database role, `account_app`
 --     (Account Center's own server; NOLOGIN here, given a password by sql/account-app-user.sql).
---   * auth.users and public.hr_employees are only READ, by functions below. Nothing here writes them,
+--   * auth.users and public.hr_employees are only READ, by functions below. public.hr_employees is read
+--     ONCE, by account.import_from_hr(), run by a person when Account Center starts (Buk, 2026-10-14:
+--     import the HR list once; after that Account Center's list is the real list). Nothing here writes them,
 --     and there are no triggers, foreign keys or other constraints on them, so HR's add, delete and
 --     offboarding flows behave exactly as before.
 --   * Only these HR fields are read: id, auth_user_id, email, display_name, nickname, first_name,
@@ -14,7 +16,7 @@ create schema account;
 revoke all on schema account from public;
 
 -- ---------------------------------------------------------------------------------------------
--- People: copied from HR (source 'hr') or created in Account Center (source 'account_center').
+-- People: imported once from HR (source 'hr') or added in Account Center (source 'account_center').
 -- auth_user_id and hr_employee_id are plain ids on purpose: no foreign keys into auth or HR.
 create table account.people (
   id             uuid primary key default gen_random_uuid(),
@@ -101,7 +103,7 @@ alter table account.log           enable row level security;
 -- ---------------------------------------------------------------------------------------------
 -- Change log. The Account Center server sets the actor for its transaction with
 --   select set_config('account.actor', '<person id>', true);
--- Without it the actor is the database user (for example 'postgres' or 'sync').
+-- Without it the actor is the database user (for example 'postgres').
 create function account.log_change() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
@@ -238,8 +240,9 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- ---------------------------------------------------------------------------------------------
--- Copy people from HR. Reads public.hr_employees (listed fields only), writes account.people only.
--- Adds and updates; never deletes. Someone who is no longer in HR is marked inactive.
+-- Import people from HR, once. Reads public.hr_employees (listed fields only), writes account.people only.
+-- After the import Account Center's list is the real list: later HR changes are not copied. People who
+-- leave still lose access everywhere at once, because every check reads the account's blocked state live.
 
 -- The only place that reads HR: the listed fields, test fixtures left out.
 create function account.hr_people()
@@ -256,54 +259,25 @@ language sql stable security definer set search_path = '' as $$
     and e.email is not null and position('@' in e.email) > 1;
 $$;
 
-create function account.sync_from_hr() returns jsonb
+-- Run once in the SQL Editor: select account.import_from_hr();  Refuses when anyone is already in the list.
+create function account.import_from_hr() returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare
-  v_linked int; v_updated int; v_added int; v_inactive int;
+declare v_added int;
 begin
-  -- Logged as 'sync', or 'sync by <person id>' when an admin pressed "Copy from HR now".
-  perform set_config('account.actor',
-    'sync' || coalesce(' by ' || nullif(current_setting('account.actor', true), ''), ''), true);
-
-  -- 1. Link people made in Account Center to their HR row (same account or same email).
-  update account.people p set hr_employee_id = s.hr_id
-  from account.hr_people() s
-  where p.hr_employee_id is null
-    and not exists (select 1 from account.people x where x.hr_employee_id = s.hr_id)
-    and ((s.auth_user_id is not null and p.auth_user_id = s.auth_user_id) or p.email = s.email);
-  get diagnostics v_linked = row_count;
-
-  -- 2. Update people already copied, only where something changed.
-  update account.people p
-  set display_name = s.display_name,
-      email        = s.email,
-      auth_user_id = coalesce(s.auth_user_id, p.auth_user_id),
-      is_active    = s.is_active
-  from account.hr_people() s
-  where p.hr_employee_id = s.hr_id
-    and (p.display_name, p.email, p.auth_user_id, p.is_active)
-        is distinct from (s.display_name, s.email, coalesce(s.auth_user_id, p.auth_user_id), s.is_active);
-  get diagnostics v_updated = row_count;
-
-  -- 3. Add HR people who are new.
+  if exists (select 1 from account.people) then
+    raise exception 'People are already in Account Center; the HR list is imported only once';
+  end if;
+  perform set_config('account.actor', 'import from HR', true);
   insert into account.people (auth_user_id, hr_employee_id, source, display_name, email, is_active)
   select s.auth_user_id, s.hr_id, 'hr', s.display_name, s.email, s.is_active
-  from account.hr_people() s
-  where not exists (select 1 from account.people p where p.hr_employee_id = s.hr_id);
+  from account.hr_people() s;
   get diagnostics v_added = row_count;
-
-  -- 4. Mark inactive anyone whose HR row is gone.
-  update account.people p set is_active = false
-  where p.hr_employee_id is not null and p.is_active
-    and not exists (select 1 from account.hr_people() s where s.hr_id = p.hr_employee_id);
-  get diagnostics v_inactive = row_count;
-
-  return jsonb_build_object('linked', v_linked, 'updated', v_updated, 'added', v_added, 'marked_inactive', v_inactive);
+  return jsonb_build_object('added', v_added);
 end $$;
 
 -- ---------------------------------------------------------------------------------------------
 -- The first Account Center admin. Works only while nobody has that role.
--- Run once in the SQL Editor after the first sync: select account.bootstrap_first_admin('<your HR email>');
+-- Run once in the SQL Editor after the import: select account.bootstrap_first_admin('<your HR email>');
 create function account.bootstrap_first_admin(p_email text) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare v_person uuid;
@@ -313,7 +287,7 @@ begin
   end if;
   v_person := account.person_by_email(p_email);
   if v_person is null then
-    raise exception 'no single person with that email; run account.sync_from_hr() first';
+    raise exception 'no single person with that email; run account.import_from_hr() first';
   end if;
   perform set_config('account.actor', 'bootstrap', true);
   insert into account.grants (person_id, app_key, role_key) values (v_person, 'account_center', 'admin');
@@ -374,8 +348,8 @@ grant select, insert, update, delete on account.people, account.person_emails, a
   account.actions, account.roles, account.role_actions, account.grants to account_app;
 grant select on account.log to account_app;
 grant execute on function account.can_user(uuid, text), account.can_email(text, text),
-  account.me_by_user(uuid), account.me_by_email(text), account.sync_from_hr(),
-  account.login_state(uuid) to account_app;
+  account.me_by_user(uuid), account.me_by_email(text), account.login_state(uuid) to account_app;
+-- account.import_from_hr() and account.bootstrap_first_admin() are for a person in the SQL Editor only.
 
 -- Other apps' servers: the checks only, never the tables. Granted to the app users that exist.
 do $$

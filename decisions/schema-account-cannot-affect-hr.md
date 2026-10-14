@@ -18,11 +18,11 @@ Account Center lives in Project Friday next to P Aek's HR app, which runs every 
 ## Decision
 
 - Every object is created inside schema `account`, plus one role, `account_app`.
-- `auth.users` and `public.hr_employees` are only read, through security definer functions. Only these HR fields are read: id, account id, email, nickname, display name, first name, active, test-fixture flag.
+- `auth.users` and `public.hr_employees` are only read, through security definer functions. `public.hr_employees` is read once, by `account.import_from_hr()`, and only these fields: id, account id, email, nickname, display name, first name, active, test-fixture flag.
 - No trigger, foreign key, permission or column is added to anything outside schema `account`. People keep the HR employee id and account id as plain ids, without foreign keys, so HR's add, delete and offboarding flows behave exactly as before.
 - Whether a login is blocked is read from the account at every check, not copied, so HR's offboarding stops access in every app at once.
 - Every check fails closed: an unknown person, an inactive person, a blocked login, a missing role or an email that matches two people is a no.
-- The tests snapshot everything outside schema `account` (tables, columns, functions, triggers, constraints, policies, permissions, and HR's and the accounts' data) before the migration and after the copy job, and fail on any difference. Each kind of change was injected once on purpose and caught.
+- The tests snapshot everything outside schema `account` (tables, columns, functions, triggers, constraints, policies, permissions, and HR's and the accounts' data) before the migration and after the import, and fail on any difference. Each kind of change was injected once on purpose and caught.
 - To undo: `drop schema account cascade; drop role account_app;`.
 
 ## Why
