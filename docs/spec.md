@@ -2,7 +2,7 @@
 
 Account Center is the app and the database part that hold every account and all access across the Designally ecosystem. It was called the "front desk" until Buk named it on 2026-10-14. Its database schema is `account` (name to be confirmed in the build).
 
-Status: **approach agreed by Buk on 2026-10-14; the new schema `account` waits for P Aek.** Nothing is built yet. Copied on 2026-10-14 from `designally-co/designally-brain`, `docs/account-center.md`; this file is now the living spec. Company decision notes (in the brain repo): `decisions/company-account-center-owns-people-and-access.md`, `decisions/company-account-center-for-every-app.md`.
+Status: **approach agreed by Buk on 2026-10-14; schema `account` is written and tested on a local database (`supabase/migrations/`, `test/`); applying it to Project Friday waits for P Aek (`docs/apply-to-friday.md`).** Copied on 2026-10-14 from `designally-co/designally-brain`, `docs/account-center.md`; this file is now the living spec. Company decision notes (in the brain repo): `decisions/company-account-center-owns-people-and-access.md`, `decisions/company-account-center-for-every-app.md`.
 
 The goal (Buk, 2026-10-14): one place that decides who may do what across the Designally ecosystem. Account Center comes first; every app, HR included, sits behind it.
 
@@ -107,20 +107,33 @@ When P Aek agrees, HR's onboarding links to Account Center account instead, and 
 
 Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). Only these users, and Account Center, may call the check. The brand guideline portal's database is not in Project Friday, so it would need its own small Friday user that may only call the check. The apps never read `account` tables directly and never read HR.
 
-### First sketch of `account` (to be finalised in the build)
+### Schema `account` (written: `supabase/migrations/20261014100000_account_schema.sql`)
 
 | Table | Holds |
 |---|---|
-| `account.people` | One row per person: account id, name, email, active, login blocked, and where they came from (copied from HR, with the HR employee id, or created by Account Center) |
+| `account.people` | One row per person: account id, HR employee id (when copied from HR), where they came from (`hr` or `account_center`), name, email, active. Whether the login is blocked is read from the account itself at each check, not copied |
 | `account.person_emails` | Extra emails per person (work email for Google sign-in), added in Account Center |
 | `account.apps` | The apps that use Account Center |
 | `account.actions` | Each app's actions, with a short description |
 | `account.roles` | Roles per app |
 | `account.role_actions` | Which actions each role includes |
 | `account.grants` | Which person has which role |
-| `account.log` | History of every change to access and emails |
+| `account.log` | History of every change to people, emails, roles and grants, written by triggers; the actor is set by Account Center's server |
 
-Server function in Friday: `account-invite` (creates the account and the one-time link; only Account Center admins). Database functions: `account.sync_from_hr()` (the copy job, reads HR inside the database and returns nothing), `account.can_email(email, action)` (for the apps' servers), `account.me(email)` (the person's id, name and roles).
+Database functions (all in schema `account`; every check fails closed):
+
+| Function | Who may call it | What it does |
+|---|---|---|
+| `can_user(account id, action)` | each app's database user, Account Center | Yes only when the person is active, their login is not blocked, and one of their roles includes the action |
+| `can_email(email, action)` | each app's database user, Account Center | The same, finding the person by their HR email or an added work email (Google sign-in during the move). An email that matches two people is a no |
+| `me_by_user(account id)`, `me_by_email(email)` | each app's database user, Account Center | The person's id, name and roles; empty when they cannot use anything |
+| `sync_from_hr()` | Account Center | Copies people from HR (adds and updates, never deletes) |
+| `hr_people()` | nobody outside the schema | The only place that reads HR, listed fields only |
+| `bootstrap_first_admin(email)` | a person in the SQL Editor | Gives the first Account Center admin; works only once |
+
+Server function in Friday, still to write: `account-invite` (creates the account and the one-time link; only Account Center admins).
+
+Database users: `account_app` (Account Center's server: its tables, never HR), and the apps' existing users (`hub_app`, `studio_app`, `survey_app`, later `ma_app`), which may call the checks only.
 
 Example:
 

@@ -1,0 +1,21 @@
+name: Schema tests
+on:
+  push:
+  pull_request:
+jobs:
+  schema:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Project Friday runs PostgreSQL 17.
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test schema account on a throwaway database
+        run: test/run.sh "postgresql://postgres@localhost:5432/postgres"
