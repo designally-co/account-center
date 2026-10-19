@@ -1,6 +1,6 @@
 # Account Center
 
-Every account and all access across the Designally ecosystem, in one place. Address: account.designally.co. Not live yet.
+Every account and all access for Designally's own people (employees and outsourced workers, never clients), in one place. A plan and Buk's experiment: nothing in use changes until Buk and P Aek decide to switch. Address: account.designally.co. Not live yet.
 
 - Spec: [`docs/spec.md`](docs/spec.md)
 - Applying the database part to Project Friday (only after P Aek agrees): [`docs/apply-to-friday.md`](docs/apply-to-friday.md)
