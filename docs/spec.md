@@ -11,7 +11,7 @@ The goal (Buk, 2026-10-14 and 2026-10-19): one place that decides who in the com
 **Who has an account** (Buk, 2026-10-19):
 
 - **Employees and outsourced workers.** Each account says what **kind** of person it is. Example: an outsourced worker's account is marked as outsource, so they cannot use the HR app, but they can use Article Studio. The full list of kinds is not decided.
-- **Never clients.** The future client product (the brand ecosystem, starting from the Brand Guideline Portal) has its own accounts, for clients and for Designally staff, and does not use Account Center (brain note `decisions/company-ecosystem-product-logins-apart-from-account-center.md`).
+- **Never clients.** The future client product (the brand ecosystem, starting from the Brand Guideline Portal) has its own accounts, for clients and for Designally staff, and does not use Account Center (brain note `decisions/company-ecosystem-product-logins-apart-from-account-center.md`). **Until clients log in**, the portal's Designally team signs in with Account Center, because the portal is the first app (Buk, 2026-10-19; brain note `decisions/company-portal-first-app-on-account-center.md`). Its clients keep their access codes.
 
 ## 1. What is built, and what waits for the switch
 
@@ -55,7 +55,7 @@ Account Center is an experiment: nothing below changes anything in use until Buk
 | Knowledge Hub | Google, designally.co accounts only; everyone is an admin | 2 |
 | Article Studio | Google, designally.co accounts only; everyone is an admin | 3 |
 | Survey | Google, in its Next.js app | has a `users` table |
-| Brand guideline portal | The brain does not know (not live, not in the brain) | The brain does not know |
+| Brand guideline portal | Email and password in the portal's own Supabase project (outside the Designally org); only people in its `admin_users` list (roles editor and owner) get in. Clients use access codes, no accounts (checked 2026-10-19 at commit 6a2dbd4) | not counted |
 | MA Desk | Not built | none |
 
 **Another people list exists:** `public.people` (15 rows, 1 linked to an account), used by the app at app.designally.co. Account Center does not use it; it is listed here so nobody mistakes it for the team list.
@@ -144,9 +144,9 @@ Database functions (all in schema `account`; every check fails closed):
 
 | Function | Who may call it | What it does |
 |---|---|---|
-| `can_user(account id, action)` | each app's database user, Account Center | Yes only when the person is active, their login is not blocked, and one of their roles includes the action |
-| `can_email(email, action)` | each app's database user, Account Center | The same, finding the person by their HR email or an added work email (Google sign-in during the move). An email that matches two people is a no |
-| `me_by_user(account id)`, `me_by_email(email)` | each app's database user, Account Center | The person's id, name and roles; empty when they cannot use anything |
+| `can_user(account id, action)` | an app's database user from the day that app uses Account Center (granted in its own migration), and Account Center | Yes only when the person is active, their login is not blocked, and one of their roles includes the action |
+| `can_email(email, action)` | an app's database user from the day that app uses Account Center, and Account Center | The same, finding the person by their HR email or an added work email (Google sign-in during the move). An email that matches two people is a no |
+| `me_by_user(account id)`, `me_by_email(email)` | Account Center; an app's user only if that app needs the name and roles | The person's id, name and roles; empty when they cannot use anything |
 | `import_from_hr()` | a person in the SQL Editor, once | Imports people from HR when Account Center starts; refused when anyone is already in the list |
 | `login_state(account id)` | Account Center | Only `ok`, `blocked` or `missing`, for the People page |
 | `hr_people()` | nobody outside the schema | The only place that reads HR, listed fields only; used by the import |
@@ -154,7 +154,7 @@ Database functions (all in schema `account`; every check fails closed):
 
 Server functions in Friday, still to write (step 4): `account-invite` (creates the account and the one-time link) and `account-remove` (blocks the login of someone who left). Only Account Center admins can use them.
 
-Database users: `account_app` (Account Center's server: its tables, never HR), and the apps' existing users (`hub_app`, `studio_app`, `survey_app`, later `ma_app`), which may call the checks only.
+Database users: `account_app` (Account Center's server: its tables, never HR), and each app's own user (`portal_app` first, then `studio_app`, `hub_app`, `survey_app`, later `ma_app`), which may call the checks only, and only from the day that app uses Account Center (migration `20261019100000_account_hardening.sql` took the first migration's grants away).
 
 Example:
 
@@ -205,6 +205,7 @@ Found in the read-only check. They are in P Aek's system, so he decides how to f
 1. **P Aek agrees** to a new schema `account` in Project Friday that imports HR's employee list once (the fields in section 3 only) and changes nothing in HR. Done: P Aek agreed (Buk, 2026-10-19).
 2. **Build `account`** as a migration: tested on a local database (done), then in Friday inside a transaction that undoes itself (done 2026-10-19, nothing changed outside `account`), then for real (done 2026-10-19, Buk's go-ahead). Check that the import holds no HR details beyond section 3.
 3. **Build Account Center** (people with their kind, access lists per app and action, removal; HR screens as a prototype). Steps 1 and 2 of the app are built locally (section 4).
+3b. **Pilot: the Brand Guideline Portal, team only** (Buk, 2026-10-19). The portal first moves into Project Friday (schema `portal`, user `portal_app`). Then it adds "Sign in with Designally account" next to its current sign-in, and checks each admin action with `account.can_user`. Clients keep their access codes. The old sign-in stays until the "Ready to switch" list below is done for the portal; then it is removed. This is the first app's switch, agreed by Buk (brain note `decisions/company-portal-first-app-on-account-center.md`).
 
 **Ready to switch** (Buk, 2026-10-19: Account Center must be solid enough to replace the current system before any switch). Proposed by AI on 2026-10-19, for Buk to confirm; every item checked and written down before step 4:
 
@@ -221,7 +222,7 @@ Found in the read-only check. They are in P Aek's system, so he decides how to f
 
 4. Account creation and login blocking in Friday's Auth: the `account-invite` and `account-remove` functions.
 5. **MA Desk** signs in with Account Center accounts and checks every action with Account Center.
-6. **The other company apps** (Article Studio, the Hub, the survey, Recruit and the rest), one at a time: add Account Center sign-in next to their current sign-in, and the access check. Each starts with today's users given the access that matches what they can do now (everyone is an admin in the Hub and Studio), so nobody loses access on the day of the switch. Drop the old sign-in once everyone has moved.
+6. **The other company apps** (after the portal: Article Studio, the Hub admin, the survey, then Recruit and the rest; Buk, 2026-10-19), one at a time: add Account Center sign-in next to their current sign-in, and the access check. Each starts with today's users given the access that matches what they can do now (everyone is an admin in the Hub and Studio), so nobody loses access on the day of the switch. Drop the old sign-in once everyone has moved.
 7. **HR follows Account Center** when P Aek agrees (section 5).
 
 ## 8. Open questions
@@ -230,7 +231,7 @@ Found in the read-only check. They are in P Aek's system, so he decides how to f
 2. Account Center accounts use email and password today (the HR password). With no "forgot password" and unchecked emails (section 6), these accounts will guard every app. Turning on Google sign-in for Friday's accounts would fix both, but it is a setting in P Aek's project: ask him when and how.
 3. ~~Account Center's repo name and address~~ Decided: `designally-co/account-center`, account.designally.co (Buk, 2026-10-14).
 4. Who may change access: only Buk, or also P Aek and each app's owner?
-5. Brand guideline portal: it becomes the start of the client product, which has its own accounts (section "Who has an account"). Whether the team uses Account Center for it before then is not decided.
+5. ~~Brand guideline portal~~ Decided (Buk, 2026-10-19): the portal is the first app, for its Designally team only, until clients log in; then staff move to the client product's own accounts (step 3b).
 6. P Aek: when can HR's Add Employee link an account that already exists, so that every account can start in Account Center?
 7. The kinds of people besides employee and outsource.
 8. Access lists: chosen person by person, through ready roles, or both? (Ready roles are faster with many people and apps; both keeps it flexible.)
