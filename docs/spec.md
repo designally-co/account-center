@@ -135,7 +135,7 @@ When P Aek agrees, HR's onboarding links to Account Center account instead, and 
 
 ### When someone leaves
 
-An Account Center admin presses **Remove** on the People page and confirms (Buk, 2026-10-14: people who leave are removed in Account Center, and the HR app follows).
+An Account Center admin opens the person's page, presses **Remove** at the bottom and confirms (Buk, 2026-10-14: people who leave are removed in Account Center, and the HR app follows; Buk, 2026-10-19: not from the People grid or list, only inside each person's page).
 
 1. **At once (built):** every role in every app is taken away and the person is marked inactive, in one logged change. Every app's next check says no.
 2. **Their login is blocked** (with account creation, step 4: the server function `account-remove`, which writes Friday's Auth, so it waits for P Aek). From then on they cannot sign in to any app, HR included. This is what HR's offboarding does today.

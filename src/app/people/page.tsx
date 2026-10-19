@@ -6,7 +6,6 @@ import { db } from "@/lib/db";
 import { listPeople, type PersonRow } from "@/lib/people";
 import { requireAction } from "@/lib/session";
 import Link from "next/link";
-import { removePersonAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +16,6 @@ const NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
   "no-person": { tone: "error", text: "That person was not found. Reload the page and try again." },
   "person-removed": { tone: "ok", text: "Removed. They lost all access in every app. Their record and history stay." },
   "remove-not-found": { tone: "error", text: "That person was not found, or was already removed." },
-  "remove-yourself": { tone: "error", text: "You cannot remove yourself. Ask another admin." },
-  "remove-not-allowed": { tone: "error", text: "Not saved: you can no longer manage Account Center. Ask another admin." },
   "not-allowed": { tone: "error", text: "Not saved: you can no longer manage Account Center. Ask another admin." },
 };
 
@@ -44,7 +41,6 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
   const active = people.filter((p) => p.is_active).length;
   // Cards by default; the list (a table) is one click away (Buk, 2026-10-19).
   const view = search.view === "list" ? "list" : "grid";
-  const here = (extra = "") => `/people?view=${view}${extra}`;
 
   return (
     <>
@@ -72,22 +68,6 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
 
         <Notice search={search} />
 
-        {canManage && typeof search.remove === "string" ? (() => {
-          const target = people.find((p) => p.id === search.remove && p.is_active);
-          return target ? (
-            <div className="confirm" role="alertdialog" aria-labelledby="confirm-title">
-              <p id="confirm-title"><strong>Remove {target.display_name}?</strong> They lose all access in every app at once. Their record and history stay.</p>
-              <div className="row">
-                <form action={removePersonAction}>
-                  <input type="hidden" name="person_id" value={target.id} />
-                  <input type="hidden" name="view" value={view} />
-                  <button type="submit" className="danger">Remove {target.display_name}</button>
-                </form>
-                <Link href={here()} className="button secondary">Cancel</Link>
-              </div>
-            </div>
-          ) : null;
-        })() : null}
 
         {people.length === 0 ? (
           <p className="empty">Nobody here yet. The people from HR are imported once, when Account Center is set up in Project Friday.</p>
@@ -105,9 +85,6 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                   <span>{p.kind}</span>
                   <span>{p.app_count} {p.app_count === 1 ? "app" : "apps"}</span>
                 </div>
-                {canManage && p.is_active && p.id !== me.person_id ? (
-                  <Link href={here(`&remove=${p.id}`)} className="danger-link person-card-remove">Remove<span className="sr-only"> {p.display_name}</span></Link>
-                ) : null}
               </li>
             ))}
           </ul>
@@ -115,7 +92,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           <div className="tablewrap">
             <table>
               <thead>
-                <tr><th>Name</th><th>Email</th><th>Work emails</th><th>Employment</th><th>Status</th><th>Apps</th>{canManage ? <th><span className="sr-only">Remove</span></th> : null}</tr>
+                <tr><th>Name</th><th>Email</th><th>Work emails</th><th>Employment</th><th>Status</th><th>Apps</th></tr>
               </thead>
               <tbody>
                 {people.map((p) => (
@@ -130,9 +107,6 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                     <td>{p.kind}</td>
                     <td><Status p={p} /></td>
                     <td className="num"><Link href={`/people/${p.id}`} aria-label={`${p.app_count} ${p.app_count === 1 ? "app" : "apps"}: access list of ${p.display_name}`}>{p.app_count}</Link></td>
-                    {canManage ? (
-                      <td>{p.is_active && p.id !== me.person_id ? <Link href={here(`&remove=${p.id}`)} className="danger-link">Remove</Link> : null}</td>
-                    ) : null}
                   </tr>
                 ))}
               </tbody>

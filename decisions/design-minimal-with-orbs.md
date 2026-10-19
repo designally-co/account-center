@@ -19,6 +19,7 @@ sources:
   - "Buk, 2026-10-19 (the people page: people in a grid of cards by default, do not remove the list view)"
   - "Buk, 2026-10-19 (I don't like the name \"kind\", change it)"
   - src/components/toast.tsx
+  - "Buk, 2026-10-19 (do not let the admin delete people from the list or grid view; they must go inside each one and delete)"
   - "Buk, 2026-10-19 (a design reference of two screenshots, a page of cards and a dialog: use the exact colours, surface, layer, modal, bg, outline, shadow)"
 ---
 
@@ -35,7 +36,7 @@ sources:
 - Each Home card is laid out like the cards in Buk's design reference: the app's name, one short line about what it does (`account.apps.description`, at most 60 characters, shortened from each app's own description: its brain.yaml purpose, the portal's README, MA Desk's brief), and on the right a small picture of what the app does (`account.apps.art`, an SVG under `public/apps/art/`, drawn for Account Center on 2026-10-19), because most apps would otherwise show the same Designally logo. No arrow. Both are data, set in migration 20261019140000. It does not show the person's role or the "2 of 3" action count, which mean little to an employee (Buk, 2026-10-19). Admins still see both on each person's page.
 
 - **Toasts for success:** a success message (Avatar saved, Saved, Invitation sent, Password saved, Removed) is a small light toast at the bottom of the screen that goes away after about 4 seconds (`src/components/toast.tsx`). Errors stay next to what they are about, because people need time to read them and act. A message that came in the address is taken out of it, so a reload does not show it again.
-- **People as cards by default:** the People page shows a grid of person cards (avatar, name, email, status, employment type, number of apps); a Grid / List switch keeps the table one click away (`?view=list`).
+- **People as cards by default:** the People page shows a grid of person cards (avatar, name, email, status, employment type, number of apps); a Grid / List switch keeps the table one click away (`?view=list`). Neither view can remove anyone: **Remove** is only at the bottom of each person's page, behind a confirm step, and never on your own page.
 - **"Employment type", not "kind":** the screens say "Employment type" (values Employee and Outsource). The database keeps its internal name `kind`, so nothing else changes.
 
 ## Why

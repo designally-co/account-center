@@ -89,11 +89,6 @@ button.danger { background: var(--danger); border-color: var(--danger); color: #
 button:disabled { opacity: 0.5; cursor: default; transform: none; }
 a.danger-link { color: var(--error); font-size: 13px; text-decoration: none; }
 a.danger-link:hover { text-decoration: underline; }
-/* In the People list, Remove shows on the row you point at (always on touch screens and for the keyboard). */
-@media (hover: hover) {
-  td a.danger-link { opacity: 0; transition: opacity 0.15s; }
-  tr:hover td a.danger-link, tr:focus-within td a.danger-link, td a.danger-link:focus-visible { opacity: 1; }
-}
 a.back { color: var(--muted); text-decoration: none; font-size: 14px; }
 a.back:hover { color: var(--fg); }
 /* One control size: 36px pills, like button.small. The sign-in fields are larger. */
@@ -370,14 +365,15 @@ main.home { max-width: 1160px; }
 .person-card.faded { opacity: 0.6; }
 .person-card-text { display: grid; gap: 2px; min-width: 0; }
 .person-card-name { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--fg); text-decoration: none; }
-/* The whole card opens the person's page; Remove sits above that. */
+/* The whole card opens the person's page. */
 .person-card-name::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
 .person-card-name:focus-visible { outline: none; }
 .person-card:has(.person-card-name:focus-visible) { outline: 2px solid var(--fg); outline-offset: 2px; }
 .person-card-email { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .person-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; color: var(--fg-2); }
-.person-card-remove { position: absolute; top: 18px; right: 18px; z-index: 1; }
-@media (hover: hover) {
-  .person-card-remove { opacity: 0; transition: opacity 0.15s; }
-  .person-card:hover .person-card-remove, .person-card:focus-within .person-card-remove { opacity: 1; }
-}
+
+/* Removing someone: at the bottom of their page, behind a confirm step */
+.remove-zone { padding-top: 8px; border-top: 1px solid var(--outline-strong); }
+.remove-zone > .row { justify-content: space-between; }
+a.button.danger-outline { color: var(--error); border-color: var(--error-soft); }
+a.button.danger-outline:hover { background: var(--error-soft); }

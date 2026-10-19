@@ -31,11 +31,13 @@ export async function workEmailAction(prev: FormNotice, form: FormData): Promise
   return { notice, n: (prev.n ?? 0) + 1 };
 }
 
+// Removing someone is done on their own page only (Buk, 2026-10-19), after a confirm step there.
 export async function removePersonAction(form: FormData) {
   const { me } = await requireAction(ACTIONS.manage);
-  const result = await removePerson(db(), me.person_id, String(form.get("person_id") ?? ""));
-  const view = form.get("view") === "list" ? "list" : "grid";
-  redirect(`/people?view=${view}&notice=${result === "removed" ? "person-removed" : `remove-${result}`}`);
+  const personId = String(form.get("person_id") ?? "");
+  const result = await removePerson(db(), me.person_id, personId);
+  if (result === "removed") redirect("/people?notice=person-removed");
+  redirect(isUuid(personId) ? `/people/${personId}?notice=remove-${result}` : "/people?notice=remove-not-found");
 }
 
 // Add a new company person and give them a login (Buk, 2026-10-19). The person is saved first, then the

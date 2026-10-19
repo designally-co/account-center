@@ -9,7 +9,7 @@ import { requireAction } from "@/lib/session";
 import { AppPanel, SaveNotice } from "./access-form";
 import { KindForm } from "./kind-form";
 import { WorkEmails } from "./work-emails";
-import { sendInviteAction, workEmailAction } from "../actions";
+import { removePersonAction, sendInviteAction, workEmailAction } from "../actions";
 import { inviteMessage } from "../invite-messages";
 import { InviteRow } from "./invite-row";
 import { saveAppAccessAction, setKindAction } from "./actions";
@@ -43,6 +43,9 @@ const SHARED_NOTICES: Record<string, Notice> = {
   inactive: { tone: "error", text: "This person was removed. Their access cannot be changed." },
   "not-found": { tone: "error", text: "That person was not found. Reload the page and try again." },
   "not-allowed": { tone: "error", text: "Not saved: you can no longer manage Account Center. Ask another admin." },
+  "remove-not-found": { tone: "error", text: "This person was already removed." },
+  "remove-yourself": { tone: "error", text: "You cannot remove yourself. Ask another admin." },
+  "remove-not-allowed": { tone: "error", text: "Not removed: you can no longer manage Account Center. Ask another admin." },
 };
 
 function Status({ p }: { p: PersonAccess }) {
@@ -137,6 +140,28 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
             ))}
           </div>
         </section>
+        {canManage && person.is_active && !isMe ? (
+          <section className="stack remove-zone" aria-labelledby="remove-title">
+            <h2 id="remove-title">Remove from Account Center</h2>
+            {search.confirm === "remove" ? (
+              <div className="confirm" role="alertdialog" aria-labelledby="confirm-title">
+                <p id="confirm-title"><strong>Remove {person.display_name}?</strong> They lose all access in every app at once. Their record and history stay.</p>
+                <div className="row">
+                  <form action={removePersonAction}>
+                    <input type="hidden" name="person_id" value={person.id} />
+                    <button type="submit" className="danger">Remove {person.display_name}</button>
+                  </form>
+                  <Link href={`/people/${person.id}`} className="button secondary">Cancel</Link>
+                </div>
+              </div>
+            ) : (
+              <div className="row">
+                <p className="muted">For someone who left. They lose all access in every app; their record and history stay.</p>
+                <Link href={`/people/${person.id}?confirm=remove#remove-title`} className="button secondary danger-outline">Remove {person.display_name}</Link>
+              </div>
+            )}
+          </section>
+        ) : null}
       </main>
     </>
   );
