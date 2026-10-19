@@ -9,6 +9,8 @@ sources:
   - "designally-co/designally-brain, decisions/company-portal-first-app-on-account-center.md"
 ---
 
+**Changed 2026-10-19:** the sign-in is tried before the move, through the Friday user `portal_check`; see `portal-sign-in-before-the-move.md`.
+
 ## Decision
 
 - The portal is the first app on Account Center (spec section 7, step 3b), before MA Desk and the other company apps.
