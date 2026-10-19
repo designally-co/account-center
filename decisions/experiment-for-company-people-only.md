@@ -9,6 +9,7 @@ sources:
   - "Buk, 2026-10-19 (on a person's access list, choose the apps, and inside each app what they can do: for example generate in Article Studio but not publish)"
   - "designally-co/designally-brain, decisions/company-account-center-experiment.md"
   - "designally-co/designally-brain, decisions/company-ecosystem-product-logins-apart-from-account-center.md"
+  - "Buk, 2026-10-19 (P Nick agreed to Part 1, then also to Part 2; Buk wants to run Part 1 first and make sure Account Center is solid enough to replace the existing system before switching)"
 ---
 
 ## Context
@@ -21,6 +22,7 @@ The spec of 2026-10-14 made some parts "real now": access for Buk's apps (MA Des
 - **An experiment that changes nothing in use:** the schema, the import and the app are built and tested, but no live app changes how people sign in, and nothing is written to Project Friday's Auth (account creation, blocking logins), until Buk and P Aek decide to switch. HR parts stay a prototype.
 - **Access per app and per action:** a person's access list shows the apps they can use and, inside each, what they can do. Access is never only per app.
 - **Kinds of people:** each account says what kind of person it is; an outsource account cannot get access to the HR app. The kind and the check are still to build; the full list of kinds is not decided.
+- **P Aek agreed** to Part 1 (the experiment) and to Part 2 (the switch) (Buk, 2026-10-19). Buk runs Part 1 first, and switches only when Account Center is solid enough to replace the current system (`docs/spec.md`, section 7, "Ready to switch").
 
 Not decided yet: the list of kinds, whether access is chosen person by person, through ready roles or both, and when the switch happens.
 
