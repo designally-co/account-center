@@ -1,7 +1,9 @@
 // What the admin reads after giving someone a login. Messages come from this fixed list only.
 export const INVITE_MESSAGES: Record<string, { tone: "ok" | "error"; text: string }> = {
   sent: { tone: "ok", text: "Invitation sent. They accept it from their email, then choose a password and make their avatar." },
-  linked: { tone: "ok", text: "This email already had a login (for example from HR), so it was linked. No email was sent: they sign in with their current password." },
+  linked: { tone: "ok", text: "The existing login was linked. No email was sent: they sign in with their current password, or use \"Forgot your password?\"." },
+  "account-exists": { tone: "error", text: "A login with this email already exists (for example HR made it). It was not linked, because anyone may have made it. Link it only if you know it is this person's." },
+  "account-unconfirmed": { tone: "error", text: "A login with this email exists, but its email was never confirmed, so it cannot be linked. Ask the Account Center owner to check it." },
   "mail-off": { tone: "error", text: "The email could not be sent: email is not set up yet. Copy the invitation link below and send it to them yourself (LINE or email)." },
   "mail-failed": { tone: "error", text: "The email could not be sent. Copy the invitation link below and send it to them yourself (LINE or email)." },
   "too-soon": { tone: "error", text: "An invitation was sent less than a minute ago. Wait a minute, then send it again." },

@@ -7,13 +7,15 @@ import { InviteLink } from "../invite-link";
 import { SaveNotice, SubmitButton } from "./access-form";
 
 // For someone without a working login yet: send the invitation (again). Shown to admins only.
-export function InviteRow({ action, personId, invited }: {
+export function InviteRow({ action, personId, invited, offerLink }: {
   action: (state: InviteState, form: FormData) => Promise<InviteState>;
   personId: string;
   invited: boolean;
+  offerLink: boolean;                    // a login with this email already exists: the admin may link it
 }) {
   const [state, formAction] = useActionState(action, {});
   const shown = inviteMessage(state.notice);
+  const canLink = state.notice ? state.notice === "account-exists" : offerLink;
   return (
     <div className="detail-row">
       <span className="detail-label">Sign-in</span>
@@ -29,6 +31,14 @@ export function InviteRow({ action, personId, invited }: {
           <SaveNotice key={state.n} tone={shown.tone} text={shown.text} />
           {state.link ? <InviteLink link={state.link} /> : null}
         </div>
+      ) : null}
+      {canLink ? (
+        <form action={formAction} className="detail-notice row">
+          <input type="hidden" name="person_id" value={personId} />
+          <input type="hidden" name="link_existing" value="1" />
+          <SubmitButton className="secondary small" pendingText="Linking…">Link the existing login</SubmitButton>
+          <span className="muted small-text">Only if HR made it for this person.</span>
+        </form>
       ) : null}
     </div>
   );

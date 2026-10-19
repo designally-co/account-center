@@ -124,5 +124,8 @@ describe("Add person", () => {
     await db.setup`insert into account.person_emails (email, person_id) values ('work@example.com', ${deeId}::uuid)`;
     expect(await addPerson(app, deeId, { name: "X", email: "work@example.com", kind: "employee" })).toEqual({ result: "work-email-of-another" });
     expect((await listPeople(app)).some((p) => p.email === "x@example.com")).toBe(false);
+    // Someone removed earlier is pointed out as removed, not as taken.
+    const [cat] = await db.setup<{ id: string }[]>`select id::text from account.people where email = 'cat@example.com'`;
+    expect(await addPerson(app, deeId, { name: "Cat", email: "cat@example.com", kind: "employee" })).toEqual({ result: "removed", id: cat.id });
   });
 });

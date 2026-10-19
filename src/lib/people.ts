@@ -98,7 +98,7 @@ export async function removePerson(sql: postgres.Sql, actorId: string, personId:
 
 export type AddPersonResult =
   | { result: "added"; id: string }
-  | { result: "taken"; id: string }
+  | { result: "taken" | "removed"; id: string }
   | { result: "invalid-name" | "invalid-email" | "invalid-kind" | "work-email-of-another" | "not-allowed" };
 
 // A new company person, added by an admin (Buk, 2026-10-19). Their login is made next, by the
@@ -111,8 +111,8 @@ export async function addPerson(sql: postgres.Sql, actorId: string, input: { nam
   const kind = String(input.kind ?? "");
   try {
     return await withActor(sql, actorId, async (tx) => {
-      const [same] = await tx<{ id: string }[]>`select id::text from account.people where email = ${email}`;
-      if (same) return { result: "taken", id: same.id } as const;
+      const [same] = await tx<{ id: string; is_active: boolean }[]>`select id::text, is_active from account.people where email = ${email}`;
+      if (same) return { result: same.is_active ? "taken" : "removed", id: same.id } as const;
       const [work] = await tx`select 1 from account.person_emails where email = ${email}`;
       if (work) return { result: "work-email-of-another" } as const;
       const [known] = await tx`select 1 from account.kinds where key = ${kind}`;

@@ -103,7 +103,7 @@ Built and tested locally on 2026-10-19 (Buk, 2026-10-19: "the admin must be able
 
 1. An Account Center admin presses **Add person** on the People page and types the person's name, their **Google email** (Gmail or designally.co; Buk chose "their Google email" on 2026-10-19: it is the sign-in email, and the invitation goes there) and their kind. Roles are given afterwards on their page, like everyone else's.
 2. Account Center adds the person to `account.people` (marked "created by Account Center", logged with the admin), then asks the server function **`account-invite`** in Friday. The function checks the admin's token with Friday's Auth and their rights in `account` (view and manage, under the same lock as every change), then:
-   - if a login with that email already exists (for example HR made it), it **links** it and sends nothing;
+   - if a login with that email already exists (for example HR made it), it is **not linked at once**: anyone may have made it, because Friday's sign-up may be open (section 6, item 1). The admin sees "A login with this email already exists" and presses **Link the existing login** only if they know it is this person's. A blocked login, or one whose email was never confirmed, is never linked. Nothing is emailed;
    - otherwise it makes an **invited** login with no password (Friday's Auth, `generate_link`), links it, and **emails the invitation** through Resend, the same email provider and sender domain as HR's server functions.
 3. The person opens the email and presses **Accept the invitation** on Account Center's `/accept` page (a button, so an email scanner that opens links cannot use it up). The link works once, and only while it is fresh (Friday's Auth setting for email links).
 4. They choose their password (at least 8 characters with letters and numbers, HR's rule), then make their avatar, and land on Home.
@@ -112,7 +112,7 @@ Built and tested locally on 2026-10-19 (Buk, 2026-10-19: "the admin must be able
 
 ### Passwords
 
-- **Forgot your password?** on the sign-in page: the person types their email, and the server function **`account-recover`** emails a link to `/accept`, then they choose a new password. The answer is always the same ("If this email belongs to an account, we sent a link"), so nobody can find out which emails have an account. A link is sent only to an active person in Account Center's list whose login is not blocked, at most once a minute.
+- **Forgot your password?** on the sign-in page: the person types their email, and the server function **`account-recover`** emails a link to `/accept`, then they choose a new password. The answer is always the same ("If this email belongs to an account, we sent a link"), so nobody can find out which emails have an account. A link is sent only to an active person in Account Center's list whose login is not blocked, at most once a minute per person and 20 a minute in all (`account.recover_sends`). The answer comes before the link is made and emailed, so its timing does not tell either.
 - **Change password** on Home: the person types their current password, then the new one.
 - After an invitation or reset link, the person does not need the old password for 30 minutes: Friday's Auth writes "signed in by an email link" and its time into the signed sign-in token, and Account Center's server reads it there (never from the form).
 - After a new password is saved, every other browser signed in to that account is signed out.
@@ -151,7 +151,7 @@ An Account Center admin presses **Remove** on the People page and confirms (Buk,
 
 Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). **An app's user gets the checks only on the day that app starts using Account Center**, in that app's own migration: `grant usage on schema account` and `grant execute on function account.can_user(uuid, text), account.can_email(text, text)` (and `me_by_*` only if the app needs the name and roles). Until then it has no access to `account` at all (migration `20261019100000_account_hardening.sql`, 2026-10-19), so no app can look up staff before it uses Account Center. (Earlier plan, now open, section 8: the brand guideline portal's database is not in Project Friday, so it would need its own small Friday user that may only call the check.) The apps never read `account` tables directly and never read HR.
 
-### Schema `account` (written: `supabase/migrations/`, `20261014100000_account_schema.sql`, `20261019100000_account_hardening.sql`, `20261019110000_kinds_and_access_lists.sql`, `20261019113000_avatars.sql`, `20261019130000_invitations.sql`, `20261019140000_app_descriptions.sql`)
+### Schema `account` (written: `supabase/migrations/`, `20261014100000_account_schema.sql`, `20261019100000_account_hardening.sql`, `20261019110000_kinds_and_access_lists.sql`, `20261019113000_avatars.sql`, `20261019130000_invitations.sql`, `20261019140000_app_cards.sql`)
 
 | Table | Holds |
 |---|---|
@@ -159,7 +159,7 @@ Each app connects with its own database user (`hub_app`, `studio_app`, `survey_a
 | `account.kinds` | The kinds of people (employee, outsource). Read-only for Account Center's server; changed by a migration |
 | `account.kind_blocked_apps` | Apps a kind may never use (outsource: HR). Read-only for Account Center's server; changed by a migration |
 | `account.person_emails` | Extra emails per person (work email for Google sign-in), added in Account Center |
-| `account.apps` | The apps that use Account Center, each with one sentence about it (`description`, on Home's cards), its colour on screen (`hue`), where it opens (`url`) and its own graphic (`icon`, a file under `/apps/` shipped with Account Center) |
+| `account.apps` | The apps that use Account Center, each with one short line about it and a small picture of what it does (`description` and `art`, on Home's cards), its colour on screen (`hue`), where it opens (`url`) and its own graphic (`icon`, a file under `/apps/` shipped with Account Center) |
 | `account.actions` | Each app's actions, with a short description |
 | `account.roles` | Roles per app |
 | `account.role_actions` | Which actions each role includes |
@@ -197,7 +197,7 @@ Example:
 
 ## 4. Account Center
 
-**Who can sign in:** every active company person with a working login (Buk, 2026-10-19), to see their own access and make their avatar. **Home** shows one card per app the person can use, with the app's own graphic (its orb until it has one) and one sentence about what the app is for (`account.apps.description`); the card opens the app (Buk, 2026-10-19). The card does not show the person's role or how many actions they have: that means little to an employee (Buk, 2026-10-19: "use the app desc"). Admins see roles and counts on each person's page. The People pages and every change to access need Account Center's own actions (view, manage).
+**Who can sign in:** every active company person with a working login (Buk, 2026-10-19), to see their own access and make their avatar. **Home** shows one card per app the person can use, with a small picture of what the app does (`account.apps.art`, like the cards in Buk's design reference; the app's own graphic or orb when there is no picture) and one short line about what the app is for (`account.apps.description`); the card opens the app (Buk, 2026-10-19). The card does not show the person's role or how many actions they have: that means little to an employee (Buk, 2026-10-19: "use the app desc"). Admins see roles and counts on each person's page. The People pages and every change to access need Account Center's own actions (view, manage).
 
 **Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone with their status and kind, **Remove** for people who leave; every change in the change log with the admin's id); step 3 (first version, 2026-10-19), **each person's page**: kind, work emails, and per app a ready role and one allowed/blocked row per action; step 4, **avatars** (the maker, shown at first sign-in); step 5 (2026-10-19), **Add person with an invitation email, Forgot your password and Change password** (section 3, "Creating an account" and "Passwords"; the server functions are not deployed to Friday). Design: minimal, black and white, with a soft gradient orb per app and a drawn avatar per person (Buk, 2026-10-19: "minimal, modern and intentional", like ElevenLabs). Release and hosting: `docs/deploy-nas.md`. The HR list is imported once, by a person, when Account Center starts in Friday.
 

@@ -45,7 +45,7 @@ export type AddState = { error?: string; existingId?: string; personId?: string;
 export async function addPersonAction(_: AddState, form: FormData): Promise<AddState> {
   const { me } = await requireAction(ACTIONS.manage);
   const added = await addPerson(db(), me.person_id, { name: form.get("name"), email: form.get("email"), kind: form.get("kind") });
-  if (added.result === "taken") return { error: "taken", existingId: added.id };
+  if (added.result === "taken" || added.result === "removed") return { error: added.result, existingId: added.id };
   if (added.result !== "added") return { error: added.result };
   revalidatePath("/people");
   const sent = await sendInvite(added.id);
@@ -62,8 +62,10 @@ export async function sendInviteAction(prev: InviteState, form: FormData): Promi
   const personId = String(form.get("person_id") ?? "");
   const n = (prev.n ?? 0) + 1;
   if (!isUuid(personId)) return { notice: "no-person", n };
-  const sent = await sendInvite(personId);
+  const sent = await sendInvite(personId, form.get("link_existing") === "1");
   revalidatePath(`/people/${personId}`);
+  // Linking changes the person's sign-in state, so the row that sent it goes away: say it on the page.
+  if (!("error" in sent) && sent.result === "linked") redirect(`/people/${personId}?notice=invite-linked`);
   if ("error" in sent) return { notice: sent.error, n };
   return "link" in sent ? { notice: sent.result, link: sent.link, n } : { notice: sent.result, n };
 }

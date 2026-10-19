@@ -17,24 +17,28 @@ export type Deps = {
   appUrl: string;             // where the links open, e.g. https://account.designally.co
   orgName: string;            // the company name in the emails (a setting, not code)
   sendMail: (mail: Mail) => Promise<MailResult>;
+  later?: (work: Promise<void>) => void;  // finish this after the answer is sent (Friday's EdgeRuntime.waitUntil)
 };
 
 export type Reply = { status: number; body: Record<string, unknown> };
 
 // One email per person per minute: invitations sent again, and reset links.
 const WAIT_SECONDS = 60;
+const FETCH_MS = 10_000;               // a call to Friday's Auth or to Resend gives up after this
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ---------------------------------------------------------------------------------------------
 // account-invite: an Account Center admin gives a person a login.
 // - The person must already be in Account Center's list (added by the admin a moment before), active.
-// - If an account with their email already exists (for example HR made it), it is linked; no email.
-// - Otherwise an invited account is made (no password yet) and the invitation is emailed. Sent again
-//   while the person has not accepted, it makes a new link (the old one stops working).
+// - A login that already exists with their email (for example HR made it) is linked only when the admin
+//   confirms it (`linkExisting`), because anyone may have made it (Friday's sign-up may be open; review
+//   2026-10-19). Never a blocked one, and never one whose email was not confirmed. No email is sent.
+// - Otherwise an invited login is made (no password yet) and the invitation is emailed. Sent again while
+//   the person has not accepted, it makes a new link (the old one stops working), at most once a minute.
 // - A person whose login already works is refused: they use "Forgot password" instead.
 // The caller is checked twice: their sign-in token with Friday's Auth, then their rights in schema
 // account, under the same lock every Account Center change takes.
-export async function invite(deps: Deps, bearer: string | null, personId: unknown): Promise<Reply> {
+export async function invite(deps: Deps, bearer: string | null, personId: unknown, linkExisting = false): Promise<Reply> {
   if (typeof personId !== "string" || !UUID.test(personId)) return reply(400, { error: "bad-request" });
   const callerId = bearer ? await signedInUser(deps, bearer) : null;
   if (!callerId) return reply(401, { error: "not-allowed" });
@@ -43,6 +47,9 @@ export async function invite(deps: Deps, bearer: string | null, personId: unknow
   let plan: Plan;
   try {
     plan = await deps.sql.begin(async (tx) => {
+      // A slow Auth server must not hold every Account Center change for long.
+      await tx`set local lock_timeout = '10s'`;
+      await tx`set local statement_timeout = '20s'`;
       await tx`select pg_advisory_xact_lock(hashtext('account.changes'))`;
       const [actor] = await tx<{ id: string }[]>`
         select p.id::text from account.people p
@@ -66,14 +73,18 @@ export async function invite(deps: Deps, bearer: string | null, personId: unknow
 
       // Linked to an account that is gone: never make a second one behind the person's back.
       if (person.auth_user_id && (!account || account.deleted_at)) throw new Refusal(409, "account-missing");
-      if (account && !person.auth_user_id && !isPending(account)) {
-        // An account that already works (HR made it): link it, send nothing.
+      if (account && isBlocked(account)) throw new Refusal(409, "account-blocked");
+      if (account && !person.auth_user_id) {
+        // An account found by email must not be someone else's already.
         const [other] = await tx`select 1 from account.people where auth_user_id = ${account.id}::uuid`;
         if (other) throw new Refusal(409, "account-taken");
-        await tx`update account.people set auth_user_id = ${account.id}::uuid where id = ${personId}::uuid`;
-        return { kind: "linked" } as Plan;
+        if (!isPending(account)) {
+          if (!linkExisting) throw new Refusal(409, "account-exists");
+          if (!account.email_confirmed_at) throw new Refusal(409, "account-unconfirmed");
+          await tx`update account.people set auth_user_id = ${account.id}::uuid where id = ${personId}::uuid`;
+          return { kind: "linked" } as Plan;
+        }
       }
-      if (account && isBlocked(account)) throw new Refusal(409, "account-blocked");
       if (account && !isPending(account)) throw new Refusal(409, "has-login");
       if (account && account.invited_at && secondsSince(account.invited_at) < WAIT_SECONDS) throw new Refusal(429, "too-soon");
 
@@ -101,24 +112,41 @@ export async function invite(deps: Deps, bearer: string | null, personId: unknow
 
 // ---------------------------------------------------------------------------------------------
 // account-recover: "Forgot password". Open to anyone, so it never says whether an email has an account:
-// the answer is always the same. A link is emailed only to an active person in Account Center's list
-// whose login is not blocked, at most once a minute.
+// the answer is always the same, and it comes before the slow work (making the link and emailing it),
+// so its timing does not tell either. A link is emailed only to an active person in Account Center's list
+// whose login is not blocked, at most once a minute per person (claimed in one statement, so requests at
+// the same moment cannot all pass), and at most RECOVER_PER_MINUTE links a minute in all.
+const RECOVER_PER_MINUTE = 20;
+
 export async function recover(deps: Deps, rawEmail: unknown): Promise<Reply> {
   const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 320) return reply(400, { error: "bad-request" });
   const same = reply(200, { ok: true });
 
-  const [row] = await deps.sql<(AuthRow & { recovery_sent_at: Date | null })[]>`
-    select u.id::text, u.email, u.invited_at, u.email_confirmed_at, u.banned_until, u.deleted_at, u.recovery_sent_at
+  const [row] = await deps.sql<AuthRow[]>`
+    select u.id::text, u.email, u.invited_at, u.email_confirmed_at, u.banned_until, u.deleted_at
     from account.people p join auth.users u on u.id = p.auth_user_id
     where p.email = ${email} and p.is_active and u.deleted_at is null`;
   if (!row || isBlocked(row)) return same;
-  if (row.recovery_sent_at && secondsSince(row.recovery_sent_at) < WAIT_SECONDS) return same;
 
-  const made = await generateLink(deps, "recovery", row.email, undefined);
-  if (!made) return same;
-  const sent = await deps.sendMail(recoveryMail(deps, made.email, acceptLink(deps, "recovery", made.tokenHash)));
-  if (!sent.ok && !("skipped" in sent)) console.error("[account-recover] the reset email was not sent");
+  // Claim this minute's slot for the person, and stop when too many links went out this minute.
+  const [claimed] = await deps.sql`
+    with busy as (select count(*) as n from account.recover_sends where sent_at > now() - interval '1 minute')
+    insert into account.recover_sends as r (auth_user_id, sent_at)
+    select ${row.id}::uuid, now() from busy where busy.n < ${RECOVER_PER_MINUTE}
+    on conflict (auth_user_id) do update set sent_at = excluded.sent_at
+      where r.sent_at <= now() - interval '1 minute'
+    returning 1`;
+  if (!claimed) return same;
+
+  const work = (async () => {
+    const made = await generateLink(deps, "recovery", row.email, undefined);
+    if (!made) return;
+    const sent = await deps.sendMail(recoveryMail(deps, made.email, acceptLink(deps, "recovery", made.tokenHash)));
+    if (!sent.ok && !("skipped" in sent)) console.error("[account-recover] the reset email was not sent");
+  })();
+  if (deps.later) deps.later(work);
+  else await work;
   return same;
 }
 
@@ -156,7 +184,7 @@ function authHeaders(deps: Deps, bearer: string): Record<string, string> {
 // The caller's account id, checked by Friday's Auth (a token that is expired or made up gets null).
 async function signedInUser(deps: Deps, token: string): Promise<string | null> {
   try {
-    const res = await fetch(`${deps.authUrl}/user`, { headers: authHeaders(deps, token) });
+    const res = await fetch(`${deps.authUrl}/user`, { headers: authHeaders(deps, token), signal: AbortSignal.timeout(FETCH_MS) });
     if (!res.ok) return null;
     const user = (await res.json()) as { id?: string };
     return typeof user.id === "string" && UUID.test(user.id) ? user.id : null;
@@ -172,6 +200,7 @@ async function generateLink(deps: Deps, type: "invite" | "recovery", email: stri
       method: "POST",
       headers: authHeaders(deps, deps.serviceKey),
       body: JSON.stringify({ type, email, ...(data ? { data } : {}) }),
+      signal: AbortSignal.timeout(FETCH_MS),
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { id?: string; email?: string; hashed_token?: string };
@@ -243,6 +272,7 @@ export function resendSender(opts: { apiKey: string | undefined; from: string; e
         method: "POST",
         headers: { Authorization: `Bearer ${opts.apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({ from: opts.from, to: [mail.to], subject: mail.subject, html: mail.html, text: mail.text }),
+        signal: AbortSignal.timeout(FETCH_MS),
       });
       return res.ok ? { ok: true } : { ok: false, error: `Resend responded ${res.status}` };
     } catch (e) {

@@ -11,15 +11,16 @@ export type InviteResult =
   | { error: string };
 
 const INVITE_ERRORS = new Set([
-  "bad-request", "not-allowed", "no-person", "account-taken", "account-missing", "account-blocked", "has-login",
-  "too-soon", "auth-failed",
+  "bad-request", "not-allowed", "no-person", "account-taken", "account-missing", "account-blocked", "account-exists",
+  "account-unconfirmed", "has-login", "too-soon", "auth-failed",
 ]);
 
 function functionUrl(name: string): string {
   return `${env.supabaseUrl.replace(/\/+$/, "")}/functions/v1/${name}`;
 }
 
-export async function sendInvite(personId: string): Promise<InviteResult> {
+// `linkExisting`: the admin confirmed that a login which already exists with this email is this person's.
+export async function sendInvite(personId: string, linkExisting = false): Promise<InviteResult> {
   const supabase = await supabaseServer();
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -28,7 +29,7 @@ export async function sendInvite(personId: string): Promise<InviteResult> {
     const res = await fetch(functionUrl("account-invite"), {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: env.supabaseKey, Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ person_id: personId }),
+      body: JSON.stringify({ person_id: personId, link_existing: linkExisting }),
       cache: "no-store",
     });
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;

@@ -15,7 +15,8 @@ function passwordProblem(password: string): string | null {
   if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
     return "Use at least 8 characters, with letters and numbers.";
   }
-  if (password.length > 72) return "Use 72 characters or fewer.";
+  // Friday's Auth stores at most 72 bytes; Thai letters take 3 bytes each.
+  if (new TextEncoder().encode(password).length > 72) return "That password is too long. Use a shorter one.";
   return null;
 }
 
@@ -48,6 +49,7 @@ export async function setPasswordAction(_: PasswordState, form: FormData): Promi
   if (error) {
     if (error.code === "same_password") return { error: "That is already your password. Choose a new one." };
     if (error.code === "weak_password") return { error: "That password is too easy to guess. Choose another one." };
+    if (error.code === "validation_failed") return { error: "That password cannot be used. Choose another one." };
     return { error: "Not saved. Try again in a minute." };
   }
   // Other browsers signed in to this account are signed out, in case someone else had the old password.

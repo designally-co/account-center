@@ -122,7 +122,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
             kinds={kinds.map(({ key, name }) => ({ key, name }))} appNames={Object.fromEntries(person.apps.map((a) => [a.key, a.name]))}
             current={person.kind} locked={!canManage || !person.is_active || isMe} />
           {canManage && person.is_active && (person.login === "missing" || person.login === "invited") ? (
-            <InviteRow action={sendInviteAction} personId={person.id} invited={person.login === "invited"} />
+            <InviteRow action={sendInviteAction} personId={person.id} invited={person.login === "invited"} offerLink={noticeKey === "invite-account-exists"} />
           ) : null}
           <WorkEmails action={workEmailAction} personId={person.id} emails={person.work_emails} canManage={canManage}
             canAdd={canManage && person.is_active} />

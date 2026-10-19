@@ -132,10 +132,13 @@ describe("account-invite", () => {
     expect(await invite(deps(), token(DEE), fay)).toEqual({ status: 409, body: { error: "has-login" } });
   });
 
-  it("links an account that already exists (for example made by HR) and sends nothing", async () => {
+  it("links a login that already exists only when the admin confirms it, and sends nothing", async () => {
     await sql`insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000a1', 'Gus@Example.com', now())`;
     const gus = await addPerson("gus@example.com", "Gus");
-    expect(await invite(deps(), token(DEE), gus)).toEqual({ status: 200, body: { result: "linked" } });
+    // Anyone may have made it (Friday's sign-up may be open), so it is never linked without the admin.
+    expect(await invite(deps(), token(DEE), gus)).toEqual({ status: 409, body: { error: "account-exists" } });
+    expect((await sql`select auth_user_id from account.people where id = ${gus}::uuid`)[0].auth_user_id).toBeNull();
+    expect(await invite(deps(), token(DEE), gus, true)).toEqual({ status: 200, body: { result: "linked" } });
     const [person] = await sql`select auth_user_id::text from account.people where id = ${gus}::uuid`;
     expect(person.auth_user_id).toBe("00000000-0000-0000-0000-0000000000a1");
     expect(mails).toHaveLength(0);
@@ -157,6 +160,26 @@ describe("account-invite", () => {
     await sql`update account.people set is_active = false where id = ${ida}::uuid`;
     expect(await invite(deps(), token(DEE), ida)).toEqual({ status: 404, body: { error: "no-person" } });
     expect(mails).toHaveLength(0);
+  });
+
+  it("never links a login whose email was never confirmed, or a blocked one", async () => {
+    await sql`insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a3', 'una@example.com')`;
+    const una = await addPerson("una@example.com", "Una");
+    expect(await invite(deps(), token(DEE), una, true)).toEqual({ status: 409, body: { error: "account-unconfirmed" } });
+    await sql`insert into auth.users (id, email, email_confirmed_at, banned_until) values ('00000000-0000-0000-0000-0000000000a4', 'vic@example.com', now(), now() + interval '1 year')`;
+    const vic = await addPerson("vic@example.com", "Vic");
+    expect(await invite(deps(), token(DEE), vic, true)).toEqual({ status: 409, body: { error: "account-blocked" } });
+    const linked = await sql`select 1 from account.people where id in (${una}::uuid, ${vic}::uuid) and auth_user_id is not null`;
+    expect(linked).toHaveLength(0);
+  });
+
+  it("refuses an invitation already waiting for someone else before making a new link", async () => {
+    const before = tokens;
+    await sql`insert into auth.users (id, email, invited_at) values ('00000000-0000-0000-0000-0000000000a5', 'wes@example.com', now() - interval '1 day')`;
+    await addPerson("wes.old@example.com", "Wes Old", "00000000-0000-0000-0000-0000000000a5");
+    const wes = await addPerson("wes@example.com", "Wes");
+    expect(await invite(deps(), token(DEE), wes)).toEqual({ status: 409, body: { error: "account-taken" } });
+    expect(tokens).toBe(before);
   });
 
   it("refuses a blocked account", async () => {
@@ -196,10 +219,31 @@ describe("account-recover", () => {
     expect(linkOf(mails[0])).toMatch(/^https:\/\/account\.example\/accept\?type=recovery&token_hash=hash-\d+$/);
   });
 
-  it("sends at most one link a minute", async () => {
+  it("sends at most one link a minute, even when asked many times at the same moment", async () => {
     expect(await recover(deps(), "ann@example.com")).toEqual({ status: 200, body: { ok: true } });
     expect(mails).toHaveLength(0);
-    await sql`update auth.users set recovery_sent_at = now() - interval '2 minutes' where id = ${ANN}::uuid`;
+    await sql`update account.recover_sends set sent_at = now() - interval '2 minutes' where auth_user_id = ${ANN}::uuid`;
+    await Promise.all(Array.from({ length: 5 }, () => recover(deps(), "ann@example.com")));
+    expect(mails).toHaveLength(1);
+  });
+
+  it("answers before making and emailing the link, so its timing tells nothing", async () => {
+    await sql`update account.recover_sends set sent_at = now() - interval '2 minutes' where auth_user_id = ${ANN}::uuid`;
+    const later: Promise<void>[] = [];
+    const reply = await recover({ ...deps(), later: (work) => { later.push(work); } }, "ann@example.com");
+    expect(reply).toEqual({ status: 200, body: { ok: true } });
+    expect(mails).toHaveLength(0);
+    expect(later).toHaveLength(1);
+    await Promise.all(later);
+    expect(mails).toHaveLength(1);
+  });
+
+  it("stops sending when too many links went out this minute", async () => {
+    await sql`delete from account.recover_sends`;
+    await sql`insert into account.recover_sends (auth_user_id, sent_at) select gen_random_uuid(), now() from generate_series(1, 20)`;
+    await recover(deps(), "ann@example.com");
+    expect(mails).toHaveLength(0);
+    await sql`delete from account.recover_sends`;
     await recover(deps(), "ann@example.com");
     expect(mails).toHaveLength(1);
   });

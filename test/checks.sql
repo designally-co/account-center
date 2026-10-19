@@ -320,10 +320,11 @@ update auth.users set email_confirmed_at = null, banned_until = now() + interval
 select pg_temp.ok(account.login_state('00000000-0000-0000-0000-0000000000e1') = 'blocked', 'login state: blocked wins over invited');
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';
 
--- App descriptions: every seeded app has one, and they stay short.
+-- App cards: every seeded app has a description and a picture, and descriptions stay short.
+select pg_temp.ok((select count(*) from account.apps where art is null) = 0, 'every app has a picture');
 select pg_temp.ok((select count(*) from account.apps where description = '') = 0, 'every app has a description');
 do $$ begin
-  update account.apps set description = repeat('x', 161) where key = 'hub';
+  update account.apps set description = repeat('x', 61) where key = 'hub';
   raise exception 'a long description was accepted';
 exception when check_violation then raise notice 'ok: an app description stays short';
 end $$;

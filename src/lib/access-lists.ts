@@ -25,6 +25,7 @@ export type AppAccess = {
   hue: number | null;                    // the app's colour on screen (account.apps.hue)
   url: string | null;                    // where the app opens (account.apps.url)
   icon: string | null;                   // the app's own graphic (account.apps.icon)
+  art: string | null;                    // a small picture of what the app does, for Home (account.apps.art)
   keptOut: boolean;                      // the person's kind may never use this app
   roles: { key: string; name: string; description: string; actions: string[] }[];
   roleKeys: string[];                    // the person's ready roles here (normally one)
@@ -57,8 +58,8 @@ function versionOf(app: Omit<AppAccess, "version">): string {
 // Every app (or one app) with its roles, the person's roles and each action's state for this person.
 // Always inside a transaction, so the four reads (and the version made from them) agree.
 async function readApps(sql: postgres.TransactionSql, personId: string, kind: string, onlyApp: string | null): Promise<AppAccess[]> {
-  const apps = await sql<{ key: string; name: string; description: string; is_prototype: boolean; hue: number | null; url: string | null; icon: string | null; kept_out: boolean }[]>`
-    select a.key, a.name, a.description, a.is_prototype, a.hue, a.url, a.icon,
+  const apps = await sql<{ key: string; name: string; description: string; is_prototype: boolean; hue: number | null; url: string | null; icon: string | null; art: string | null; kept_out: boolean }[]>`
+    select a.key, a.name, a.description, a.is_prototype, a.hue, a.url, a.icon, a.art,
            exists (select 1 from account.kind_blocked_apps b where b.kind = ${kind} and b.app_key = a.key) as kept_out
     from account.apps a
     where ${onlyApp}::text is null or a.key = ${onlyApp}
@@ -93,6 +94,7 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
       hue: app.hue,
       url: app.url,
       icon: app.icon,
+      art: app.art,
       keptOut: app.kept_out,
       roles: roles.filter((r) => r.app_key === app.key).map(({ key, name, description, actions }) => ({ key, name, description, actions })),
       roleKeys: grants.filter((g) => g.app_key === app.key).map((g) => g.role_key),

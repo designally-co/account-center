@@ -271,19 +271,23 @@ ul.perm-list li:last-child { border-bottom: none; }
 .perm-state.block { color: var(--error); }
 
 /* Home: one card per app you can use; the card opens the app */
-.app-cards { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+/* Like the cards in Buk's design reference: a title, one or two short grey lines, and the app's graphic in a
+   soft tile on the right. */
+.app-cards { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
 .app-card {
-  position: relative; height: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px;
-  padding: 18px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius); box-shadow: var(--shadow);
+  position: relative; height: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px;
+  padding: 20px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius); box-shadow: var(--shadow);
   color: var(--fg); text-decoration: none; transition: transform 0.2s var(--ease), border-color 0.2s, box-shadow 0.2s;
 }
 a.app-card:hover { transform: translateY(-2px); border-color: var(--outline-strong); box-shadow: var(--shadow-hover); }
 a.app-card:hover .orb::before { transform: rotate(140deg); }
 .app-card.off { opacity: 0.7; }
-.app-card-text { display: grid; gap: 2px; min-width: 0; }
-.app-card-text .muted { font-size: 13px; color: var(--fg-2); }
-.app-card-go { align-self: start; color: var(--muted); font-size: 18px; transition: transform 0.2s var(--ease), color 0.2s; }
-a.app-card:hover .app-card-go { color: var(--fg); transform: translate(2px, -2px); }
+.app-card-text { display: grid; gap: 6px; align-content: center; min-width: 0; }
+.app-card-text strong { font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
+.app-card-text .pill { justify-self: start; }
+.app-card-desc { font-size: 14px; line-height: 1.55; color: var(--fg-2); }
+.app-card-art { display: grid; place-items: center; width: 116px; height: 68px; border-radius: var(--radius-inner); background: var(--layer); overflow: hidden; }
+.app-card-art img { display: block; width: 100%; height: 100%; }
 .app-icon { display: block; flex: none; border-radius: 22%; object-fit: contain; }
 
 
@@ -340,3 +344,5 @@ main.narrow-form { max-width: 520px; }
 .new-person { padding: 22px 24px; }
 .invite-link { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .invite-link input { flex: 1 1 240px; min-width: 0; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+/* Home is wider, like the reference, so each app card's line fits on two lines next to its picture. */
+main.home { max-width: 1160px; }

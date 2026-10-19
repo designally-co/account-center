@@ -21,7 +21,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <>
       <Nav current="home" me={me} canView={canView} />
-      <main className="wide">
+      <main className="home">
         {search.notice === "avatar-saved" ? <p className="notice ok" role="status">Avatar saved.</p> : null}
         {search.notice === "not-allowed" ? <p className="notice error" role="alert">You do not have access to that page.</p> : null}
         {search.notice === "password-saved" ? <p className="notice ok" role="status">Password saved. Other browsers signed in to your account were signed out.</p> : null}
@@ -42,12 +42,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             {mine.map(({ app }) => {
               const inner = (
                 <>
-                  <AppIcon appKey={app.key} icon={app.icon} hue={app.hue} size={48} />
                   <span className="app-card-text">
                     <strong>{app.name}</strong>
-                    {app.description ? <span className="muted">{app.description}</span> : null}
+                    {app.description ? <span className="app-card-desc">{app.description}</span> : null}
+                    {app.url ? null : <span className="pill plain">Not online yet</span>}
                   </span>
-                  {app.url ? <span className="app-card-go" aria-hidden="true">↗</span> : <span className="pill plain">Not online yet</span>}
+                  <span className="app-card-art">{app.art ? <img src={app.art} alt="" width={116} height={68} /> : <AppIcon appKey={app.key} icon={app.icon} hue={app.hue} size={44} />}</span>
                 </>
               );
               const outside = app.url?.startsWith("https://");

@@ -20,3 +20,15 @@ language sql stable security definer set search_path = '' as $$
     else 'ok'
   end;
 $$;
+
+-- "Forgot password" sends at most one link a minute per person, and a limited number a minute in all
+-- (supabase/functions/_shared/core.ts, recover). The server function claims the slot here in one statement,
+-- so requests at the same moment cannot all pass. One row per person who asked; only the account id and
+-- the time. Only the server function (as Friday's own database user) reads and writes it.
+create table account.recover_sends (
+  auth_user_id uuid primary key,
+  sent_at      timestamptz not null default now()
+);
+create index recover_sends_sent_at_idx on account.recover_sends (sent_at);
+alter table account.recover_sends enable row level security;
+revoke all on account.recover_sends from public;

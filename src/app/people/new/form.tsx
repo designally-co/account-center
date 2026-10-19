@@ -29,7 +29,7 @@ export function NewPersonForm({ kinds }: { kinds: { key: string; name: string }[
     );
   }
 
-  const error = state.error === "taken" ? null : state.error && Object.hasOwn(ERRORS, state.error) ? ERRORS[state.error] : null;
+  const error = state.error === "taken" || state.error === "removed" ? null : state.error && Object.hasOwn(ERRORS, state.error) ? ERRORS[state.error] : null;
   return (
     <form action={action} className="panel stack new-person">
       <label className="field">
@@ -49,6 +49,8 @@ export function NewPersonForm({ kinds }: { kinds: { key: string; name: string }[
       </label>
       {state.error === "taken" && state.existingId ? (
         <p className="error" role="alert">This email is already in Account Center. <Link href={`/people/${state.existingId}`}>Open their page</Link></p>
+      ) : state.error === "removed" && state.existingId ? (
+        <p className="error" role="alert">This person was removed from Account Center earlier. Bringing someone back is not built yet: ask the Account Center owner. <Link href={`/people/${state.existingId}`}>Open their page</Link></p>
       ) : error ? <p className="error" role="alert">{error}</p> : null}
       <div className="row">
         <button type="submit" disabled={pending}>{pending ? "Adding..." : "Add and send invitation"}</button>
