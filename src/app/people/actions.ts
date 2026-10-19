@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { ACTIONS } from "@/lib/access";
 import { db } from "@/lib/db";
 import { isUuid } from "@/lib/ids";
-import { addWorkEmail, removePerson, removeWorkEmail } from "@/lib/people";
+import { sendInvite } from "@/lib/invites";
+import { addPerson, addWorkEmail, removePerson, removeWorkEmail } from "@/lib/people";
 import { requireAction } from "@/lib/session";
 
 // Every action checks "manage" again on the server; hiding the buttons is only for the screen.
@@ -34,4 +35,35 @@ export async function removePersonAction(form: FormData) {
   const { me } = await requireAction(ACTIONS.manage);
   const result = await removePerson(db(), me.person_id, String(form.get("person_id") ?? ""));
   redirect(`/people?notice=${result === "removed" ? "person-removed" : `remove-${result}`}`);
+}
+
+// Add a new company person and give them a login (Buk, 2026-10-19). The person is saved first, then the
+// account-invite server function makes their login and emails the invitation. When the email cannot be
+// sent, the admin gets the link here, to pass on by hand.
+export type AddState = { error?: string; existingId?: string; personId?: string; name?: string; mail?: string; link?: string };
+
+export async function addPersonAction(_: AddState, form: FormData): Promise<AddState> {
+  const { me } = await requireAction(ACTIONS.manage);
+  const added = await addPerson(db(), me.person_id, { name: form.get("name"), email: form.get("email"), kind: form.get("kind") });
+  if (added.result === "taken") return { error: "taken", existingId: added.id };
+  if (added.result !== "added") return { error: added.result };
+  revalidatePath("/people");
+  const sent = await sendInvite(added.id);
+  if ("error" in sent) redirect(`/people/${added.id}?notice=invite-${sent.error}`);
+  if (!("link" in sent)) redirect(`/people/${added.id}?notice=invite-${sent.result}`);
+  return { personId: added.id, name: String(form.get("name") ?? "").trim(), mail: sent.result, link: sent.link };
+}
+
+// Send the invitation again (or for the first time, for someone with no login yet).
+export type InviteState = { notice?: string; link?: string; n?: number };
+
+export async function sendInviteAction(prev: InviteState, form: FormData): Promise<InviteState> {
+  await requireAction(ACTIONS.manage);
+  const personId = String(form.get("person_id") ?? "");
+  const n = (prev.n ?? 0) + 1;
+  if (!isUuid(personId)) return { notice: "no-person", n };
+  const sent = await sendInvite(personId);
+  revalidatePath(`/people/${personId}`);
+  if ("error" in sent) return { notice: sent.error, n };
+  return "link" in sent ? { notice: sent.result, link: sent.link, n } : { notice: sent.result, n };
 }

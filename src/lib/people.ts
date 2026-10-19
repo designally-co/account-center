@@ -2,7 +2,7 @@ import type postgres from "postgres";
 import { NotAllowed, withActor } from "./actor";
 import { isUuid, sameId } from "./ids";
 
-export type LoginState = "ok" | "blocked" | "missing";
+export type LoginState = "ok" | "blocked" | "missing" | "invited";
 
 export type PersonRow = {
   id: string;
@@ -92,6 +92,38 @@ export async function removePerson(sql: postgres.Sql, actorId: string, personId:
     });
   } catch (error) {
     if (error instanceof NotAllowed) return "not-allowed";
+    throw error;
+  }
+}
+
+export type AddPersonResult =
+  | { result: "added"; id: string }
+  | { result: "taken"; id: string }
+  | { result: "invalid-name" | "invalid-email" | "invalid-kind" | "work-email-of-another" | "not-allowed" };
+
+// A new company person, added by an admin (Buk, 2026-10-19). Their login is made next, by the
+// account-invite server function (src/lib/invites.ts). Kind is checked by the database too.
+export async function addPerson(sql: postgres.Sql, actorId: string, input: { name: unknown; email: unknown; kind: unknown }): Promise<AddPersonResult> {
+  const name = String(input.name ?? "").trim().replace(/\s+/g, " ");
+  if (!name || name.length > 100) return { result: "invalid-name" };
+  const email = normalizeEmail(input.email);
+  if (!email || email.length > 320) return { result: "invalid-email" };
+  const kind = String(input.kind ?? "");
+  try {
+    return await withActor(sql, actorId, async (tx) => {
+      const [same] = await tx<{ id: string }[]>`select id::text from account.people where email = ${email}`;
+      if (same) return { result: "taken", id: same.id } as const;
+      const [work] = await tx`select 1 from account.person_emails where email = ${email}`;
+      if (work) return { result: "work-email-of-another" } as const;
+      const [known] = await tx`select 1 from account.kinds where key = ${kind}`;
+      if (!known) return { result: "invalid-kind" } as const;
+      const [row] = await tx<{ id: string }[]>`
+        insert into account.people (source, display_name, email, kind)
+        values ('account_center', ${name}, ${email}, ${kind}) returning id::text`;
+      return { result: "added", id: row.id } as const;
+    });
+  } catch (error) {
+    if (error instanceof NotAllowed) return { result: "not-allowed" };
     throw error;
   }
 }

@@ -31,6 +31,7 @@ function Status({ p }: { p: PersonRow }) {
   if (!p.is_active) return <span className="pill muted">Inactive</span>;
   if (p.login === "blocked") return <span className="pill warn">Login blocked</span>;
   if (p.login === "missing") return <span className="pill warn">No login</span>;
+  if (p.login === "invited") return <span className="pill">Invited</span>;
   return <span className="pill ok">Active</span>;
 }
 
@@ -49,6 +50,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
             <h1>People</h1>
             <p className="muted">{active} active · {people.length - active} inactive</p>
           </div>
+          {canManage ? <Link href="/people/new" className="button">Add person</Link> : null}
         </div>
 
         <Notice search={search} />

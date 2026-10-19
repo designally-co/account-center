@@ -38,12 +38,30 @@ What the migration does in Friday: creates schema `account` with its tables and 
    - indexes for the three foreign keys the performance advisor listed;
    - change-log triggers on `account.apps` and `account.actions`.
 3c. **Kinds of people and per-person access lists** (`20261019110000_kinds_and_access_lists.sql`), with the same guard. Not applied yet. It adds `account.kinds`, `account.kind_blocked_apps` and `account.person_actions`, a `kind` column on `account.people` (everyone starts as an employee), `hue`, `url` and `icon` columns on `account.apps` (each app's colour on screen, where it opens, and its graphic; set for the apps whose values are known), the checks that keep an outsource account out of HR, and new versions of `account.person_can`, `account.me` and `account.bootstrap_first_admin` (same names, arguments and rights). Run it before the release of Account Center that needs it. Together with it: `20261019113000_avatars.sql` (the `avatar` column on `account.people`, and `account.me` returns it).
+3d. **Invitations** (`20261019130000_invitations.sql`), with the same guard: `account.login_state` also says `invited` (a login made by an invitation that was not accepted yet). Same name, arguments and rights. Run it with or after 3c.
 4. **The one-time import and the first admin** (Buk, in the Supabase SQL Editor):
    - `select account.import_from_hr();` (once; a second run is refused). Look through the imported list once.
    - `select account.bootstrap_first_admin('<your HR email>');`
 5. **No timer.** After the import, Account Center's list is the real list (Buk, 2026-10-14). People are added and removed in Account Center.
 6. **Account Center's login** (when the app is about to go live): `sql/account-app-user.sql`.
 7. **Backup:** Friday's nightly backup dumps every non-Supabase schema, so `account` is included; check that the next run counts its tables (the brain repo's `docs/backups.md`).
+
+## Server functions (account-invite and account-recover)
+
+Built and tested locally on 2026-10-19; **not deployed**. They make logins and reset links in Friday's Auth, so they wait for P Aek's agreement (`docs/spec.md`, section 8, question 1). Code: `supabase/functions/`.
+
+When P Aek agrees:
+
+1. **Email sender.** The functions send through Resend, like HR's server functions. Set these function secrets in Project Friday (Edge Functions > Secrets), typed there, never in chat or in this repo:
+   - `RESEND_API_KEY`: a Resend key for the verified designally.co domain (HR's sender domain);
+   - `ACCOUNT_MAIL_FROM`: the sender, for example `Designally <people@designally.co>` (agree the address with P Aek, as HR's was);
+   - `ACCOUNT_APP_URL`: `https://account.designally.co`.
+   Without `RESEND_API_KEY` nothing is emailed: the admin gets the invitation link to send by hand, and "Forgot your password?" sends nothing.
+2. **Deploy both with JWT checking off** (each function checks its caller itself): `supabase functions deploy account-invite --no-verify-jwt` and the same for `account-recover`, from this repo, linked to Project Friday. Friday gives them `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL` itself.
+3. **Check:** add a made-up person with an email you can read, accept the invitation, set a password, make the avatar; then "Forgot your password?" for the same email; then remove the made-up person.
+4. **Link lifetime:** an invitation or reset link stops working after Friday's Auth setting "Email OTP expiration" (Authentication > Providers > Email; Supabase's default is 1 hour). Not checked in Friday yet. The admin can always press Send again.
+
+Nothing in Friday's Auth settings changes: no email templates, no SMTP sender, no redirect addresses. That keeps other apps that use Friday's Auth (Recruit, for example) as they are.
 
 ## Undo
 

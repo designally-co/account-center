@@ -334,3 +334,9 @@ form.inline input { padding: 6px 12px; font-size: 14px; width: 200px; }
   .app-head > .pill { grid-column: 2; grid-row: 1; }
   .nav .brand { margin-right: 4px; }
 }
+
+/* Add person, and an invitation link to pass on by hand */
+main.narrow-form { max-width: 520px; }
+.new-person { padding: 22px 24px; }
+.invite-link { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.invite-link input { flex: 1 1 240px; min-width: 0; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

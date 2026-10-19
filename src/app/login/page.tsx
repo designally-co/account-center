@@ -13,7 +13,7 @@ export default async function LoginPage() {
         <span className="orb-wrap"><Orb seed="account_center" hue={BRAND_HUE} size={88} /></span>
         <div className="stack tight">
           <h1>Account Center</h1>
-          <p className="muted">Sign in with your Designally account. Same email and password as HR.</p>
+          <p className="muted">Sign in with your Designally account: your email and password.</p>
         </div>
         <SignInForm />
       </div>

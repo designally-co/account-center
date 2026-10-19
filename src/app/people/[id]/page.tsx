@@ -9,7 +9,9 @@ import { requireAction } from "@/lib/session";
 import { AppPanel, SaveNotice } from "./access-form";
 import { KindForm } from "./kind-form";
 import { WorkEmails } from "./work-emails";
-import { workEmailAction } from "../actions";
+import { sendInviteAction, workEmailAction } from "../actions";
+import { inviteMessage } from "../invite-messages";
+import { InviteRow } from "./invite-row";
 import { saveAppAccessAction, setKindAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,7 @@ function Status({ p }: { p: PersonAccess }) {
   if (!p.is_active) return <span className="pill muted">Removed</span>;
   if (p.login === "blocked") return <span className="pill warn">Login blocked</span>;
   if (p.login === "missing") return <span className="pill warn">No login</span>;
+  if (p.login === "invited") return <span className="pill">Invited</span>;
   return <span className="pill ok">Active</span>;
 }
 
@@ -89,7 +92,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
   const openApp = typeof search.app === "string" ? search.app : "";
   const noticeKey = typeof search.notice === "string" ? search.notice : "";
   const appForNotice = person.apps.find((a) => a.key === openApp);
-  const topNotice = !appForNotice ? pick(SHARED_NOTICES, noticeKey) : null;
+  const topNotice = !appForNotice ? pick(SHARED_NOTICES, noticeKey) ?? (noticeKey.startsWith("invite-") ? inviteMessage(noticeKey.slice(7)) : null) : null;
   const appNotice = appForNotice && !topNotice ? pick(APP_NOTICES, noticeKey) ?? pick(SHARED_NOTICES, noticeKey) : null;
   const isMe = person.id === me.person_id;
   const withAccess = person.apps.filter((a) => accessSummary(a, "").on > 0).length;
@@ -118,6 +121,9 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
           <KindForm save={setKindAction} personId={person.id} personName={person.display_name}
             kinds={kinds.map(({ key, name }) => ({ key, name }))} appNames={Object.fromEntries(person.apps.map((a) => [a.key, a.name]))}
             current={person.kind} locked={!canManage || !person.is_active || isMe} />
+          {canManage && person.is_active && (person.login === "missing" || person.login === "invited") ? (
+            <InviteRow action={sendInviteAction} personId={person.id} invited={person.login === "invited"} />
+          ) : null}
           <WorkEmails action={workEmailAction} personId={person.id} emails={person.work_emails} canManage={canManage}
             canAdd={canManage && person.is_active} />
         </section>

@@ -1,7 +1,7 @@
 // The People page's data code against the real schema `account`, as Account Center's own user.
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addWorkEmail, listPeople, normalizeEmail, removePerson, removeWorkEmail } from "../../src/lib/people";
+import { addPerson, addWorkEmail, listPeople, normalizeEmail, removePerson, removeWorkEmail } from "../../src/lib/people";
 import { createTestDb } from "./setup";
 
 let db: Awaited<ReturnType<typeof createTestDb>>;
@@ -101,5 +101,28 @@ describe("Removing someone who left", () => {
     expect(await removePerson(app, deeId, "00000000-0000-0000-0000-000000000000")).toBe("not-found");
     expect(await removePerson(app, deeId, "not-a-uuid")).toBe("not-found");
     expect(await removePerson(app, deeId, annId)).toBe("not-found");
+  });
+});
+
+describe("Add person", () => {
+  it("adds a new company person without a login yet, logged with the admin", async () => {
+    const added = await addPerson(app, deeId, { name: "  Fay   New ", email: " Fay@Example.com ", kind: "outsource" });
+    expect(added.result).toBe("added");
+    const fay = (await listPeople(app)).find((p) => p.email === "fay@example.com")!;
+    expect(fay).toMatchObject({ display_name: "Fay New", source: "account_center", kind: "Outsource", login: "missing", is_active: true });
+    const [log] = await db.setup<{ n: number }[]>`select count(*)::int as n from account.log where actor = ${deeId} and table_name = 'people' and event = 'insert' and row_after->>'email' = 'fay@example.com'`;
+    expect(log.n).toBe(1);
+  });
+
+  it("points to the person who already has the email, and refuses bad input and non-admins", async () => {
+    const taken = await addPerson(app, deeId, { name: "Fay Again", email: "fay@example.com", kind: "employee" });
+    expect(taken.result).toBe("taken");
+    expect(await addPerson(app, deeId, { name: " ", email: "x@example.com", kind: "employee" })).toEqual({ result: "invalid-name" });
+    expect(await addPerson(app, deeId, { name: "X", email: "not-an-email", kind: "employee" })).toEqual({ result: "invalid-email" });
+    expect(await addPerson(app, deeId, { name: "X", email: "x@example.com", kind: "boss" })).toEqual({ result: "invalid-kind" });
+    expect(await addPerson(app, benId, { name: "X", email: "x@example.com", kind: "employee" })).toEqual({ result: "not-allowed" });
+    await db.setup`insert into account.person_emails (email, person_id) values ('work@example.com', ${deeId}::uuid)`;
+    expect(await addPerson(app, deeId, { name: "X", email: "work@example.com", kind: "employee" })).toEqual({ result: "work-email-of-another" });
+    expect((await listPeople(app)).some((p) => p.email === "x@example.com")).toBe(false);
   });
 });

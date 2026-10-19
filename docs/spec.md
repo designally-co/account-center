@@ -22,7 +22,8 @@ Account Center is an experiment: nothing below changes anything in use until Buk
 | **People list** | Imported **once** from HR when Account Center starts in Friday (with P Aek's agreement); from then on Account Center's list is the real list (Buk, 2026-10-14 and 2026-10-19). Reading HR changes nothing in HR | No change |
 | **Access** (which apps, and which actions in each) | Designed and built; tested locally. No live app asks Account Center yet | Apps start asking Account Center |
 | **Leaving** | Removing someone in Account Center takes away every role (built, local) | Their login is also blocked, and HR follows |
-| **Account creation** | Designed, not built. It would write Friday's Auth, so it waits | Account Center creates accounts and gives a one-time link to set a password |
+| **Account creation** | Built and tested locally (2026-10-19): an admin adds a person with their Google email, and the server function `account-invite` emails an invitation. It writes Friday's Auth, so it is **not deployed to Friday** until P Aek agrees | The two server functions are deployed in Friday and email is set up; admins add new people here |
+| **Passwords** | Built and tested locally (2026-10-19): "Forgot your password?" (server function `account-recover`) and "Change password" on Home. Not deployed to Friday, same reason | Every company person can reset their own password |
 | **Sign-in** | Every live app keeps its own sign-in as it is | Apps add Account Center sign-in; in the end every company app accepts only Account Center accounts |
 | **Anything that touches HR** (HR's roles, HR records, HR's own rules) | **Prototype only.** Screens that show how it would work, with no effect on HR | Real when P Aek agrees |
 
@@ -98,11 +99,24 @@ Account Center is an experiment: nothing below changes anything in use until Buk
 
 ### Creating an account in Account Center
 
-1. An Account Center admin types the person's name and email, and chooses their roles.
-2. Account Center creates the account in Project Friday's Auth (through a small server function in Friday, `account-invite`, so the app never holds Friday's master key), adds the person to `account.people` (marked "created by Account Center"), and shows a **one-time invite link**.
-3. The admin sends the link to the person (LINE or email). Friday's Auth sends no emails today, so the link is sent by hand, the same way HR's invite link works.
-4. The person opens the link, sets their own password, and can sign in to every app their roles allow.
-5. Every creation is logged (who created whom, when).
+Built and tested locally on 2026-10-19 (Buk, 2026-10-19: "the admin must be able to create the account (new employee's Google account) and the employee can accept the account creation and go to the account center to set up the avatar and they can also reset password"). Not deployed to Friday until P Aek agrees (section 8, question 1).
+
+1. An Account Center admin presses **Add person** on the People page and types the person's name, their **Google email** (Gmail or designally.co; Buk chose "their Google email" on 2026-10-19: it is the sign-in email, and the invitation goes there) and their kind. Roles are given afterwards on their page, like everyone else's.
+2. Account Center adds the person to `account.people` (marked "created by Account Center", logged with the admin), then asks the server function **`account-invite`** in Friday. The function checks the admin's token with Friday's Auth and their rights in `account` (view and manage, under the same lock as every change), then:
+   - if a login with that email already exists (for example HR made it), it **links** it and sends nothing;
+   - otherwise it makes an **invited** login with no password (Friday's Auth, `generate_link`), links it, and **emails the invitation** through Resend, the same email provider and sender domain as HR's server functions.
+3. The person opens the email and presses **Accept the invitation** on Account Center's `/accept` page (a button, so an email scanner that opens links cannot use it up). The link works once, and only while it is fresh (Friday's Auth setting for email links).
+4. They choose their password (at least 8 characters with letters and numbers, HR's rule), then make their avatar, and land on Home.
+5. If the email cannot be sent (email not set up, or Resend refuses it), the admin sees the **invitation link** to copy and send by hand (LINE or email), like HR's invite link. Account Center's server sees a link only in this case.
+6. The People page shows **Invited** until the person accepts. On their page, **Send again** makes a new link (the old one stops working), at most once a minute.
+
+### Passwords
+
+- **Forgot your password?** on the sign-in page: the person types their email, and the server function **`account-recover`** emails a link to `/accept`, then they choose a new password. The answer is always the same ("If this email belongs to an account, we sent a link"), so nobody can find out which emails have an account. A link is sent only to an active person in Account Center's list whose login is not blocked, at most once a minute.
+- **Change password** on Home: the person types their current password, then the new one.
+- After an invitation or reset link, the person does not need the old password for 30 minutes: Friday's Auth writes "signed in by an email link" and its time into the signed sign-in token, and Account Center's server reads it there (never from the form).
+- After a new password is saved, every other browser signed in to that account is signed out.
+- **Why server functions:** they keep Friday's master key inside Supabase, and they send email themselves, so Friday's shared Auth settings (its email templates and email sender, which other apps such as Recruit may use) do not change. Code: `supabase/functions/`; the logic is `_shared/core.ts`, tested in `test/app/functions.test.ts`.
 
 Rules:
 
@@ -185,7 +199,7 @@ Example:
 
 **Who can sign in:** every active company person with a working login (Buk, 2026-10-19), to see their own access and make their avatar. **Home** shows one card per app the person can use, with the app's own graphic (its orb until it has one); the card opens the app (Buk, 2026-10-19). The People pages and every change to access need Account Center's own actions (view, manage).
 
-**Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone with their status and kind, **Remove** for people who leave; every change in the change log with the admin's id); step 3 (first version, 2026-10-19), **each person's page**: kind, work emails, and per app a ready role and one allowed/blocked row per action; step 4, **avatars** (the maker, shown at first sign-in). Design: minimal, black and white, with a soft gradient orb per app and a drawn avatar per person (Buk, 2026-10-19: "minimal, modern and intentional", like ElevenLabs). Release and hosting: `docs/deploy-nas.md`. The HR list is imported once, by a person, when Account Center starts in Friday.
+**Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone with their status and kind, **Remove** for people who leave; every change in the change log with the admin's id); step 3 (first version, 2026-10-19), **each person's page**: kind, work emails, and per app a ready role and one allowed/blocked row per action; step 4, **avatars** (the maker, shown at first sign-in); step 5 (2026-10-19), **Add person with an invitation email, Forgot your password and Change password** (section 3, "Creating an account" and "Passwords"; the server functions are not deployed to Friday). Design: minimal, black and white, with a soft gradient orb per app and a drawn avatar per person (Buk, 2026-10-19: "minimal, modern and intentional", like ElevenLabs). Release and hosting: `docs/deploy-nas.md`. The HR list is imported once, by a person, when Account Center starts in Friday.
 
 **Stack:** Next.js on the Designally NAS, like MA Desk (Buk, 2026-10-14; `decisions/stack-nextjs-on-nas.md`). **Address:** account.designally.co (Buk, 2026-10-14).
 
@@ -210,8 +224,8 @@ Found in the read-only check. They are in P Aek's system, so he decides how to f
 2. **`hr_self_register` turns any signed-in account into an active employee** (with leave balances). The HR app no longer calls it. With item 1, an outsider could become an "employee" and so be in the one-time import. They would still get no access, because nobody has access by default. Check the imported list once, right after the import.
 3. **Every signed-in account can read every employee's private details** (the select rule on `hr_employees` is `true`).
 4. **A shared starting password is written in `friday-hr`** (`scripts/create-auth-accounts.ts`, used for the first 15 accounts in April 2026). People who never changed it should change it, and the script should read it from a setting instead.
-5. **Emails are never checked** when an account is made. Check Supabase > Authentication > Emails > SMTP Settings to see whether a password reset could reach a stranger.
-6. **No way back from a forgotten password** except an admin in Supabase.
+5. **Emails are never checked** when an account is made. Check Supabase > Authentication > Emails > SMTP Settings to see whether a password reset could reach a stranger. (Accounts made by Account Center's invitation are checked: the person must open the email.)
+6. **No way back from a forgotten password** except an admin in Supabase. (Account Center's "Forgot your password?" fixes this for people in its list, once its server functions are deployed.)
 
 ## 7. Steps
 
@@ -235,7 +249,7 @@ Found in the read-only check. They are in P Aek's system, so he decides how to f
 
 **At the switch (Buk and P Aek decide when; P Aek agreed on 2026-10-19):**
 
-4. Account creation and login blocking in Friday's Auth: the `account-invite` and `account-remove` functions.
+4. Account creation, password reset and login blocking in Friday's Auth: deploy the `account-invite` and `account-recover` functions (built and tested locally, 2026-10-19; `docs/apply-to-friday.md`, "Server functions") and write `account-remove`.
 5. **MA Desk** signs in with Account Center accounts and checks every action with Account Center.
 6. **The other company apps** (after the portal: Article Studio, the Hub admin, the survey, then Recruit and the rest; Buk, 2026-10-19), one at a time: add Account Center sign-in next to their current sign-in, and the access check. Each starts with today's users given the access that matches what they can do now (everyone is an admin in the Hub and Studio), so nobody loses access on the day of the switch. Drop the old sign-in once everyone has moved.
 7. **HR follows Account Center** when P Aek agrees (section 5).

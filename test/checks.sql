@@ -311,4 +311,13 @@ exception when check_violation then raise notice 'ok: an avatar cannot be huge';
 end $$;
 update account.people set avatar = null where email = 'dee@example.com';
 
+-- Invitations: an invited account that was not accepted yet says 'invited'; accepted says 'ok'; blocked wins.
+insert into auth.users (id, email, invited_at) values ('00000000-0000-0000-0000-0000000000e1', 'new@example.com', now());
+select pg_temp.ok(account.login_state('00000000-0000-0000-0000-0000000000e1') = 'invited', 'login state: invited');
+update auth.users set email_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.ok(account.login_state('00000000-0000-0000-0000-0000000000e1') = 'ok', 'login state: accepted invitation is ok');
+update auth.users set email_confirmed_at = null, banned_until = now() + interval '1 day' where id = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.ok(account.login_state('00000000-0000-0000-0000-0000000000e1') = 'blocked', 'login state: blocked wins over invited');
+delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';
+
 select 'ALL CHECKS PASSED' as result;

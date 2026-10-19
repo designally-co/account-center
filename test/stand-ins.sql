@@ -2,10 +2,13 @@
 -- Same names and the columns the migration uses; made-up people only.
 create schema auth;
 create table auth.users (
-  id           uuid primary key,
-  email        text,
-  banned_until timestamptz,
-  deleted_at   timestamptz
+  id                 uuid primary key,
+  email              text,
+  banned_until       timestamptz,
+  deleted_at         timestamptz,
+  invited_at         timestamptz,
+  email_confirmed_at timestamptz,
+  recovery_sent_at   timestamptz
 );
 
 create table public.hr_employees (

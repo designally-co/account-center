@@ -24,6 +24,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <main className="wide">
         {search.notice === "avatar-saved" ? <p className="notice ok" role="status">Avatar saved.</p> : null}
         {search.notice === "not-allowed" ? <p className="notice error" role="alert">You do not have access to that page.</p> : null}
+        {search.notice === "password-saved" ? <p className="notice ok" role="status">Password saved. Other browsers signed in to your account were signed out.</p> : null}
         <div className="person-head">
           <Link href="/avatar" className="avatar-edit" aria-label="Change your avatar">
             <Avatar avatar={me.avatar} seed={me.person_id} size={88} />
@@ -32,6 +33,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <div className="stack tight">
             <h1>Hello, {me.display_name}</h1>
             <p className="muted">{me.avatar === null ? <Link href="/avatar">Make your avatar</Link> : "Your access in Designally's apps"}</p>
+            <p className="small-text"><Link href="/password" className="back">Change password</Link></p>
           </div>
         </div>
 
