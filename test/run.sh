@@ -11,7 +11,7 @@ OUT="$(mktemp -d)"
 psql() { command psql -X -q -v ON_ERROR_STOP=1 "$@"; }
 set -o pipefail
 
-psql "$ADMIN_URL" -c "drop database if exists $DB" -c "drop role if exists account_app" -c "drop role if exists hub_app" -c "drop role if exists studio_app"
+psql "$ADMIN_URL" -c "drop database if exists $DB" -c "drop role if exists account_app" -c "drop role if exists hub_app" -c "drop role if exists studio_app" -c "drop role if exists portal_check"
 psql "$ADMIN_URL" -c "create database $DB"
 psql "$TEST_URL" -f "$HERE/stand-ins.sql" -f "$HERE/seed.sql"
 
@@ -37,4 +37,4 @@ echo "ok: nothing outside schema account changed ($(wc -l < "$OUT/before.txt") i
 echo "5. Behaviour checks"
 psql "$TEST_URL" -f "$HERE/checks.sql" 2>&1 | sed -n "s/^psql:[^ ]* NOTICE:  //p; /ALL CHECKS PASSED/p; /ERROR/p"
 
-psql "$ADMIN_URL" -c "drop database $DB" -c "drop role account_app" -c "drop role hub_app" -c "drop role studio_app"
+psql "$ADMIN_URL" -c "drop database $DB" -c "drop role account_app" -c "drop role hub_app" -c "drop role studio_app" -c "drop role portal_check"

@@ -149,9 +149,9 @@ An Account Center admin opens the person's page, presses **Remove** at the botto
 2. The app's server asks Account Center: `account.can_user(account id, action)` for an Account Center account, or `account.can_email(work email, action)` for a Google sign-in. The answer is yes or no.
 3. The app allows or refuses the action.
 
-Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). **An app's user gets the checks only on the day that app starts using Account Center**, in that app's own migration: `grant usage on schema account` and `grant execute on function account.can_user(uuid, text), account.can_email(text, text)` (and `me_by_*` only if the app needs the name and roles). Until then it has no access to `account` at all (migration `20261019100000_account_hardening.sql`, 2026-10-19), so no app can look up staff before it uses Account Center. (Earlier plan, now open, section 8: the brand guideline portal's database is not in Project Friday, so it would need its own small Friday user that may only call the check.) The apps never read `account` tables directly and never read HR.
+Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). **An app's user gets the checks only on the day that app starts using Account Center**, in that app's own migration: `grant usage on schema account` and `grant execute on function account.can_user(uuid, text), account.can_email(text, text)` (and `me_by_*` only if the app needs the name and roles). Until then it has no access to `account` at all (migration `20261019100000_account_hardening.sql`, 2026-10-19), so no app can look up staff before it uses Account Center. The Brand Guideline Portal's database is not in Project Friday yet, so it has its own small Friday user, `portal_check`, that may only call `account.can_user` (migration `20261019160000_brand_portal.sql`, login `sql/portal-check-user.sql`; Buk, 2026-10-19). The apps never read `account` tables directly and never read HR.
 
-### Schema `account` (written: `supabase/migrations/`, `20261014100000_account_schema.sql`, `20261019100000_account_hardening.sql`, `20261019110000_kinds_and_access_lists.sql`, `20261019113000_avatars.sql`, `20261019130000_invitations.sql`, `20261019140000_app_cards.sql`)
+### Schema `account` (written: `supabase/migrations/`, `20261014100000_account_schema.sql`, `20261019100000_account_hardening.sql`, `20261019110000_kinds_and_access_lists.sql`, `20261019113000_avatars.sql`, `20261019130000_invitations.sql`, `20261019140000_app_cards.sql`, `20261019150000_teams.sql`, `20261019160000_brand_portal.sql`)
 
 | Table | Holds |
 |---|---|
@@ -181,7 +181,7 @@ Database functions (all in schema `account`; every check fails closed):
 
 Server functions in Friday, still to write (step 4): `account-invite` (creates the account and the one-time link) and `account-remove` (blocks the login of someone who left). Only Account Center admins can use them.
 
-Database users: `account_app` (Account Center's server: its tables, never HR), and each app's own user (`portal_app` first, then `studio_app`, `hub_app`, `survey_app`, later `ma_app`), which may call the checks only, and only from the day that app uses Account Center (migration `20261019100000_account_hardening.sql` took the first migration's grants away).
+Database users: `account_app` (Account Center's server: its tables, never HR), and each app's own user (`portal_check` for the Brand Guideline Portal while its data is outside Friday, then `studio_app`, `hub_app`, `survey_app`, later `ma_app`), which may call the checks only, and only from the day that app uses Account Center (migration `20261019100000_account_hardening.sql` took the first migration's grants away).
 
 Example:
 

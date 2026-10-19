@@ -421,4 +421,33 @@ commit;
 select pg_temp.ok(not account.can_user('00000000-0000-0000-0000-0000000000f1', 'hr.tleave'), 'an outsource admin still never gets HR');
 
 
+-- The Brand Guideline Portal's user (20261019160000): the access question only, nothing else
+select pg_temp.ok((select count(*) from account.roles where app_key = 'brand' and key in ('viewer', 'editor', 'owner')) = 3, 'the portal has its three roles');
+select pg_temp.ok((select count(*) from account.role_actions where app_key = 'brand' and role_key = 'editor')
+                  = (select count(*) from account.actions where app_key = 'brand' and key like 'brand.%' and key not like 'brand.t%') - 1,
+                  'a portal editor has every portal action except deleting a brand');
+set role portal_check;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f1', 'brand.view'), 'the portal can ask the access question');
+do $$ begin
+  perform account.me_by_email('ann@example.com');
+  raise exception 'FAILED: the portal looked up a person by email';
+exception when insufficient_privilege then raise notice 'ok: the portal cannot look up staff by email';
+end $$;
+do $$ begin
+  perform account.can_email('ann@example.com', 'brand.view');
+  raise exception 'FAILED: the portal asked by email';
+exception when insufficient_privilege then raise notice 'ok: the portal can only ask by account id';
+end $$;
+do $$ begin
+  perform 1 from account.people;
+  raise exception 'FAILED: the portal read account.people';
+exception when insufficient_privilege then raise notice 'ok: the portal cannot read Account Center''s tables';
+end $$;
+do $$ begin
+  perform 1 from public.hr_employees;
+  raise exception 'FAILED: the portal read HR';
+exception when insufficient_privilege then raise notice 'ok: the portal cannot read HR';
+end $$;
+reset role;
+
 select 'ALL CHECKS PASSED' as result;
