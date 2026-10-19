@@ -1,6 +1,6 @@
 // A throwaway database with the real schema `account`, for the app tests.
 // Needs TEST_ADMIN_URL: a superuser on a test server (scripts/local-postgres.sh prints one). Never Friday.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
 
@@ -24,7 +24,8 @@ export async function createTestDb(name: string) {
   const setup = postgres(url, { max: 1, onnotice: () => {} });
   await setup.unsafe(read("test/stand-ins.sql"));
   await setup.unsafe(read("test/seed.sql"));
-  await setup.unsafe(read("supabase/migrations/20261014100000_account_schema.sql"));
+  const migrations = readdirSync(join(__dirname, "..", "..", "supabase", "migrations")).filter((f) => f.endsWith(".sql")).sort();
+  for (const m of migrations) await setup.unsafe(read(`supabase/migrations/${m}`));
   // The app connects as Account Center's own user, like in Friday.
   const app = postgres(url, { max: 1, connection: { role: "account_app" }, onnotice: () => {} });
   return {

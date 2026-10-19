@@ -30,8 +30,13 @@ What the migration does in Friday: creates schema `account` with its tables and 
    - **Bookkeeping outside `account`, all expected:** the role `account_app`, and PostgreSQL's automatic membership that makes `postgres` admin of a role it creates (no inherit, no set; the app users have the same).
    - **Security:** `anon`, `authenticated` and `service_role` have no access to `account`; `import_from_hr` and `bootstrap_first_admin` run as `postgres` only; every function has a fixed `search_path`; the security advisor reports nothing in `account`.
    - **Backup:** Friday's nightly backup will include `account` from the first run after the apply; check that run's schema list and restore count (8 more tables).
-   - **Open, minor (for a later migration, with Buk's go-ahead, inside `account` only):** functions added later are executable by PUBLIC unless revoked (add `alter default privileges ... revoke execute on functions from public`); `hub_app`, `studio_app` and `survey_app` can call `me_by_email` and `me_by_user`, which would show staff names and roles once the import has run, although those apps do not use Account Center yet; three foreign keys have no index (performance advisor, INFO); `account.apps` and `account.actions` have no change-log trigger.
+   - **Four improvements found by these checks:** see step 3b.
    - **Run the import outside 02:30 to 05:00 Bangkok time**, when the nightly backup runs, so its restore check does not see a half-done import.
+3b. **Improvements** (`20261019100000_account_hardening.sql`; Buk's go-ahead 2026-10-19), applied with the same guard:
+   - `hub_app`, `studio_app` and `survey_app` lose access to `account`; each app gets the checks only when it starts using Account Center (before, `me_by_email` would have shown staff names and roles to those apps' logins once the import ran);
+   - functions added later: every migration revokes them from public itself, and `test/run.sh` fails otherwise (a per-schema default privilege cannot remove PostgreSQL's global default, and the global one would change all of Friday);
+   - indexes for the three foreign keys the performance advisor listed;
+   - change-log triggers on `account.apps` and `account.actions`.
 4. **The one-time import and the first admin** (Buk, in the Supabase SQL Editor):
    - `select account.import_from_hr();` (once; a second run is refused). Look through the imported list once.
    - `select account.bootstrap_first_admin('<your HR email>');`

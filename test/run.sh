@@ -18,8 +18,11 @@ psql "$TEST_URL" -f "$HERE/stand-ins.sql" -f "$HERE/seed.sql"
 echo "1. Snapshot of everything outside schema account, before"
 psql "$TEST_URL" -At -f "$HERE/snapshot.sql" > "$OUT/before.txt"
 
-echo "2. Apply the migration in one transaction"
-psql "$TEST_URL" -1 -f "$HERE/../supabase/migrations/20261014100000_account_schema.sql"
+echo "2. Apply the migrations in order, each in one transaction"
+for m in "$HERE"/../supabase/migrations/*.sql; do
+  echo "   $(basename "$m")"
+  psql "$TEST_URL" -1 -f "$m"
+done
 
 echo "3. Run the one-time import from HR and the checks"
 psql "$TEST_URL" -f "$HERE/import-only.sql" > /dev/null

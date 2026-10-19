@@ -9,7 +9,9 @@ Account Center holds every account and all access for Designally's own people: e
 - **Clients never get an account here.** The future client product has its own accounts, for clients and staff.
 - **Project Friday belongs to P Aek.** Change nothing in it outside schema `account` without his agreement. Never write to HR's tables. HR's list is imported once (`account.import_from_hr()`, fields listed in `docs/spec.md`); after that Account Center's list is the real list and nothing reads HR's table again. People who leave are removed in Account Center, never erased.
 - **No secrets and no personal data in this repo:** no passwords, keys, real names or real emails, not even as test data. Tests use made-up people.
-- **Apps never read `account` tables.** They call the check functions only (`account.can_user`, `account.can_email`), with their own database user.
+- **Apps never read `account` tables.** They call the check functions only (`account.can_user`, `account.can_email`), with their own database user, which gets them only on the day that app starts using Account Center (`docs/spec.md`, "How an app checks access").
+- **Every new function in schema `account` is revoked from public** in the same migration (`revoke execute on function ... from public`), then granted only to the users that need it. PostgreSQL makes new functions executable by everyone, and a per-schema default cannot change that. `test/run.sh` fails if any function in `account` is executable by everyone.
+- **Every migration runs through `test/run.sh` first** (nothing outside `account` may change), then in Friday with the same guard as `docs/apply-to-friday.md`.
 - **`brain.yaml`** is added when Account Center goes live. From then on, the rule below keeps it true.
 
 # Decision notes for the Designally Brain

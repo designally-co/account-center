@@ -99,9 +99,24 @@ exception when raise_exception then
 end $$;
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'account_center.manage'), 'the admin can manage Account Center');
 
--- Other apps' users: the checks only
+-- Other apps' users: nothing until their app uses Account Center, then the checks only
 set role hub_app;
-select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.article.publish'), 'an app user can call the check');
+do $$ begin
+  perform account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.article.publish');
+  raise exception 'FAILED: an app that does not use Account Center called the check';
+exception when insufficient_privilege then raise notice 'ok: an app that does not use Account Center cannot call the checks';
+end $$;
+do $$ begin
+  perform account.me_by_email('ann@example.com');
+  raise exception 'FAILED: an app that does not use Account Center looked up a person by email';
+exception when insufficient_privilege then raise notice 'ok: an app that does not use Account Center cannot look up staff by email';
+end $$;
+reset role;
+-- The day an app starts using Account Center, its own migration grants it the checks:
+grant usage on schema account to hub_app;
+grant execute on function account.can_user(uuid, text), account.can_email(text, text) to hub_app;
+set role hub_app;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.article.publish'), 'an app user can call the check once granted');
 do $$ begin
   perform 1 from account.people;
   raise exception 'FAILED: an app user read account.people';
@@ -140,5 +155,38 @@ do $$ begin
 exception when insufficient_privilege then raise notice 'ok: the change log cannot be written by hand';
 end $$;
 reset role;
+
+-- No function in schema account is executable by everyone (every migration must revoke it from public)
+select pg_temp.ok(
+  not exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              where p.pronamespace = 'account'::regnamespace and a.grantee = 0 and a.privilege_type = 'EXECUTE'),
+  'no function in schema account is executable by everyone');
+do $$ begin
+  if not exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                 where p.oid = 'account.can_user(uuid, text)'::regprocedure and a.privilege_type = 'EXECUTE') then
+    raise exception 'FAILED: the check above looks at nothing';
+  end if;
+  create function account.zz_forgotten() returns int language sql as 'select 1';
+  if not exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                 where p.oid = 'account.zz_forgotten()'::regprocedure and a.grantee = 0 and a.privilege_type = 'EXECUTE') then
+    raise exception 'FAILED: the check would not catch a function someone forgot to revoke';
+  end if;
+  drop function account.zz_forgotten();
+  raise notice 'ok: the check catches a function someone forgot to revoke';
+end $$;
+
+-- The foreign keys have indexes
+select pg_temp.ok((select count(*) from pg_indexes where schemaname = 'account'
+                   and indexname in ('grants_app_role_idx', 'person_emails_person_idx', 'role_actions_app_action_idx')) = 3,
+                  'the three foreign key indexes exist');
+
+-- Changes to the app list and actions are logged
+insert into account.apps (key, name) values ('logtest', 'Log test');
+insert into account.actions (app_key, key) values ('logtest', 'logtest.view');
+delete from account.apps where key = 'logtest';
+select pg_temp.ok((select count(*) from account.log where table_name = 'apps' and (row_after->>'key' = 'logtest' or row_before->>'key' = 'logtest')) = 2,
+                  'adding and removing an app is logged');
+select pg_temp.ok((select count(*) from account.log where table_name = 'actions' and (row_after->>'key' = 'logtest.view' or row_before->>'key' = 'logtest.view')) = 2,
+                  'adding an action, and its removal with its app, is logged');
 
 select 'ALL CHECKS PASSED' as result;
