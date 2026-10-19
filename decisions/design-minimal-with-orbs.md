@@ -11,11 +11,14 @@ sources:
   - supabase/migrations/20261019110000_kinds_and_access_lists.sql (account.apps.hue)
   - "Buk, 2026-10-19 (do not use a gradient circle for the profile; use a customizable avatar like Notion's avatar maker)"
   - "Buk, 2026-10-19 (Home: go to the apps from cards, with the app graphic instead of the orb)"
+  - "Buk, 2026-10-19 (a design reference of two screenshots, a page of cards and a dialog: use the exact colours, surface, layer, modal, bg, outline, shadow)"
 ---
 
 ## Decision
 
-- Black and white with soft grey surfaces, rounded cards and pill-shaped buttons and menus; dark mode follows the system.
+- Black and white with soft grey surfaces and rounded cards; dark mode follows the system.
+- The light colours come from Buk's design reference (2026-10-19), measured from the screenshots' pixels: page `--bg` #f8f8f8, cards `--surface` #ffffff, soft fills `--layer` #f3f3f3, dialog `--modal` #f8f8f8 on a 30% black `--overlay`, card edge `--outline` #f0f0f0, edge inside a dialog and between rows `--outline-strong` #e9e9e9, text #111111, card text #484848, quiet text #6d6d6d, button #1a1a1a, link #1880e3. Cards have an outline and no shadow (`--shadow: none`); only a dialog has one. The screenshots were lossy (WebP), so a value can be one or two steps off. Corners follow the reference too: 16px cards, 10px inner cards and tiles, 8px buttons, fields and menus; tags and the allowed/blocked switch stay pill-shaped.
+- Values the reference does not show are ours: field borders `--input-outline` #dcdcdc (a field must stay visible), green and red, and all of dark mode. The soft coloured glow at the top of every page was removed, because the reference page is plain.
 - The Inter font, shipped inside the app (`@fontsource-variable/inter`), so pages load no outside fonts.
 - Playful elements: a soft gradient orb for each app. Its main colour is stored as data (`account.apps.hue`, set for the 7 apps in migration 20261019110000, spread around the colour wheel so apps are easy to tell apart; Account Center's 190 is also the brand mark); the key only adds the neighbouring colours, and the main one when no hue is set. The orb turns a little on hover; the sign-in orb turns slowly. Also and each person's own drawn avatar (`decisions/avatars-made-by-each-person.md`). Motion stops when the system asks for reduced motion.
 - Short labels only, no helper paragraphs. Each access row is the action's name and an allowed/blocked switch with a sliding thumb.
