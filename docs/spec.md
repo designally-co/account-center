@@ -125,7 +125,7 @@ An Account Center admin presses **Remove** on the People page and confirms (Buk,
 2. The app's server asks Account Center: `account.can_user(account id, action)` for an Account Center account, or `account.can_email(work email, action)` for a Google sign-in. The answer is yes or no.
 3. The app allows or refuses the action.
 
-Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). Only these users, and Account Center, may call the check. (Earlier plan, now open, section 8: the brand guideline portal's database is not in Project Friday, so it would need its own small Friday user that may only call the check.) The apps never read `account` tables directly and never read HR.
+Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). **An app's user gets the checks only on the day that app starts using Account Center**, in that app's own migration: `grant usage on schema account` and `grant execute on function account.can_user(uuid, text), account.can_email(text, text)` (and `me_by_*` only if the app needs the name and roles). Until then it has no access to `account` at all (migration `20261019100000_account_hardening.sql`, 2026-10-19), so no app can look up staff before it uses Account Center. (Earlier plan, now open, section 8: the brand guideline portal's database is not in Project Friday, so it would need its own small Friday user that may only call the check.) The apps never read `account` tables directly and never read HR.
 
 ### Schema `account` (written: `supabase/migrations/20261014100000_account_schema.sql`)
 
