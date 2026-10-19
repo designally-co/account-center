@@ -12,7 +12,7 @@ select pg_temp.ok((select email from account.people where hr_employee_id = '1000
 select pg_temp.ok((select display_name from account.people where hr_employee_id = '10000000-0000-0000-0000-00000000000b') = 'Ben Example', 'name falls back to the display name');
 select pg_temp.ok(
   (select array_agg(column_name::text order by column_name::text) from information_schema.columns where table_schema = 'account' and table_name = 'people')
-  = array['auth_user_id','created_at','display_name','email','hr_employee_id','id','is_active','source','updated_at'],
+  = array['auth_user_id','created_at','display_name','email','hr_employee_id','id','is_active','kind','source','updated_at'],
   'no HR details (phone, birthday, role) in account.people');
 do $$ begin
   perform account.import_from_hr();
@@ -99,6 +99,87 @@ exception when raise_exception then
 end $$;
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'account_center.manage'), 'the admin can manage Account Center');
 
+-- The way back when nobody can manage Account Center any more (each block is undone at its end)
+begin;
+update auth.users set banned_until = now() + interval '1 day' where id = '00000000-0000-0000-0000-00000000000a';
+select account.bootstrap_first_admin('dee@example.com');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000d', 'account_center.manage'),
+                  'when every admin''s login is blocked, a new first admin can be set');
+rollback;
+begin;
+insert into account.person_actions (person_id, action_key, allowed)
+select id, 'account_center.manage', false from account.people where email = 'ann@example.com';
+select account.bootstrap_first_admin('ann@example.com');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'account_center.manage'),
+                  'when a single change took the last admin''s right away, the way back clears it');
+rollback;
+begin;
+update auth.users set banned_until = now() + interval '1 day' where id = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  perform account.bootstrap_first_admin('cat@example.com');
+  raise exception 'FAILED: a removed person became the first admin';
+exception when raise_exception then
+  if sqlerrm like 'FAILED%' then raise; end if;
+  raise notice 'ok: a removed person cannot become the first admin';
+end $$;
+rollback;
+
+-- Kinds of people
+select pg_temp.ok((select count(*) from account.people where kind = 'employee') = (select count(*) from account.people), 'everyone starts as an employee');
+insert into account.actions (app_key, key, description) values ('hr', 'hr.leave.view', 'See leave');
+insert into account.roles (app_key, key, name) values ('hr', 'staff', 'Staff');
+insert into account.role_actions values ('hr', 'staff', 'hr.leave.view');
+update account.people set kind = 'outsource' where email = 'dee@example.com';
+do $$ begin
+  insert into account.grants (person_id, app_key, role_key) select id, 'hr', 'staff' from account.people where email = 'dee@example.com';
+  raise exception 'FAILED: an outsource account got an HR role';
+exception when sqlstate 'AC001' then raise notice 'ok: an outsource account cannot get an HR role';
+end $$;
+do $$ begin
+  insert into account.person_actions (person_id, action_key, allowed) select id, 'hr.leave.view', true from account.people where email = 'dee@example.com';
+  raise exception 'FAILED: an outsource account got a single HR action';
+exception when sqlstate 'AC001' then raise notice 'ok: an outsource account cannot get a single HR action';
+end $$;
+insert into account.grants (person_id, app_key, role_key) select id, 'studio', 'publisher' from account.people where email = 'dee@example.com';
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000d', 'studio.article.publish'), 'an outsource account can use Article Studio');
+insert into account.grants (person_id, app_key, role_key) select id, 'hr', 'staff' from account.people where email = 'ann@example.com';
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'hr.leave.view'), 'an employee can get HR');
+do $$ begin
+  update account.people set kind = 'outsource' where email = 'ann@example.com';
+  raise exception 'FAILED: kind changed to outsource while the person had HR access';
+exception when sqlstate 'AC002' then raise notice 'ok: the kind cannot change to outsource while the person has HR access';
+end $$;
+insert into account.kind_blocked_apps (kind, app_key) values ('employee', 'hr');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'hr.leave.view') = false, 'a kind rule added later stops access at once');
+select pg_temp.ok(not (account.me((select id from account.people where email = 'ann@example.com'))->'roles' @> '[{"app": "hr"}]'),
+                  '"who is this" does not list a role in an app the person''s kind is kept out of');
+delete from account.kind_blocked_apps where kind = 'employee' and app_key = 'hr';
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'hr.leave.view'), 'and access comes back when the rule goes');
+delete from account.grants where app_key = 'hr';
+do $$ begin
+  delete from account.apps where key = 'hr';
+  raise exception 'FAILED: deleting the HR app quietly dropped the rule that keeps outsource accounts out';
+exception when foreign_key_violation then raise notice 'ok: the HR app cannot be deleted while a kind is kept out of it';
+end $$;
+
+-- Single changes to a ready role, for one person
+insert into account.person_actions (person_id, action_key, allowed) select id, 'studio.article.publish', false from account.people where email = 'ann@example.com';
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.article.publish') = false, 'an action taken away for one person is a no, although the role gives it');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.draft.edit'), 'the rest of the role still works');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000d', 'studio.article.publish'), 'taking an action away from one person does not touch the others with the role');
+insert into account.actions (app_key, key, description) values ('hub', 'hub.article.edit', 'Edit an article');
+insert into account.person_actions (person_id, action_key, allowed) select id, 'hub.article.edit', true from account.people where email = 'dee@example.com';
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000d', 'hub.article.edit'), 'an action added for one person is a yes without a role');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'hub.article.edit') = false, 'an action added for one person gives nothing to the others');
+update auth.users set banned_until = now() + interval '1 day' where id = '00000000-0000-0000-0000-00000000000d';
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000d', 'hub.article.edit') = false, 'an added action still needs a working login');
+update auth.users set banned_until = null where id = '00000000-0000-0000-0000-00000000000d';
+select pg_temp.ok((select count(*) from account.log where table_name = 'person_actions') = 2, 'single changes are in the change log');
+delete from account.person_actions where action_key = 'studio.article.publish';
+delete from account.person_actions where person_id = (select id from account.people where email = 'dee@example.com');
+delete from account.grants where person_id = (select id from account.people where email = 'dee@example.com');
+update account.people set kind = 'employee' where email = 'dee@example.com';
+
 -- Other apps' users: nothing until their app uses Account Center, then the checks only
 set role hub_app;
 do $$ begin
@@ -118,6 +199,11 @@ grant execute on function account.can_user(uuid, text), account.can_email(text, 
 set role hub_app;
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'studio.article.publish'), 'an app user can call the check once granted');
 do $$ begin
+  perform 1 from account.person_actions;
+  raise exception 'FAILED: an app user read account.person_actions';
+exception when insufficient_privilege then raise notice 'ok: an app user cannot read anyone''s single changes';
+end $$;
+do $$ begin
   perform 1 from account.people;
   raise exception 'FAILED: an app user read account.people';
 exception when insufficient_privilege then raise notice 'ok: an app user cannot read Account Center''s tables';
@@ -132,6 +218,17 @@ reset role;
 -- Account Center's own user: its tables yes, HR no, the log read-only
 set role account_app;
 select pg_temp.ok((select count(*) from account.people) = 4, 'Account Center''s user reads its own tables');
+select pg_temp.ok((select count(*) from account.kinds) = 2 and (select count(*) from account.kind_blocked_apps) = 1, 'Account Center''s user reads the kinds and their rules');
+do $$ begin
+  delete from account.kind_blocked_apps where kind = 'outsource' and app_key = 'hr';
+  raise exception 'FAILED: Account Center''s user removed the rule that keeps outsource accounts out of HR';
+exception when insufficient_privilege then raise notice 'ok: Account Center''s user cannot remove a kind''s blocked apps';
+end $$;
+do $$ begin
+  insert into account.kinds (key, name) values ('visitor', 'Visitor');
+  raise exception 'FAILED: Account Center''s user added a kind';
+exception when insufficient_privilege then raise notice 'ok: Account Center''s user cannot change the kinds (a migration does)';
+end $$;
 do $$ begin
   perform account.import_from_hr();
   raise exception 'FAILED: Account Center''s user ran the import';

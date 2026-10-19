@@ -1,0 +1,40 @@
+# Account Center on the Designally NAS: the Portainer stack (docs/deploy-nas.md).
+#
+# Nothing in this file is a secret, and nothing secret may be added to it. Every ${NAME} is a Portainer
+# stack variable. `:?` means the stack refuses to start without it.
+#
+# IMAGE_TAG is `sha-<full 40-character commit>`, copied from the release workflow's run summary.
+# There is no default and never `latest`.
+services:
+  app:
+    image: ghcr.io/designally-co/account-center:${IMAGE_TAG:?set IMAGE_TAG to sha-<full commit>}
+    container_name: account-center
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      # Project Friday's address. Not a secret.
+      SUPABASE_URL: https://urzwmhoujpphumruhgkv.supabase.co
+      # Project Friday's publishable key: public by design, but kept out of Git like every key.
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?}
+      # Friday's session pooler, as Account Center's own user account_app (sql/account-app-user.sql).
+      DATABASE_URL: ${DATABASE_URL:?}
+    # No published ports: Caddy reaches account-center:3000 on caddy_default.
+    networks:
+      - caddy_default
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  caddy_default:
+    external: true
