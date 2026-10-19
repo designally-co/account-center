@@ -30,10 +30,10 @@ describe("People", () => {
     const ann = people.find((p) => p.display_name === "Ann")!;
     const ben = people.find((p) => p.display_name === "Ben Example")!;
     const cat = people.find((p) => p.display_name === "Cat")!;
-    expect(ann).toMatchObject({ email: "ann@example.com", source: "hr", is_active: true, login: "ok", work_emails: [], app_count: 0 });
+    expect(ann).toMatchObject({ email: "ann@example.com", source: "hr", is_active: true, login: "ok", work_emails: [], app_count: 0, team: "Branding", is_lead: true });
     expect(ben.login).toBe("blocked");
     expect(cat.is_active).toBe(false);
-    expect(Object.keys(ann).sort()).toEqual(["app_count", "avatar", "display_name", "email", "id", "is_active", "kind", "login", "source", "work_emails"]);
+    expect(Object.keys(ann).sort()).toEqual(["app_count", "avatar", "display_name", "email", "id", "is_active", "is_lead", "kind", "login", "source", "team", "work_emails"]);
     expect(ann.kind).toBe("Employee");
     annId = ann.id;
     benId = ben.id;

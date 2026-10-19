@@ -71,7 +71,7 @@ function SaveBar({ onCancel }: { onCancel: () => void }) {
 // blocked. Choosing a role sets every row to what the role gives; changing a row makes it "custom".
 // Save stores the role and only the rows that differ from it (single changes for this person).
 export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, icon, version, roles, actions, currentRole, locked,
-  lockedNote, keptOut, leftover, initiallyOpen, notice }: {
+  lockedNote, keptOut, leftover, initiallyOpen, notice, fixedNote = null }: {
   save: (form: FormData) => Promise<void>;
   personId: string;
   appKey: string;
@@ -89,6 +89,7 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ic
   leftover: boolean;               // kept out, but old access is still stored
   initiallyOpen: boolean;
   notice: Notice | null;
+  fixedNote?: string | null;      // shown instead of the role menu (an admin has every action)
 }) {
   const bodyId = useId();
   const roleSelect = useRef<HTMLSelectElement>(null);
@@ -156,6 +157,8 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ic
         {isPrototype ? <span className="pill plain">Prototype</span> : null}
         {keptOut ? (
           <span className="head-note">{keptOut}</span>
+        ) : fixedNote && actions.length > 0 ? (
+          <span className="pill ok">{fixedNote}</span>
         ) : actions.length === 0 ? (
           <span className="head-note">No actions yet</span>
         ) : (

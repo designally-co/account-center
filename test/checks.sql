@@ -21,7 +21,7 @@ exception when raise_exception then
   if sqlerrm like 'FAILED%' then raise; end if;
   raise notice 'ok: the HR list is imported only once';
 end $$;
-select pg_temp.ok((select count(*) from account.log where actor = 'import from HR') = 3, 'the import is in the change log');
+select pg_temp.ok((select count(*) from account.log where actor = 'import from HR' and table_name = 'people') = 3, 'the import is in the change log');
 
 -- Nobody has access by default
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'account_center.view') = false, 'no role, no access');
@@ -180,7 +180,7 @@ select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000d', 'stud
 insert into account.actions (app_key, key, description) values ('hub', 'hub.article.edit', 'Edit an article');
 insert into account.person_actions (person_id, action_key, allowed) select id, 'hub.article.edit', true from account.people where email = 'dee@example.com';
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000d', 'hub.article.edit'), 'an action added for one person is a yes without a role');
-select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'hub.article.edit') = false, 'an action added for one person gives nothing to the others');
+select pg_temp.ok(account.base_allows((select id from account.people where email = 'ben@example.com'), 'hub.article.edit') = false, 'an action added for one person gives nothing to the others (Ann is an admin, so Ben is checked)');
 update auth.users set banned_until = now() + interval '1 day' where id = '00000000-0000-0000-0000-00000000000d';
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000d', 'hub.article.edit') = false, 'an added action still needs a working login');
 update auth.users set banned_until = null where id = '00000000-0000-0000-0000-00000000000d';
@@ -328,5 +328,97 @@ do $$ begin
   raise exception 'a long description was accepted';
 exception when check_violation then raise notice 'ok: an app description stays short';
 end $$;
+
+-- Teams: copied once from HR, one team per person, leads, and each team's default access.
+select pg_temp.ok((select string_agg(name, ',' order by name) from account.teams) = 'Branding,Digital', 'HR''s teams are copied');
+select pg_temp.ok((select t.name from account.team_members m join account.teams t on t.id = m.team_id join account.people p on p.id = m.person_id
+                   where p.hr_employee_id = '10000000-0000-0000-0000-00000000000b') = 'Digital', 'someone in two HR teams keeps their primary one');
+select pg_temp.ok((select m.is_lead from account.team_members m join account.people p on p.id = m.person_id
+                   where p.hr_employee_id = '10000000-0000-0000-0000-00000000000a'), 'HR''s team lead is a lead here');
+select pg_temp.ok((select count(*) from account.team_members m join account.teams t on t.id = m.team_id where t.name = 'Digital' and m.is_lead) = 0,
+                  'a lead who is in another team is not made a lead (the import counts them)');
+do $$ begin
+  insert into account.team_members (person_id, team_id)
+  select p.id, t.id from account.people p, account.teams t where p.hr_employee_id = '10000000-0000-0000-0000-00000000000a' and t.name = 'Digital';
+  raise exception 'FAILED: a person was put in a second team';
+exception when unique_violation then raise notice 'ok: one team per person';
+end $$;
+
+begin;
+select set_config('account.actor', 'test-admin', true);
+insert into account.actions (app_key, key, description) values ('brand', 'brand.tview', 'View'), ('brand', 'brand.tedit', 'Edit'), ('hr', 'hr.tleave', 'Ask for leave');
+insert into account.roles (app_key, key, name) values ('brand', 'tviewer', 'Viewer'), ('brand', 'teditor', 'Editor'), ('hr', 'tstaff', 'Staff');
+insert into account.role_actions values ('brand', 'tviewer', 'brand.tview'), ('brand', 'teditor', 'brand.tview'), ('brand', 'teditor', 'brand.tedit'), ('hr', 'tstaff', 'hr.tleave');
+insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000f1', 'tia@example.com', now()), ('00000000-0000-0000-0000-0000000000f2', 'tom@example.com', now());
+insert into account.people (auth_user_id, source, display_name, email) values
+  ('00000000-0000-0000-0000-0000000000f1', 'account_center', 'Tia', 'tia@example.com'),
+  ('00000000-0000-0000-0000-0000000000f2', 'account_center', 'Tom', 'tom@example.com');
+insert into account.team_roles (team_id, app_key, role_key) select id, 'brand', 'teditor' from account.teams where name = 'Branding';
+insert into account.team_roles (team_id, app_key, role_key) select id, 'hr', 'tstaff' from account.teams where name = 'Branding';
+insert into account.team_members (person_id, team_id, is_lead)
+select p.id, t.id, p.email = 'tia@example.com' from account.people p, account.teams t where p.email in ('tia@example.com', 'tom@example.com') and t.name = 'Branding';
+commit;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f2', 'brand.tedit'), 'a team member gets the team''s default access');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f2', 'hr.tleave'), 'every default role of the team applies');
+select pg_temp.ok((select account.me(id)->'roles' from account.people where email = 'tom@example.com') @> '[{"app":"brand","role":"teditor"}]', '"who is this" lists roles from the team');
+select pg_temp.ok(account.is_lead_of('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000f2'), 'a lead leads their team');
+select pg_temp.ok(not account.is_lead_of('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000f1'), 'a member does not lead');
+select pg_temp.ok(not account.is_lead_of('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000f1'), 'nobody leads themselves');
+
+begin;
+select set_config('account.actor', 'test-admin', true);
+-- The admin gives Tom his own role in Brand: it replaces the team default there (less, in this case).
+insert into account.grants (person_id, app_key, role_key) select id, 'brand', 'tviewer' from account.people where email = 'tom@example.com';
+commit;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f2', 'brand.tview') and not account.can_user('00000000-0000-0000-0000-0000000000f2', 'brand.tedit'),
+                  'a person''s own role in an app replaces the team default there');
+begin;
+select set_config('account.actor', 'test-admin', true);
+delete from account.grants where app_key = 'brand' and person_id = (select id from account.people where email = 'tom@example.com');
+insert into account.team_opt_outs (person_id, app_key) select id, 'brand' from account.people where email = 'tom@example.com';
+commit;
+select pg_temp.ok(not account.can_user('00000000-0000-0000-0000-0000000000f2', 'brand.tview') and account.can_user('00000000-0000-0000-0000-0000000000f2', 'hr.tleave'),
+                  '"no access" in one app removes only that app''s team default');
+begin;
+select set_config('account.actor', 'test-admin', true);
+delete from account.team_opt_outs where person_id = (select id from account.people where email = 'tom@example.com');
+insert into account.person_actions (person_id, action_key, allowed) select id, 'brand.tedit', false from account.people where email = 'tom@example.com';
+commit;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f2', 'brand.tview') and not account.can_user('00000000-0000-0000-0000-0000000000f2', 'brand.tedit'),
+                  'a single change takes one action away from the team default');
+begin;
+select set_config('account.actor', 'test-admin', true);
+delete from account.person_actions where person_id = (select id from account.people where email = 'tom@example.com');
+update account.people set kind = 'outsource' where email = 'tom@example.com';
+commit;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f2', 'brand.tedit') and not account.can_user('00000000-0000-0000-0000-0000000000f2', 'hr.tleave'),
+                  'an outsource member never gets HR from the team, but keeps the rest');
+select pg_temp.ok(not ((select account.me(id)->'roles' from account.people where email = 'tom@example.com') @> '[{"app":"hr"}]'), '"who is this" leaves out the app the kind is kept out of');
+begin;
+select set_config('account.actor', 'test-admin', true);
+update account.teams set is_active = false where name = 'Branding';
+commit;
+select pg_temp.ok(not account.can_user('00000000-0000-0000-0000-0000000000f2', 'brand.tview') and not account.is_lead_of('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000f2'),
+                  'a team that is turned off gives nothing, and leads nobody');
+select pg_temp.ok((select count(*) from account.log where table_name in ('teams', 'team_members', 'team_roles', 'team_opt_outs') and actor = 'test-admin') = 7, 'team changes are logged');
+-- An Account Center admin has every action in every app; a team cannot make anyone an admin.
+begin;
+select set_config('account.actor', 'test-admin', true);
+update account.teams set is_active = true where name = 'Branding';
+insert into account.grants (person_id, app_key, role_key) select id, 'account_center', 'admin' from account.people where email = 'tia@example.com';
+commit;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f1', 'brand.tedit') and account.can_user('00000000-0000-0000-0000-0000000000f1', 'studio.article.publish'),
+                  'an Account Center admin has every action in every app');
+do $$ begin
+  insert into account.team_roles (team_id, app_key, role_key) select id, 'account_center', 'admin' from account.teams where name = 'Branding';
+  raise exception 'FAILED: a team gave Account Center access';
+exception when check_violation then raise notice 'ok: a team can never give Account Center access';
+end $$;
+begin;
+select set_config('account.actor', 'test-admin', true);
+update account.people set kind = 'outsource' where email = 'tia@example.com';
+commit;
+select pg_temp.ok(not account.can_user('00000000-0000-0000-0000-0000000000f1', 'hr.tleave'), 'an outsource admin still never gets HR');
+
 
 select 'ALL CHECKS PASSED' as result;

@@ -27,11 +27,17 @@ export type AppAccess = {
   icon: string | null;                   // the app's own graphic (account.apps.icon)
   art: string | null;                    // a small picture of what the app does, for Home (account.apps.art)
   keptOut: boolean;                      // the person's kind may never use this app
-  roles: { key: string; name: string; description: string; actions: string[] }[];
-  roleKeys: string[];                    // the person's ready roles here (normally one)
+  roles: { key: string; name: string; description: string; actions: string[] }[];  // TEAM_ROLE first, when the team gives one
+  roleKeys: string[];                    // the person's own ready roles here (normally one)
+  team: { name: string; roleName: string } | null;  // the default role the person's team gives in this app
+  baseKey: string;                       // what the person's access starts from: their own role, TEAM_ROLE, or "" (none)
+  allByAdmin: boolean;                   // an Account Center admin has every action in every other app
   actions: ActionState[];
   version: string;                       // changes whenever anything above changes; a save from an older page is refused
 };
+
+// In a person's app panel, "the team's default role" is one more choice next to the app's own roles.
+export const TEAM_ROLE = "@team";
 
 export type PersonAccess = {
   id: string;
@@ -51,7 +57,7 @@ export async function listKinds(sql: postgres.Sql): Promise<Kind[]> {
 }
 
 function versionOf(app: Omit<AppAccess, "version">): string {
-  const state = [app.keptOut, app.roles, app.roleKeys, app.actions.map((a) => [a.key, a.on, a.exception])];
+  const state = [app.keptOut, app.roles, app.roleKeys, app.team, app.baseKey, app.allByAdmin, app.actions.map((a) => [a.key, a.on, a.exception])];
   return createHash("sha256").update(JSON.stringify(state)).digest("hex").slice(0, 32);
 }
 
@@ -75,17 +81,38 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
     select app_key, role_key from account.grants
     where person_id = ${personId}::uuid and (${onlyApp}::text is null or app_key = ${onlyApp})
     order by app_key, role_key`;
-  const actions = await sql<{ app_key: string; key: string; description: string; in_role: boolean; allowed: boolean | null }[]>`
+  const teamRoles = await sql<{ app_key: string; role_key: string; team_name: string }[]>`
+    select tr.app_key, tr.role_key, t.name as team_name
+    from account.team_members m
+    join account.teams t on t.id = m.team_id and t.is_active
+    join account.team_roles tr on tr.team_id = m.team_id
+    where m.person_id = ${personId}::uuid and (${onlyApp}::text is null or tr.app_key = ${onlyApp})`;
+  const [{ is_admin: isAdmin }] = await sql<{ is_admin: boolean }[]>`
+    select exists (select 1 from account.grants where person_id = ${personId}::uuid and app_key = 'account_center' and role_key = 'admin') as is_admin`;
+  const optOuts = await sql<{ app_key: string }[]>`
+    select app_key from account.team_opt_outs
+    where person_id = ${personId}::uuid and (${onlyApp}::text is null or app_key = ${onlyApp})`;
+  const actions = await sql<{ app_key: string; key: string; description: string; allowed: boolean | null }[]>`
     select a.app_key, a.key, a.description,
-           exists (select 1 from account.grants g
-                   join account.role_actions ra on ra.app_key = g.app_key and ra.role_key = g.role_key
-                   where g.person_id = ${personId}::uuid and ra.action_key = a.key) as in_role,
            (select x.allowed from account.person_actions x where x.person_id = ${personId}::uuid and x.action_key = a.key) as allowed
     from account.actions a
     where ${onlyApp}::text is null or a.app_key = ${onlyApp}
     order by a.app_key, a.key`;
 
   return apps.map((app) => {
+    // Where access starts (the same rule as account.base_allows): the person's own role in this app; else,
+    // unless an admin chose "no access" here, the team's default role.
+    const appRoles = roles.filter((r) => r.app_key === app.key).map(({ key, name, description, actions }) => ({ key, name, description, actions }));
+    const roleKeys = grants.filter((g) => g.app_key === app.key).map((g) => g.role_key);
+    const teamRow = teamRoles.find((t) => t.app_key === app.key);
+    const teamRole = teamRow ? appRoles.find((r) => r.key === teamRow.role_key) : undefined;
+    const team = teamRow && teamRole ? { name: teamRow.team_name, roleName: teamRole.name } : null;
+    const optedOut = optOuts.some((o) => o.app_key === app.key);
+    const baseKey = roleKeys.length ? roleKeys[0] : !optedOut && team ? TEAM_ROLE : "";
+    const allByAdmin = isAdmin && app.key !== "account_center";
+    const base = new Set(allByAdmin ? actions.filter((a) => a.app_key === app.key).map((a) => a.key) : roleKeys.length
+      ? appRoles.filter((r) => roleKeys.includes(r.key)).flatMap((r) => r.actions)
+      : baseKey === TEAM_ROLE ? teamRole!.actions : []);
     const access: Omit<AppAccess, "version"> = {
       key: app.key,
       name: app.name,
@@ -96,14 +123,19 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
       icon: app.icon,
       art: app.art,
       keptOut: app.kept_out,
-      roles: roles.filter((r) => r.app_key === app.key).map(({ key, name, description, actions }) => ({ key, name, description, actions })),
-      roleKeys: grants.filter((g) => g.app_key === app.key).map((g) => g.role_key),
+      roles: team && teamRole
+        ? [{ key: TEAM_ROLE, name: `${team.roleName} (${team.name} default)`, description: teamRole.description, actions: teamRole.actions }, ...appRoles]
+        : appRoles,
+      roleKeys,
+      team,
+      baseKey,
+      allByAdmin,
       actions: actions.filter((a) => a.app_key === app.key).map((a) => ({
         key: a.key,
         description: a.description,
-        inRole: a.in_role,
+        inRole: base.has(a.key),
         exception: a.allowed === true ? "added" : a.allowed === false ? "taken-away" : null,
-        on: a.allowed ?? a.in_role,
+        on: a.allowed ?? base.has(a.key),
       })),
     };
     return { ...access, version: versionOf(access) };
@@ -127,7 +159,8 @@ export function accessSummary(app: AppAccess, kindName: string): { text: string;
   const on = app.keptOut ? 0 : app.actions.filter((a) => a.on).length;
   if (app.keptOut) return { text: `Never for ${kindName}`, tone: "warn", on };
   if (on === 0) return { text: "No access", tone: "muted", on };
-  const role = app.roles.filter((r) => app.roleKeys.includes(r.key)).map((r) => r.name).join(", ");
+  if (app.allByAdmin) return { text: `Admin · every action`, tone: "ok", on };
+  const role = app.baseKey === TEAM_ROLE && app.team ? `${app.team.roleName} (team)` : app.roles.filter((r) => app.roleKeys.includes(r.key)).map((r) => r.name).join(", ");
   const changed = app.actions.some((a) => a.exception !== null);
   const label = role ? `${role}${changed ? " + changes" : ""}` : "Single actions";
   return { text: `${label} · ${on} of ${app.actions.length}`, tone: "ok", on };
@@ -187,6 +220,8 @@ async function changeApp(
 // differences between the ticks and that role are stored, as single changes for this person. `ticked` null
 // means "exactly the role" (no single changes). Keys that are not this app's actions are ignored.
 // Choosing no role and no ticks also clears access left over in an app the person's kind is kept out of.
+// The role can be TEAM_ROLE (the team's default, when the team gives one here); a role of their own replaces
+// it, and "no role" while the team gives one is stored as "no access here" (account.team_opt_outs).
 export async function saveAppAccess(
   sql: postgres.Sql, actorId: string, personId: string, appKey: string,
   roleKey: string | null, ticked: string[] | null, version: string,
@@ -197,17 +232,22 @@ export async function saveAppAccess(
     return ticked === null ? role?.actions.includes(key) ?? false : ticked.includes(key);
   };
   const sameAsNow = (app: AppAccess) =>
-    app.roleKeys.length === (roleKey === null ? 0 : 1) && (roleKey === null || app.roleKeys[0] === roleKey) &&
-    app.actions.every((a) => a.on === finalOn(app, a.key));
+    app.baseKey === (roleKey ?? "") && app.roleKeys.length <= 1 && app.actions.every((a) => a.on === finalOn(app, a.key));
   return changeApp(sql, actorId, personId, appKey, version, async (tx, app) => {
     const role = roleKey === null ? null : app.roles.find((r) => r.key === roleKey);
     if (role === undefined) return "unknown-role";
     // Someone who could manage Account Center without seeing it could act unseen, and would not count as an
     // admin for the way back (account.bootstrap_first_admin), so that list is refused.
     if (appKey === "account_center" && finalOn(app, "account_center.manage") && !finalOn(app, "account_center.view")) return "manage-needs-view";
+    const own = role && role.key !== TEAM_ROLE ? role.key : null;
     await tx`delete from account.grants where person_id = ${personId}::uuid and app_key = ${appKey}
-             and (${roleKey}::text is null or role_key <> ${roleKey})`;
-    if (role) {
+             and (${own}::text is null or role_key <> ${own})`;
+    if (role === null && app.team) {
+      await tx`insert into account.team_opt_outs (person_id, app_key) values (${personId}::uuid, ${appKey}) on conflict do nothing`;
+    } else {
+      await tx`delete from account.team_opt_outs where person_id = ${personId}::uuid and app_key = ${appKey}`;
+    }
+    if (role && own) {
       await tx`insert into account.grants (person_id, app_key, role_key) values (${personId}::uuid, ${appKey}, ${role.key})
                on conflict do nothing`;
     }

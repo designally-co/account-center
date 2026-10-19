@@ -11,3 +11,14 @@ insert into public.hr_employees (id, auth_user_id, email, nickname, display_name
   ('10000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000b', 'ben@example.com', null, 'Ben Example', '000', '2000-01-01', 'employee', true, false),
   ('10000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000c', 'cat@example.com', 'Cat', null, '000', '2000-01-01', 'employee', false, false),
   ('10000000-0000-0000-0000-00000000000f', '00000000-0000-0000-0000-00000000000f', 'fix@example.com', 'Fix', null, '000', '2000-01-01', 'employee', true, true);
+
+-- Made-up teams. Ben is in two teams in HR (Digital is his primary one). Ann leads Branding and is also
+-- named lead of Digital, where she is not a member.
+insert into public.hr_teams (id, name, display_name, lead_id, is_active) values
+  ('20000000-0000-0000-0000-000000000001', 'branding', 'Branding', '10000000-0000-0000-0000-00000000000a', true),
+  ('20000000-0000-0000-0000-000000000002', 'digital',  'Digital',  '10000000-0000-0000-0000-00000000000a', true);
+insert into public.hr_employee_teams (employee_id, team_id, is_primary) values
+  ('10000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-000000000001', true),
+  ('10000000-0000-0000-0000-00000000000b', '20000000-0000-0000-0000-000000000001', false),
+  ('10000000-0000-0000-0000-00000000000b', '20000000-0000-0000-0000-000000000002', true),
+  ('10000000-0000-0000-0000-00000000000c', '20000000-0000-0000-0000-000000000001', true);

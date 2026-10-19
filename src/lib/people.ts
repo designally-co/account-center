@@ -15,6 +15,8 @@ export type PersonRow = {
   work_emails: string[];
   avatar: unknown;                       // the person's avatar choices, or null before they make one
   app_count: number;                     // apps where the real check gives at least one action
+  team: string | null;                   // the person's team (one at most)
+  is_lead: boolean;                      // a lead of that team
 };
 
 export async function listPeople(sql: postgres.Sql): Promise<PersonRow[]> {
@@ -22,14 +24,14 @@ export async function listPeople(sql: postgres.Sql): Promise<PersonRow[]> {
     select p.id, p.display_name, p.email, p.source, k.name as kind, p.is_active, p.avatar,
            account.login_state(p.auth_user_id) as login,
            coalesce(array(select e.email from account.person_emails e where e.person_id = p.id order by e.email), '{}') as work_emails,
+           (select t.name from account.team_members m join account.teams t on t.id = m.team_id where m.person_id = p.id) as team,
+           coalesce((select m.is_lead from account.team_members m where m.person_id = p.id), false) as is_lead,
            (select count(distinct a.app_key)::int
             from account.actions a
             where not exists (select 1 from account.kind_blocked_apps b where b.kind = p.kind and b.app_key = a.app_key)
               and coalesce(
                     (select x.allowed from account.person_actions x where x.person_id = p.id and x.action_key = a.key),
-                    exists (select 1 from account.grants g
-                            join account.role_actions ra on ra.app_key = g.app_key and ra.role_key = g.role_key
-                            where g.person_id = p.id and ra.action_key = a.key))) as app_count
+                    account.base_allows(p.id, a.key))) as app_count
     from account.people p
     join account.kinds k on k.key = p.kind
     order by p.is_active desc, lower(p.display_name)`;
@@ -88,6 +90,8 @@ export async function removePerson(sql: postgres.Sql, actorId: string, personId:
       if (found.length !== 1) return "not-found" as const;
       await tx`delete from account.grants where person_id = ${personId}::uuid`;
       await tx`delete from account.person_actions where person_id = ${personId}::uuid`;
+      await tx`delete from account.team_members where person_id = ${personId}::uuid`;
+      await tx`delete from account.team_opt_outs where person_id = ${personId}::uuid`;
       return "removed" as const;
     });
   } catch (error) {

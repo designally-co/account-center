@@ -72,9 +72,10 @@ function AppSection({ person, app, kindLabel, canManage, isMe, open, notice }: {
       version={app.version}
       roles={app.roles.map(({ key, name, actions }) => ({ key, name, actions }))}
       actions={app.actions.map(({ key, description, on }) => ({ key, description, on: on && !app.keptOut }))}
-      currentRole={app.roleKeys[0] ?? ""}
-      locked={!canManage || !person.is_active || own}
-      lockedNote={own && canManage ? "Ask another admin to change your own access." : null}
+      currentRole={app.baseKey}
+      locked={!canManage || !person.is_active || own || app.allByAdmin}
+      lockedNote={app.allByAdmin ? "Account Center admins have every action in every app." : own && canManage ? "Ask another admin to change your own access." : null}
+      fixedNote={app.allByAdmin ? "Admin: all access" : null}
       keptOut={app.keptOut ? `Never for ${kindLabel}` : null}
       leftover={app.keptOut && (app.roleKeys.length > 0 || app.actions.some((a) => a.exception !== null))}
       initiallyOpen={open}
