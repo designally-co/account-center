@@ -104,6 +104,8 @@ jobs:
           jq -e --arg c "$COMMIT" '.ok == true and .commit == $c and .apps > 0' health.json
           test "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' http://127.0.0.1:3000/people)" = "307 http://127.0.0.1:3000/login"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login)" = "200"
+          curl -sI http://127.0.0.1:3000/login | grep -qi '^x-frame-options: DENY'
+          curl -sI http://127.0.0.1:3000/login | grep -qi "^content-security-policy: frame-ancestors 'none'"
 
       - name: Server log on failure
         if: failure()

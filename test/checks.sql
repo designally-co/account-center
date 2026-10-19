@@ -12,7 +12,7 @@ select pg_temp.ok((select email from account.people where hr_employee_id = '1000
 select pg_temp.ok((select display_name from account.people where hr_employee_id = '10000000-0000-0000-0000-00000000000b') = 'Ben Example', 'name falls back to the display name');
 select pg_temp.ok(
   (select array_agg(column_name::text order by column_name::text) from information_schema.columns where table_schema = 'account' and table_name = 'people')
-  = array['auth_user_id','created_at','display_name','email','hr_employee_id','id','is_active','kind','source','updated_at'],
+  = array['auth_user_id','avatar','created_at','display_name','email','hr_employee_id','id','is_active','kind','source','updated_at'],
   'no HR details (phone, birthday, role) in account.people');
 do $$ begin
   perform account.import_from_hr();
@@ -112,6 +112,16 @@ select id, 'account_center.manage', false from account.people where email = 'ann
 select account.bootstrap_first_admin('ann@example.com');
 select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000a', 'account_center.manage'),
                   'when a single change took the last admin''s right away, the way back clears it');
+rollback;
+begin;
+-- Dee may manage but not see; Ann's login is blocked: nobody can act, so the way back must work.
+insert into account.grants (person_id, app_key, role_key) select id, 'account_center', 'admin' from account.people where email = 'dee@example.com';
+insert into account.person_actions (person_id, action_key, allowed) select id, 'account_center.view', false from account.people where email = 'dee@example.com';
+update auth.users set banned_until = now() + interval '1 day' where id = '00000000-0000-0000-0000-00000000000a';
+select account.bootstrap_first_admin('dee@example.com');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-00000000000d', 'account_center.view')
+                  and account.can_user('00000000-0000-0000-0000-00000000000d', 'account_center.manage'),
+                  'the way back also works when the only one left may manage but not see');
 rollback;
 begin;
 update auth.users set banned_until = now() + interval '1 day' where id = '00000000-0000-0000-0000-00000000000a';
@@ -285,5 +295,20 @@ select pg_temp.ok((select count(*) from account.log where table_name = 'apps' an
                   'adding and removing an app is logged');
 select pg_temp.ok((select count(*) from account.log where table_name = 'actions' and (row_after->>'key' = 'logtest.view' or row_before->>'key' = 'logtest.view')) = 2,
                   'adding an action, and its removal with its app, is logged');
+
+-- Avatars: the person's choices as a small object, given by "who is this"
+update account.people set avatar = '{"hair": "variant01"}' where email = 'dee@example.com';
+select pg_temp.ok(account.me((select id from account.people where email = 'dee@example.com'))->'avatar'->>'hair' = 'variant01', '"who is this" gives the avatar');
+do $$ begin
+  update account.people set avatar = '"not an object"' where email = 'dee@example.com';
+  raise exception 'FAILED: an avatar that is not an object was stored';
+exception when check_violation then raise notice 'ok: an avatar must be an object';
+end $$;
+do $$ begin
+  update account.people set avatar = jsonb_build_object('hair', repeat('a', 2000)) where email = 'dee@example.com';
+  raise exception 'FAILED: a huge avatar was stored';
+exception when check_violation then raise notice 'ok: an avatar cannot be huge';
+end $$;
+update account.people set avatar = null where email = 'dee@example.com';
 
 select 'ALL CHECKS PASSED' as result;

@@ -13,12 +13,13 @@ export type PersonRow = {
   is_active: boolean;
   login: LoginState;
   work_emails: string[];
+  avatar: unknown;                       // the person's avatar choices, or null before they make one
   app_count: number;                     // apps where the real check gives at least one action
 };
 
 export async function listPeople(sql: postgres.Sql): Promise<PersonRow[]> {
   return sql<PersonRow[]>`
-    select p.id, p.display_name, p.email, p.source, k.name as kind, p.is_active,
+    select p.id, p.display_name, p.email, p.source, k.name as kind, p.is_active, p.avatar,
            account.login_state(p.auth_user_id) as login,
            coalesce(array(select e.email from account.person_emails e where e.person_id = p.id order by e.email), '{}') as work_emails,
            (select count(distinct a.app_key)::int

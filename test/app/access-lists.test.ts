@@ -177,11 +177,19 @@ describe("Access lists", () => {
     expect(await setAppRole(app, annId, benId, "studio", "writer", await v(benId, "studio"))).toBe("not-allowed");
     expect((await setKind(app, benId, annId, "outsource")).result).toBe("not-allowed");
     expect(await saveAppActions(app, "not-a-uuid", annId, "studio", [], await v(annId, "studio"))).toBe("not-allowed");
-    // Manage without view (possible with single changes) is not enough to make changes.
-    expect(await saveAppAccess(app, deeId, annId, "account_center", "admin", ["account_center.manage"], await v(annId, "account_center"))).toBe("saved");
+    // The screen refuses "manage without view"...
+    expect(await saveAppAccess(app, deeId, annId, "account_center", "admin", ["account_center.manage"], await v(annId, "account_center"))).toBe("manage-needs-view");
+    expect(await saveAppAccess(app, deeId, annId, "account_center", null, ["account_center.manage"], await v(annId, "account_center"))).toBe("manage-needs-view");
+    // ...and if such a list exists anyway (made by hand in the SQL Editor), it is not enough to make changes.
+    await db.setup`insert into account.grants (person_id, app_key, role_key) values (${annId}::uuid, 'account_center', 'admin')`;
+    await db.setup`insert into account.person_actions (person_id, action_key, allowed) values (${annId}::uuid, 'account_center.view', false)`;
     expect(await can(ANN, "account_center.manage")).toBe(true);
     expect(await setAppRole(app, annId, benId, "studio", "writer", await v(benId, "studio"))).toBe("not-allowed");
-    expect(await setAppRole(app, deeId, annId, "account_center", null, await v(annId, "account_center"))).toBe("saved");
+    await db.setup`delete from account.person_actions where person_id = ${annId}::uuid and action_key like 'account_center.%'`;
+    await db.setup`delete from account.grants where person_id = ${annId}::uuid and app_key = 'account_center'`;
+    // Nobody changes their own kind (it decides which apps they may ever use).
+    expect((await setKind(app, deeId, deeId, "outsource")).result).toBe("yourself");
+    expect((await setKind(app, deeId, deeId.toUpperCase(), "outsource")).result).toBe("yourself");
   });
 
   it("a kind change and a new HR role at the same moment cannot both win", async () => {

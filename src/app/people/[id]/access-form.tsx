@@ -50,13 +50,14 @@ export function SaveNotice({ tone, text }: Notice) {
 // One app of a person's access list. The header holds the ready role; each action is one row, allowed or
 // blocked. Choosing a role sets every row to what the role gives; changing a row makes it "custom".
 // Save stores the role and only the rows that differ from it (single changes for this person).
-export function AppPanel({ save, personId, appKey, appName, isPrototype, version, roles, actions, currentRole, locked,
+export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, version, roles, actions, currentRole, locked,
   lockedNote, keptOut, leftover, initiallyOpen, notice }: {
   save: (form: FormData) => Promise<void>;
   personId: string;
   appKey: string;
   appName: string;
   isPrototype: boolean;
+  hue: number | null;
   version: string;
   roles: Role[];
   actions: Action[];
@@ -113,14 +114,14 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, version
         {expandable ? (
           <button type="button" className="app-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
             <Chevron open={open} />
-            <Orb seed={appKey} size={28} />
+            <Orb seed={appKey} hue={hue} size={28} />
             <span className="app-name">{appName}</span>
             {!keptOut ? <span className="count">{allowed.size}/{actions.length}</span> : null}
           </button>
         ) : (
           <span className="app-toggle static">
             <span className="chevron-space" />
-            <Orb seed={appKey} size={28} />
+            <Orb seed={appKey} hue={hue} size={28} />
             <span className="app-name">{appName}</span>
           </span>
         )}
@@ -155,6 +156,9 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, version
                   return (
                     <li key={a.key}>
                       <span className="perm-name" id={`${bodyId}-${a.key}`}>{a.description || a.key}</span>
+                      {locked ? (
+                        <span className={on ? "perm-state allow" : "perm-state block"}>{on ? <AllowedIcon /> : <BlockedIcon />}{on ? "Allowed" : "Blocked"}</span>
+                      ) : (
                       <span className="seg" role="radiogroup" aria-labelledby={`${bodyId}-${a.key}`} data-state={on ? "allowed" : "blocked"}>
                         <label title="Allowed" className={on ? "on allow" : undefined}>
                           <input type="radio" name={group} className="sr-only" checked={on} disabled={locked} onChange={() => set(a.key, true)} />
@@ -165,6 +169,7 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, version
                           <BlockedIcon /><span className="sr-only">Blocked</span>
                         </label>
                       </span>
+                      )}
                     </li>
                   );
                 })}

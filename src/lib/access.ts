@@ -6,6 +6,7 @@ import type postgres from "postgres";
 export type Me = {
   person_id: string;
   display_name: string;
+  avatar: unknown;                       // the person's avatar choices, or null before they make one
   roles: { app: string; role: string }[];
 };
 

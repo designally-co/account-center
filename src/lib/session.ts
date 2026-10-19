@@ -11,13 +11,20 @@ export async function currentUserId(): Promise<string | null> {
   return data.user.id;
 }
 
-// Every page and every action calls this first. No account: sign in. No access: a page that says so.
-export async function requireAction(action: string): Promise<{ userId: string; me: Me }> {
+// Pages every company person may open (their own access and avatar): a signed-in, active person with a
+// working login. No account: sign in. Not in Account Center's list, removed or blocked: a page that says so.
+export async function requirePerson(): Promise<{ userId: string; me: Me }> {
   const userId = await currentUserId();
   if (!userId) redirect("/login");
-  const sql = db();
-  if (!(await canUser(sql, userId, action))) redirect("/no-access");
-  const me = await meByUser(sql, userId);
+  const me = await meByUser(db(), userId);
   if (!me) redirect("/no-access");
+  return { userId, me };
+}
+
+// Every admin page and every admin action calls this first. No account: sign in. No access: a page that says so.
+// A person without that right goes back to Home, which says so.
+export async function requireAction(action: string): Promise<{ userId: string; me: Me }> {
+  const { userId, me } = await requirePerson();
+  if (!(await canUser(db(), userId, action))) redirect("/?notice=not-allowed");
   return { userId, me };
 }

@@ -1,5 +1,5 @@
-// A soft gradient orb that stands for an app or a person. The colours come from the key, so the same app
-// or person always gets the same orb. Decoration only: screen readers skip it.
+// A soft gradient orb that stands for an app (people have avatars). The colours come from the key, so the
+// same app always gets the same orb. Decoration only: screen readers skip it.
 
 function hash(text: string): number {
   let h = 2166136261;
@@ -7,29 +7,23 @@ function hash(text: string): number {
   return h >>> 0;
 }
 
-export function Orb({ seed, size = 28, label }: { seed: string; size?: number; label?: string }) {
+// The brand mark's colour: the Account Center app's hue (migration 20261019110000).
+export const BRAND_HUE = 190;
+
+// `hue` is the app's chosen colour (account.apps.hue); without one, a colour comes from the seed.
+export function Orb({ seed, hue, size = 28 }: { seed: string; hue?: number | null; size?: number }) {
   const h = hash(seed);
-  const a = h % 360;
-  const b = (a + 40 + ((h >>> 9) % 80)) % 360;
-  const c = (a + 160 + ((h >>> 17) % 60)) % 360;
+  const a = hue ?? h % 360;
+  // Neighbouring colours around the app's own hue, so each app reads as one colour (blue, green, pink...).
+  const b = (a + 28 + ((h >>> 9) % 20)) % 360;
+  const c = (a + 332 - ((h >>> 17) % 20)) % 360;
   const style = {
     width: size,
     height: size,
-    fontSize: Math.round(size * 0.38),
     "--orb-size": `${size}px`,
-    "--orb-a": `hsl(${a} 92% 72%)`,
-    "--orb-b": `hsl(${b} 88% 64%)`,
-    "--orb-c": `hsl(${c} 80% 70%)`,
+    "--orb-a": `hsl(${a} 90% 70%)`,
+    "--orb-b": `hsl(${b} 85% 60%)`,
+    "--orb-c": `hsl(${c} 80% 80%)`,
   } as React.CSSProperties;
-  return (
-    <span className="orb" style={style} aria-hidden="true">
-      {label ? <span className="orb-label">{label}</span> : null}
-    </span>
-  );
-}
-
-export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const letters = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : (parts[0] ?? "?").slice(0, 2);
-  return letters.toUpperCase();
+  return <span className="orb" style={style} aria-hidden="true" />;
 }

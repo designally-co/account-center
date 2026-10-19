@@ -69,6 +69,14 @@ Account Center is an experiment: nothing below changes anything in use until Buk
 - **Each person can have more than one email.** The HR email (their Account Center account) is usually a personal Gmail, but Google sign-in in Buk's apps uses their designally.co account. During the move, an Account Center admin adds each person's work email in Account Center (`account.person_emails`), so a Google sign-in finds the right person. Google has already proven the work email, so the apps can match on it safely.
 - Account Center can show HR details as a prototype only; it does not write to HR.
 
+### Avatars: made by each person, for fun in the office
+
+- Every person makes their own avatar (Buk, 2026-10-19): drawn faces in the Notion style ("Notionists" by Zoish, CC0, drawn by the DiceBear library, MIT), chosen part by part (hair, eyes, brows, mouth, nose, glasses, beard, outfit, hands, badge, colour), with "Surprise me". Until they make one, they see a stable starting face made from their id.
+- **When:** the first time a person signs in to Account Center, they land on the avatar step ("Welcome, Ann"). It becomes a step of account creation when that is built (section 1). They can change it any time from Home.
+- **Stored as their choices** (`account.people.avatar`, a small object), never as an image. Account Center's server accepts only known parts with known values; the database keeps the shape and size in check.
+- **Only the person changes their own avatar**, through their own signed-in account (`saveMyAvatar`, `src/lib/self.ts`); admins cannot. Every change is in the change log.
+- `account.me` (and so `me_by_user`, `me_by_email`) returns the avatar, so an app that later shows people can show it too.
+
 ### Access: per app and per action
 
 - **A person's access list** shows the apps they can use, and inside each app what they can do (Buk, 2026-10-19). Access is never only "can use this app" or "cannot". Example: in Article Studio a person can generate an article but cannot publish it.
@@ -175,7 +183,9 @@ Example:
 
 ## 4. Account Center
 
-**Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone with their status and kind, **Remove** for people who leave; every change in the change log with the admin's id); step 3 (first version, 2026-10-19), **each person's page**: kind, work emails, and per app a ready role and one allowed/blocked row per action. Design: minimal, black and white, with a soft gradient orb per app and per person (Buk, 2026-10-19: "minimal, modern and intentional", like ElevenLabs). Release and hosting: `docs/deploy-nas.md`. The HR list is imported once, by a person, when Account Center starts in Friday.
+**Who can sign in:** every active company person with a working login (Buk, 2026-10-19), to see their own access and make their avatar. The People pages and every change to access need Account Center's own actions (view, manage).
+
+**Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone with their status and kind, **Remove** for people who leave; every change in the change log with the admin's id); step 3 (first version, 2026-10-19), **each person's page**: kind, work emails, and per app a ready role and one allowed/blocked row per action; step 4, **avatars** (the maker, shown at first sign-in). Design: minimal, black and white, with a soft gradient orb per app and a drawn avatar per person (Buk, 2026-10-19: "minimal, modern and intentional", like ElevenLabs). Release and hosting: `docs/deploy-nas.md`. The HR list is imported once, by a person, when Account Center starts in Friday.
 
 **Stack:** Next.js on the Designally NAS, like MA Desk (Buk, 2026-10-14; `decisions/stack-nextjs-on-nas.md`). **Address:** account.designally.co (Buk, 2026-10-14).
 

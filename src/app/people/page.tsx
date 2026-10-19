@@ -1,5 +1,5 @@
 import { Nav } from "@/components/nav";
-import { Orb, initials } from "@/components/orb";
+import { Avatar } from "@/components/avatar";
 import { ACTIONS, canUser } from "@/lib/access";
 import { db } from "@/lib/db";
 import { listPeople, type PersonRow } from "@/lib/people";
@@ -23,7 +23,7 @@ const NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
 
 function Notice({ search }: { search: Search }) {
   const key = typeof search.notice === "string" ? search.notice : "";
-  const n = NOTICES[key];
+  const n = Object.hasOwn(NOTICES, key) ? NOTICES[key] : null;
   return n ? <p className={`notice ${n.tone}`} role={n.tone === "error" ? "alert" : "status"}>{n.text}</p> : null;
 }
 
@@ -42,7 +42,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <Nav current="people" name={me.display_name} personId={me.person_id} />
+      <Nav current="people" me={me} canView />
       <main className="wide">
         <div className="top">
           <div>
@@ -80,7 +80,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
               <tbody>
                 {people.map((p) => (
                   <tr key={p.id} className={p.is_active ? undefined : "faded"}>
-                    <td className="name"><Link href={`/people/${p.id}`}><Orb seed={p.id} size={30} label={initials(p.display_name)} /><span>{p.display_name}</span></Link></td>
+                    <td className="name"><Link href={`/people/${p.id}`}><Avatar avatar={p.avatar} seed={p.id} size={36} /><span>{p.display_name}</span></Link></td>
                     <td>{p.email}</td>
                     <td>
                       {p.work_emails.length ? (

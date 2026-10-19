@@ -1,48 +1,53 @@
-import { ACTIONS } from "@/lib/access";
+import Link from "next/link";
+import { ACTIONS, canUser } from "@/lib/access";
 import { accessSummary, getPersonAccess } from "@/lib/access-lists";
 import { db } from "@/lib/db";
-import { requireAction } from "@/lib/session";
+import { requirePerson } from "@/lib/session";
 import { Nav } from "@/components/nav";
-import { Orb, initials } from "@/components/orb";
+import { Avatar } from "@/components/avatar";
+import { Orb } from "@/components/orb";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
-  const { me } = await requireAction(ACTIONS.view);
+type Search = Record<string, string | string[] | undefined>;
+
+// Every company person can open Home: their avatar and their own access. Nothing about anyone else.
+export default async function HomePage({ searchParams }: { searchParams: Promise<Search> }) {
+  const { userId, me } = await requirePerson();
+  const sql = db();
+  const [access, canView, search] = await Promise.all([getPersonAccess(sql, me.person_id), canUser(sql, userId, ACTIONS.view), searchParams]);
   // What the real check gives: roles, plus or minus single changes, never an app the kind is kept out of.
-  const access = await getPersonAccess(db(), me.person_id);
   const mine = (access?.apps ?? []).map((app) => ({ app, s: accessSummary(app, access?.kind ?? "") })).filter(({ s }) => s.on > 0);
   return (
     <>
-      <Nav current="home" name={me.display_name} personId={me.person_id} />
+      <Nav current="home" me={me} canView={canView} />
       <main className="wide">
+        {search.notice === "avatar-saved" ? <p className="notice ok" role="status">Avatar saved.</p> : null}
+        {search.notice === "not-allowed" ? <p className="notice error" role="alert">You do not have access to that page.</p> : null}
         <div className="person-head">
-          <Orb seed={me.person_id} size={64} label={initials(me.display_name)} />
+          <Link href="/avatar" className="avatar-edit" aria-label="Change your avatar">
+            <Avatar avatar={me.avatar} seed={me.person_id} size={88} />
+            <span className="avatar-edit-label" aria-hidden="true">Edit</span>
+          </Link>
           <div className="stack tight">
             <h1>Hello, {me.display_name}</h1>
-            <p className="muted">Your access in Designally&apos;s apps</p>
+            <p className="muted">{me.avatar === null ? <Link href="/avatar">Make your avatar</Link> : "Your access in Designally's apps"}</p>
           </div>
         </div>
 
-        <section className="stack">
+        {mine.length ? (
           <ul className="access-cards">
             {mine.map(({ app, s }) => (
               <li key={app.key} className="access-card">
-                <Orb seed={app.key} size={32} />
+                <Orb seed={app.key} hue={app.hue} size={32} />
                 <strong>{app.name}</strong>
                 <span className="what">{s.text}</span>
               </li>
             ))}
           </ul>
-        </section>
-
-        <section className="stack">
-          <h2>Coming next</h2>
-          <ul className="muted">
-            <li>Create account: a one-time link to set a password</li>
-            <li>Change log</li>
-          </ul>
-        </section>
+        ) : (
+          <p className="empty">No app access yet. An Account Center admin gives it.</p>
+        )}
       </main>
     </>
   );

@@ -22,7 +22,7 @@ export async function setKindAction(form: FormData) {
   const personId = String(form.get("person_id") ?? "");
   const { result, app } = await setKind(db(), me.person_id, personId, String(form.get("kind") ?? ""));
   // A refused kind change opens the app that blocks it, but stays at the top, where its message is.
-  back(personId, result === "saved" ? "kind-saved" : result, app, false);
+  back(personId, result === "saved" ? "kind-saved" : result === "yourself" ? "kind-yourself" : result, app, false);
 }
 
 // One app of the access list: the ready role and the ticked actions, saved together.

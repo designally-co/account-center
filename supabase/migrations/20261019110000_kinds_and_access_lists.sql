@@ -10,6 +10,15 @@
 --    away, and the person's kind is not kept out of that app.
 
 -- ---------------------------------------------------------------------------------------------
+-- Each app's colour on screen (the hue of its orb, 0 to 359), as data: spread around the colour wheel so
+-- the apps are easy to tell apart. Empty for a new app until someone chooses one (the screen then picks one
+-- from the app's key). The Account Center app uses 190, which is also the brand mark's colour.
+alter table account.apps add column hue smallint check (hue between 0 and 359);
+update account.apps set hue = v.hue
+from (values ('account_center', 190), ('studio', 220), ('hub', 150), ('brand', 330), ('survey', 40), ('ma', 270), ('hr', 10)) v(key, hue)
+where account.apps.key = v.key;
+
+-- ---------------------------------------------------------------------------------------------
 -- Kinds of people
 create table account.kinds (
   key         text primary key check (key ~ '^[a-z][a-z0-9_]*$'),
@@ -152,15 +161,18 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- The first Account Center admin, and the way back if nobody can manage Account Center any more (for
--- example every admin's login was blocked). Works only while no active person can manage it. Clears the
--- person's single changes in Account Center, so the admin role is not undercut by one, and refuses when
--- the person still could not manage afterwards (removed, or no working login). Same name, arguments and
--- rights as before: a person in the SQL Editor only.
+-- example every admin's login was blocked). An admin is someone who can both see and manage Account Center,
+-- the same rule Account Center's server uses for every change. Works only while no active person is one.
+-- Clears the person's single changes in Account Center, so the admin role is not undercut by one, and
+-- refuses when the person still could not act afterwards (removed, or no working login). Same name,
+-- arguments and rights as before: a person in the SQL Editor only.
 create or replace function account.bootstrap_first_admin(p_email text) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare v_person uuid;
 begin
-  if exists (select 1 from account.people p where p.is_active and account.person_can(p.id, 'account_center.manage')) then
+  if exists (select 1 from account.people p
+             where p.is_active and account.person_can(p.id, 'account_center.view')
+               and account.person_can(p.id, 'account_center.manage')) then
     raise exception 'Account Center already has an admin who can manage it';
   end if;
   v_person := account.person_by_email(p_email);
@@ -172,7 +184,7 @@ begin
    where x.person_id = v_person and a.key = x.action_key and a.app_key = 'account_center';
   insert into account.grants (person_id, app_key, role_key) values (v_person, 'account_center', 'admin')
   on conflict do nothing;
-  if not account.person_can(v_person, 'account_center.manage') then
+  if not (account.person_can(v_person, 'account_center.view') and account.person_can(v_person, 'account_center.manage')) then
     raise exception 'that person still cannot manage Account Center: they are removed, or their login is missing or blocked';
   end if;
   return v_person;

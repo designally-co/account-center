@@ -21,6 +21,7 @@ export type AppAccess = {
   key: string;
   name: string;
   isPrototype: boolean;
+  hue: number | null;                    // the app's colour on screen (account.apps.hue)
   keptOut: boolean;                      // the person's kind may never use this app
   roles: { key: string; name: string; description: string; actions: string[] }[];
   roleKeys: string[];                    // the person's ready roles here (normally one)
@@ -37,6 +38,7 @@ export type PersonAccess = {
   is_active: boolean;
   login: LoginState;
   work_emails: string[];
+  avatar: unknown;
   apps: AppAccess[];
 };
 
@@ -52,8 +54,8 @@ function versionOf(app: Omit<AppAccess, "version">): string {
 // Every app (or one app) with its roles, the person's roles and each action's state for this person.
 // Always inside a transaction, so the four reads (and the version made from them) agree.
 async function readApps(sql: postgres.TransactionSql, personId: string, kind: string, onlyApp: string | null): Promise<AppAccess[]> {
-  const apps = await sql<{ key: string; name: string; is_prototype: boolean; kept_out: boolean }[]>`
-    select a.key, a.name, a.is_prototype,
+  const apps = await sql<{ key: string; name: string; is_prototype: boolean; hue: number | null; kept_out: boolean }[]>`
+    select a.key, a.name, a.is_prototype, a.hue,
            exists (select 1 from account.kind_blocked_apps b where b.kind = ${kind} and b.app_key = a.key) as kept_out
     from account.apps a
     where ${onlyApp}::text is null or a.key = ${onlyApp}
@@ -84,6 +86,7 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
       key: app.key,
       name: app.name,
       isPrototype: app.is_prototype,
+      hue: app.hue,
       keptOut: app.kept_out,
       roles: roles.filter((r) => r.app_key === app.key).map(({ key, name, description, actions }) => ({ key, name, description, actions })),
       roleKeys: grants.filter((g) => g.app_key === app.key).map((g) => g.role_key),
@@ -102,7 +105,7 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
 export async function getPersonAccess(sql: postgres.Sql, personId: string): Promise<PersonAccess | null> {
   if (!isUuid(personId)) return null;
   const [person] = await sql<Omit<PersonAccess, "apps">[]>`
-    select p.id, p.display_name, p.email, p.kind, p.source, p.is_active, account.login_state(p.auth_user_id) as login,
+    select p.id, p.display_name, p.email, p.kind, p.source, p.is_active, p.avatar, account.login_state(p.auth_user_id) as login,
            coalesce(array(select e.email from account.person_emails e where e.person_id = p.id order by e.email), '{}') as work_emails
     from account.people p where p.id = ${personId}::uuid`;
   if (!person) return null;
@@ -123,7 +126,7 @@ export function accessSummary(app: AppAccess, kindName: string): { text: string;
 }
 
 export type SaveResult =
-  | "saved" | "not-found" | "inactive" | "yourself" | "kept-out" | "changed" | "not-allowed"
+  | "saved" | "not-found" | "inactive" | "yourself" | "kept-out" | "changed" | "not-allowed" | "manage-needs-view"
   | "unknown-role" | "unknown-app" | "unknown-kind";
 
 // The database refuses access that a kind may never have (account.check_access_allowed_for_kind, code AC001)
@@ -180,6 +183,10 @@ export async function saveAppAccess(
   return changeApp(sql, actorId, personId, appKey, version, async (tx, app) => {
     const role = roleKey === null ? null : app.roles.find((r) => r.key === roleKey);
     if (role === undefined) return "unknown-role";
+    // Someone who could manage Account Center without seeing it could act unseen, and would not count as an
+    // admin for the way back (account.bootstrap_first_admin), so that list is refused.
+    const finalOn = (key: string) => (ticked === null ? role?.actions.includes(key) ?? false : ticked.includes(key));
+    if (appKey === "account_center" && finalOn("account_center.manage") && !finalOn("account_center.view")) return "manage-needs-view";
     await tx`delete from account.grants where person_id = ${personId}::uuid and app_key = ${appKey}
              and (${roleKey}::text is null or role_key <> ${roleKey})`;
     if (role) {
@@ -207,6 +214,8 @@ export type KindResult = { result: SaveResult | "kind-blocked"; app?: string };
 // the answer names that app, so the admin can remove that access first.
 export async function setKind(sql: postgres.Sql, actorId: string, personId: string, kind: string): Promise<KindResult> {
   if (!isUuid(personId)) return { result: "not-found" };
+  // Your own kind decides which apps you may ever use, so another admin changes it.
+  if (sameId(personId, actorId)) return { result: "yourself" };
   try {
     return await withActor(sql, actorId, async (tx) => {
       const person = await lockPerson(tx, personId);
