@@ -23,6 +23,15 @@ What the migration does in Friday: creates schema `account` with its tables and 
 3. **Apply for real** (Claude, through the Supabase connector, with Buk's go-ahead). Check again that HR's data and rules are unchanged, and that HR still opens and signs in (Buk).
 
    **Done 2026-10-19** (Buk's go-ahead). Applied through the Supabase connector in one transaction (repeatable read) with a guard: a snapshot of everything outside schema `account` (the same 3,678-item list as step 2) before and after the migration, and the transaction would have rolled itself back on any difference. The guard passed with 0 differences. Live afterwards: 8 tables, 15 functions, 7 triggers, 8 policies, role `account_app`, `account.people` empty; recorded in Friday's migration history as version `20261014100000`, name `account_schema`. HR opening and signing in: for Buk to confirm.
+
+   **Checked afterwards (2026-10-19, five independent read-only checks):**
+   - **Matches the repo file exactly:** every table, column, constraint, trigger, policy and function body; seed rows 7 apps, 2 actions, 2 roles, 3 role actions; `account.people` empty.
+   - **HR and the other apps untouched:** the only row written outside `account` is the migration record in `supabase_migrations.schema_migrations`; nothing outside `account` depends on it; HR's policies (including `hr_attendance_self_insert` and `hr_attendance_self_update`) and triggers unchanged; every other app schema has the same tables as before.
+   - **Bookkeeping outside `account`, all expected:** the role `account_app`, and PostgreSQL's automatic membership that makes `postgres` admin of a role it creates (no inherit, no set; the app users have the same).
+   - **Security:** `anon`, `authenticated` and `service_role` have no access to `account`; `import_from_hr` and `bootstrap_first_admin` run as `postgres` only; every function has a fixed `search_path`; the security advisor reports nothing in `account`.
+   - **Backup:** Friday's nightly backup will include `account` from the first run after the apply; check that run's schema list and restore count (8 more tables).
+   - **Open, minor (for a later migration, with Buk's go-ahead, inside `account` only):** functions added later are executable by PUBLIC unless revoked (add `alter default privileges ... revoke execute on functions from public`); `hub_app`, `studio_app` and `survey_app` can call `me_by_email` and `me_by_user`, which would show staff names and roles once the import has run, although those apps do not use Account Center yet; three foreign keys have no index (performance advisor, INFO); `account.apps` and `account.actions` have no change-log trigger.
+   - **Run the import outside 02:30 to 05:00 Bangkok time**, when the nightly backup runs, so its restore check does not see a half-done import.
 4. **The one-time import and the first admin** (Buk, in the Supabase SQL Editor):
    - `select account.import_from_hr();` (once; a second run is refused). Look through the imported list once.
    - `select account.bootstrap_first_admin('<your HR email>');`
