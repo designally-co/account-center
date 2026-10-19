@@ -20,4 +20,4 @@ npm run typecheck && npm run build
 
 Never point the tests at Project Friday; they refuse an address that contains "supabase".
 
-To run the app, copy `.env.example` to `.env.local` and fill it in. Real sign-in needs schema `account` in Friday first.
+To run the app, copy `.env.example` to `.env.local` and fill it in. Schema `account` is in Friday since 2026-10-19; real sign-in also needs the one-time import, a first admin and the `account_app` login (`docs/apply-to-friday.md`).

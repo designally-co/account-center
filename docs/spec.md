@@ -2,7 +2,7 @@
 
 Account Center is the app and the database part that hold every account and all access for **Designally's own people** (employees and outsourced workers, never clients; Buk, 2026-10-19) in the company's apps. It was called the "front desk" until Buk named it on 2026-10-14. Its database schema is `account` (name to be confirmed in the build).
 
-Status: **a plan and Buk's experiment, not live** (Buk, 2026-10-19). The approach was agreed by Buk on 2026-10-14. Schema `account` is written and tested on a local database (`supabase/migrations/`, `test/`), and the app's first steps are built and tested locally (section 4). Applying the schema to Project Friday waits for P Aek (`docs/apply-to-friday.md`). **Nothing in use changes:** the current HR app stays the system everyone uses, and no live app changes how people sign in, until Buk and P Aek decide to switch (Buk, 2026-10-19). Company decision note (in the brain repo): `decisions/company-account-center-experiment.md`. Copied on 2026-10-14 from the brain repo; this file is the living spec.
+Status: **a plan and Buk's experiment, not live** (Buk, 2026-10-19). The approach was agreed by Buk on 2026-10-14. Schema `account` is written and tested on a local database (`supabase/migrations/`, `test/`), and the app's first steps are built and tested locally (section 4). P Aek agreed to Part 1 and Part 2 (Buk, 2026-10-19), but Buk runs Part 1 first, and **switches only when Account Center is solid enough to replace the current system** (Buk, 2026-10-19; section 7, "Ready to switch"). The test run of the schema in Friday, which undid itself, passed on 2026-10-19, and the schema was applied for real the same day with Buk's go-ahead, changing nothing outside `account` (`docs/apply-to-friday.md`, steps 2 and 3). The one-time import and the first admin are next (step 4). **Nothing in use changes:** the current HR app stays the system everyone uses, and no live app changes how people sign in, until Buk and P Aek decide to switch (Buk, 2026-10-19). Company decision note (in the brain repo): `decisions/company-account-center-experiment.md`. Copied on 2026-10-14 from the brain repo; this file is the living spec.
 
 The goal (Buk, 2026-10-14 and 2026-10-19): one place that decides who in the company may do what in each app. It is Buk's experiment to rebuild the system: everyone in the company gets one account from Account Center, and from there they use every app, HR included.
 
@@ -202,11 +202,22 @@ Found in the read-only check. They are in P Aek's system, so he decides how to f
 
 **Now (the experiment; changes nothing in use):**
 
-1. **P Aek agrees** to a new schema `account` in Project Friday that imports HR's employee list once (the fields in section 3 only) and changes nothing in HR.
-2. **Build `account`** as a migration: tested on a local database (done), then in Friday inside a transaction that undoes itself, then for real. Check that the import holds no HR details beyond section 3.
+1. **P Aek agrees** to a new schema `account` in Project Friday that imports HR's employee list once (the fields in section 3 only) and changes nothing in HR. Done: P Aek agreed (Buk, 2026-10-19).
+2. **Build `account`** as a migration: tested on a local database (done), then in Friday inside a transaction that undoes itself (done 2026-10-19, nothing changed outside `account`), then for real (done 2026-10-19, Buk's go-ahead). Check that the import holds no HR details beyond section 3.
 3. **Build Account Center** (people with their kind, access lists per app and action, removal; HR screens as a prototype). Steps 1 and 2 of the app are built locally (section 4).
 
-**At the switch (Buk and P Aek decide when):**
+**Ready to switch** (Buk, 2026-10-19: Account Center must be solid enough to replace the current system before any switch). Proposed by AI on 2026-10-19, for Buk to confirm; every item checked and written down before step 4:
+
+- **Safe sign-in:** "forgot password" works, emails are checked, and a second step (or Google sign-in for Friday's accounts) protects the accounts that will guard every app (section 6, items 5 and 6, and section 8, question 2).
+- **Friday's account fixes decided with P Aek:** section 6, items 1 to 4.
+- **Every company app's actions listed** and given to the right people, matching what each person can do today, so nobody gains or loses access on the day of the switch.
+- **Joining and leaving tested end to end** on test accounts: add a person, give access, remove them, and see every app refuse them at once.
+- **Kinds of people work:** an outsource account cannot get HR access.
+- **The change log** shows who changed what for every change, and Buk has read it after a real week of use.
+- **Way back:** each app keeps its old sign-in until its own switch is checked, and `account` is in Friday's nightly backup with a tested restore.
+- **Used for real** by Buk (and a few people) for a period agreed with P Aek, with no open problem.
+
+**At the switch (Buk and P Aek decide when; P Aek agreed on 2026-10-19):**
 
 4. Account creation and login blocking in Friday's Auth: the `account-invite` and `account-remove` functions.
 5. **MA Desk** signs in with Account Center accounts and checks every action with Account Center.
