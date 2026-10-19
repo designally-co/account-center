@@ -34,7 +34,8 @@ export async function workEmailAction(prev: FormNotice, form: FormData): Promise
 export async function removePersonAction(form: FormData) {
   const { me } = await requireAction(ACTIONS.manage);
   const result = await removePerson(db(), me.person_id, String(form.get("person_id") ?? ""));
-  redirect(`/people?notice=${result === "removed" ? "person-removed" : `remove-${result}`}`);
+  const view = form.get("view") === "list" ? "list" : "grid";
+  redirect(`/people?view=${view}&notice=${result === "removed" ? "person-removed" : `remove-${result}`}`);
 }
 
 // Add a new company person and give them a login (Buk, 2026-10-19). The person is saved first, then the

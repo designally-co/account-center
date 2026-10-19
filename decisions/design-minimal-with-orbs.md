@@ -15,6 +15,10 @@ sources:
   - "Buk, 2026-10-19 (the descriptions are too long, follow the Manus reference; since almost all apps will have the same logo or favicons, use the same concept as the Manus reference, showing what it does)"
   - supabase/migrations/20261019140000_app_cards.sql
   - public/apps/art/
+  - "Buk, 2026-10-19 (do not use the status like this, use toast; the toast must be light theme too)"
+  - "Buk, 2026-10-19 (the people page: people in a grid of cards by default, do not remove the list view)"
+  - "Buk, 2026-10-19 (I don't like the name \"kind\", change it)"
+  - src/components/toast.tsx
   - "Buk, 2026-10-19 (a design reference of two screenshots, a page of cards and a dialog: use the exact colours, surface, layer, modal, bg, outline, shadow)"
 ---
 
@@ -29,6 +33,10 @@ sources:
 - Adding and removing work emails moved from the People table to each person's page, so the table only lists people.
 - Home shows one card per app the person can use; the card opens the app (`account.apps.url`) and shows the app's own graphic (`account.apps.icon`), or its orb when there is none yet (Buk, 2026-10-19: "people must be able to go to different apps they have access to in their home page and use the app graphic instead of the orb"; "use cards instead of lists"). The graphics known today are Article Studio's (`article-studio/src/app/icon.png`) and HR's (`friday-hr/web/public/logo-character.svg`), copied into `public/apps/`; the Hub, the survey, the brand portal and MA Desk have none in their code yet.
 - Each Home card is laid out like the cards in Buk's design reference: the app's name, one short line about what it does (`account.apps.description`, at most 60 characters, shortened from each app's own description: its brain.yaml purpose, the portal's README, MA Desk's brief), and on the right a small picture of what the app does (`account.apps.art`, an SVG under `public/apps/art/`, drawn for Account Center on 2026-10-19), because most apps would otherwise show the same Designally logo. No arrow. Both are data, set in migration 20261019140000. It does not show the person's role or the "2 of 3" action count, which mean little to an employee (Buk, 2026-10-19). Admins still see both on each person's page.
+
+- **Toasts for success:** a success message (Avatar saved, Saved, Invitation sent, Password saved, Removed) is a small light toast at the bottom of the screen that goes away after about 4 seconds (`src/components/toast.tsx`). Errors stay next to what they are about, because people need time to read them and act. A message that came in the address is taken out of it, so a reload does not show it again.
+- **People as cards by default:** the People page shows a grid of person cards (avatar, name, email, status, employment type, number of apps); a Grid / List switch keeps the table one click away (`?view=list`).
+- **"Employment type", not "kind":** the screens say "Employment type" (values Employee and Outsource). The database keeps its internal name `kind`, so nothing else changes.
 
 ## Why
 

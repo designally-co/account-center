@@ -346,3 +346,38 @@ main.narrow-form { max-width: 520px; }
 .invite-link input { flex: 1 1 240px; min-width: 0; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 /* Home is wider, like the reference, so each app card's line fits on two lines next to its picture. */
 main.home { max-width: 1160px; }
+
+/* Toasts: success messages at the bottom of the screen; they go away by themselves */
+.toasts { position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50;
+  display: grid; gap: 8px; justify-items: center; width: max-content; max-width: calc(100vw - 32px); pointer-events: none; }
+.toast { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-inner); background: var(--surface);
+  color: var(--fg); border: 1px solid var(--outline-strong); font-size: 14px; font-weight: 500;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 12px 32px -12px rgb(0 0 0 / 0.18); animation: toast-in 0.25s var(--ease); }
+.toast svg { flex: none; color: var(--ok); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+
+/* People: cards by default, the list one click away */
+.view-switch { display: inline-flex; padding: 3px; border-radius: var(--radius-control); background: var(--layer); }
+.view-switch a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 500;
+  color: var(--muted); text-decoration: none; transition: background 0.15s, color 0.15s; }
+.view-switch a svg { fill: currentColor; }
+.view-switch a:hover { color: var(--fg); }
+.view-switch a[aria-current="page"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgb(0 0 0 / 0.06); }
+.people-cards { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+.person-card { position: relative; display: grid; gap: 14px; align-content: start; padding: 20px; background: var(--surface);
+  border: 1px solid var(--outline); border-radius: var(--radius); transition: transform 0.2s var(--ease), border-color 0.2s, box-shadow 0.2s; }
+.person-card:hover { transform: translateY(-2px); border-color: var(--outline-strong); box-shadow: var(--shadow-hover); }
+.person-card.faded { opacity: 0.6; }
+.person-card-text { display: grid; gap: 2px; min-width: 0; }
+.person-card-name { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--fg); text-decoration: none; }
+/* The whole card opens the person's page; Remove sits above that. */
+.person-card-name::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+.person-card-name:focus-visible { outline: none; }
+.person-card:has(.person-card-name:focus-visible) { outline: 2px solid var(--fg); outline-offset: 2px; }
+.person-card-email { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; color: var(--fg-2); }
+.person-card-remove { position: absolute; top: 18px; right: 18px; z-index: 1; }
+@media (hover: hover) {
+  .person-card-remove { opacity: 0; transition: opacity 0.15s; }
+  .person-card:hover .person-card-remove, .person-card:focus-within .person-card-remove { opacity: 1; }
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Toast } from "@/components/toast";
 import { AppIcon } from "@/components/app-icon";
 
 type Role = { key: string; name: string; actions: string[] };
@@ -42,10 +43,12 @@ function Chevron({ open }: { open: boolean }) {
 
 // The result of a save, shown where the change was made. The first time it appears it takes the focus, so
 // the screen scrolls to it and a screen reader reads it out.
+// Success is a toast; an error stays here, next to what it is about, and takes the focus.
 export function SaveNotice({ tone, text, autoFocus = true }: Notice & { autoFocus?: boolean }) {
   const ref = useRef<HTMLParagraphElement>(null);
-  useEffect(() => { if (autoFocus) ref.current?.focus(); }, [autoFocus]);
-  return <p ref={ref} tabIndex={-1} className={`notice ${tone}`} role={tone === "error" ? "alert" : "status"}>{text}</p>;
+  useEffect(() => { if (autoFocus && tone === "error") ref.current?.focus(); }, [autoFocus, tone]);
+  if (tone === "ok") return <Toast text={text} />;
+  return <p ref={ref} tabIndex={-1} className={`notice ${tone}`} role="alert">{text}</p>;
 }
 
 // A submit button that cannot be pressed twice: while its form is saving it is disabled and says so.

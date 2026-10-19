@@ -6,6 +6,7 @@ import { requirePerson } from "@/lib/session";
 import { Nav } from "@/components/nav";
 import { Avatar } from "@/components/avatar";
 import { AppIcon } from "@/components/app-icon";
+import { Toast } from "@/components/toast";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +23,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     <>
       <Nav current="home" me={me} canView={canView} />
       <main className="home">
-        {search.notice === "avatar-saved" ? <p className="notice ok" role="status">Avatar saved.</p> : null}
+        {search.notice === "avatar-saved" ? <Toast text="Avatar saved." /> : null}
         {search.notice === "not-allowed" ? <p className="notice error" role="alert">You do not have access to that page.</p> : null}
-        {search.notice === "password-saved" ? <p className="notice ok" role="status">Password saved. Other browsers signed in to your account were signed out.</p> : null}
+        {search.notice === "password-saved" ? <Toast text="Password saved. Other browsers signed in to your account were signed out." /> : null}
         <div className="person-head">
           <Link href="/avatar" className="avatar-edit" aria-label="Change your avatar">
             <Avatar avatar={me.avatar} seed={me.person_id} size={88} />

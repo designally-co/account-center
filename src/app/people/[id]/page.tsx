@@ -25,7 +25,7 @@ type Notice = { tone: "ok" | "error"; text: string };
 const APP_NOTICES: Record<string, Notice> = {
   saved: { tone: "ok", text: "Saved." },
   "role-only": { tone: "ok", text: "Role saved. Check the actions below and save again if needed." },
-  "kept-out": { tone: "error", text: "Not saved: this person's kind can never use this app." },
+  "kept-out": { tone: "error", text: "Not saved: this person's employment type can never use this app." },
   "manage-needs-view": { tone: "error", text: "Not saved: someone who can manage Account Center must also be able to see it." },
   changed: { tone: "error", text: "Not saved: someone changed this access after you opened the page. Check it again below, then save." },
   yourself: { tone: "error", text: "You cannot change your own Account Center access. Ask another admin." },

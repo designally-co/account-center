@@ -9,7 +9,7 @@ import { InviteLink } from "../invite-link";
 const ERRORS: Record<string, string> = {
   "invalid-name": "Type their name (100 characters or fewer).",
   "invalid-email": "That does not look like an email address.",
-  "invalid-kind": "Choose a kind.",
+  "invalid-kind": "Choose an employment type.",
   "work-email-of-another": "That email is already someone else's work email.",
   "not-allowed": "Not saved: you can no longer manage Account Center. Ask another admin.",
 };
@@ -42,7 +42,7 @@ export function NewPersonForm({ kinds }: { kinds: { key: string; name: string }[
         <span id="email-help" className="muted small-text">The invitation goes here, and they sign in with it.</span>
       </label>
       <label className="field">
-        <span>Kind</span>
+        <span>Employment type</span>
         <select name="kind" defaultValue={kinds[0]?.key} required>
           {kinds.map((k) => <option key={k.key} value={k.key}>{k.name}</option>)}
         </select>
