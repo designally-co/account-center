@@ -21,6 +21,8 @@ What the migration does in Friday: creates schema `account` with its tables and 
    - permissions: `anon` and `authenticated` cannot use schema `account`, read its tables or run the import; `service_role` cannot read `account.people`; `hub_app` can call the checks but not read the tables; `account_app` can read its tables but cannot run the import;
    - checked afterwards: schema `account` and role `account_app` do not exist in Friday.
 3. **Apply for real** (Claude, through the Supabase connector, with Buk's go-ahead). Check again that HR's data and rules are unchanged, and that HR still opens and signs in (Buk).
+
+   **Done 2026-10-19** (Buk's go-ahead). Applied through the Supabase connector in one transaction (repeatable read) with a guard: a snapshot of everything outside schema `account` (the same 3,678-item list as step 2) before and after the migration, and the transaction would have rolled itself back on any difference. The guard passed with 0 differences. Live afterwards: 8 tables, 15 functions, 7 triggers, 8 policies, role `account_app`, `account.people` empty; recorded in Friday's migration history as version `20261014100000`, name `account_schema`. HR opening and signing in: for Buk to confirm.
 4. **The one-time import and the first admin** (Buk, in the Supabase SQL Editor):
    - `select account.import_from_hr();` (once; a second run is refused). Look through the imported list once.
    - `select account.bootstrap_first_admin('<your HR email>');`
