@@ -18,7 +18,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const sql = db();
   const [access, canView, search] = await Promise.all([getPersonAccess(sql, me.person_id), canUser(sql, userId, ACTIONS.view), searchParams]);
   // What the real check gives: roles, plus or minus single changes, never an app the kind is kept out of.
-  const mine = (access?.apps ?? []).map((app) => ({ app, s: accessSummary(app, access?.kind ?? "") })).filter(({ s }) => s.on > 0);
+  // Account Center itself is not a card (Buk, 2026-10-19: it would only lead back here); admins use the menu.
+  const mine = (access?.apps ?? [])
+    .filter((app) => app.key !== "account_center")
+    .map((app) => ({ app, s: accessSummary(app, access?.kind ?? "") })).filter(({ s }) => s.on > 0);
   return (
     <>
       <Nav current="home" me={me} canView={canView} />
