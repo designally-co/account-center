@@ -11,6 +11,8 @@ sources:
   - supabase/migrations/20261019110000_kinds_and_access_lists.sql (account.apps.hue)
   - "Buk, 2026-10-19 (do not use a gradient circle for the profile; use a customizable avatar like Notion's avatar maker)"
   - "Buk, 2026-10-19 (Home: go to the apps from cards, with the app graphic instead of the orb)"
+  - "Buk, 2026-10-19 (the role and '2 of 3' count on Home: do not need that as it is a pain for employees; instead use the app description)"
+  - supabase/migrations/20261019140000_app_descriptions.sql
   - "Buk, 2026-10-19 (a design reference of two screenshots, a page of cards and a dialog: use the exact colours, surface, layer, modal, bg, outline, shadow)"
 ---
 
@@ -24,6 +26,7 @@ sources:
 - Short labels only, no helper paragraphs. Each access row is the action's name and an allowed/blocked switch with a sliding thumb.
 - Adding and removing work emails moved from the People table to each person's page, so the table only lists people.
 - Home shows one card per app the person can use; the card opens the app (`account.apps.url`) and shows the app's own graphic (`account.apps.icon`), or its orb when there is none yet (Buk, 2026-10-19: "people must be able to go to different apps they have access to in their home page and use the app graphic instead of the orb"; "use cards instead of lists"). The graphics known today are Article Studio's (`article-studio/src/app/icon.png`) and HR's (`friday-hr/web/public/logo-character.svg`), copied into `public/apps/`; the Hub, the survey, the brand portal and MA Desk have none in their code yet.
+- Each Home card says what the app is for, in one sentence (`account.apps.description`, data, set in migration 20261019140000 from each app's own description: its brain.yaml purpose, the portal's README, MA Desk's brief). It does not show the person's role or the "2 of 3" action count, which mean little to an employee (Buk, 2026-10-19). Admins still see both on each person's page.
 
 ## Why
 

@@ -20,6 +20,7 @@ export type ActionState = {
 export type AppAccess = {
   key: string;
   name: string;
+  description: string;                   // one sentence about the app (account.apps.description)
   isPrototype: boolean;
   hue: number | null;                    // the app's colour on screen (account.apps.hue)
   url: string | null;                    // where the app opens (account.apps.url)
@@ -56,8 +57,8 @@ function versionOf(app: Omit<AppAccess, "version">): string {
 // Every app (or one app) with its roles, the person's roles and each action's state for this person.
 // Always inside a transaction, so the four reads (and the version made from them) agree.
 async function readApps(sql: postgres.TransactionSql, personId: string, kind: string, onlyApp: string | null): Promise<AppAccess[]> {
-  const apps = await sql<{ key: string; name: string; is_prototype: boolean; hue: number | null; url: string | null; icon: string | null; kept_out: boolean }[]>`
-    select a.key, a.name, a.is_prototype, a.hue, a.url, a.icon,
+  const apps = await sql<{ key: string; name: string; description: string; is_prototype: boolean; hue: number | null; url: string | null; icon: string | null; kept_out: boolean }[]>`
+    select a.key, a.name, a.description, a.is_prototype, a.hue, a.url, a.icon,
            exists (select 1 from account.kind_blocked_apps b where b.kind = ${kind} and b.app_key = a.key) as kept_out
     from account.apps a
     where ${onlyApp}::text is null or a.key = ${onlyApp}
@@ -87,6 +88,7 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
     const access: Omit<AppAccess, "version"> = {
       key: app.key,
       name: app.name,
+      description: app.description,
       isPrototype: app.is_prototype,
       hue: app.hue,
       url: app.url,

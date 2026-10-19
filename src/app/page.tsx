@@ -39,13 +39,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
         {mine.length ? (
           <ul className="app-cards" aria-label="Your apps">
-            {mine.map(({ app, s }) => {
+            {mine.map(({ app }) => {
               const inner = (
                 <>
                   <AppIcon appKey={app.key} icon={app.icon} hue={app.hue} size={48} />
                   <span className="app-card-text">
                     <strong>{app.name}</strong>
-                    <span className="muted">{s.text}</span>
+                    {app.description ? <span className="muted">{app.description}</span> : null}
                   </span>
                   {app.url ? <span className="app-card-go" aria-hidden="true">↗</span> : <span className="pill plain">Not online yet</span>}
                 </>
