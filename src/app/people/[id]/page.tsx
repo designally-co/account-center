@@ -8,7 +8,8 @@ import { db } from "@/lib/db";
 import { requireAction } from "@/lib/session";
 import { AppPanel, SaveNotice } from "./access-form";
 import { KindForm } from "./kind-form";
-import { addWorkEmailAction, removeWorkEmailAction } from "../actions";
+import { WorkEmails } from "./work-emails";
+import { workEmailAction } from "../actions";
 import { saveAppAccessAction, setKindAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -17,26 +18,7 @@ type Search = Record<string, string | string[] | undefined>;
 type Notice = { tone: "ok" | "error"; text: string };
 
 // Messages come from these fixed lists only; nothing from the address bar is shown as typed.
-// Kind and work email messages show at the top. App messages show inside the app that was saved.
-function topNoticeFor(key: string, person: PersonAccess, blockedApp: AppAccess | undefined): Notice | null {
-  switch (key) {
-    case "kind-saved": return { tone: "ok", text: "Kind saved." };
-    case "kind-blocked": {
-      const app = blockedApp?.name ?? "an app";
-      return { tone: "error", text: `Not saved: that kind can never use ${app}, and ${person.display_name} still has access there. In ${app} below, choose "No access" and save. Then change the kind.` };
-    }
-    case "unknown-kind": return { tone: "error", text: "That kind does not exist. Reload the page and try again." };
-    case "kind-yourself": return { tone: "error", text: "You cannot change your own kind. Ask another admin." };
-    case "email-added": return { tone: "ok", text: "Work email added." };
-    case "email-removed": return { tone: "ok", text: "Work email removed." };
-    case "email-not-found": return { tone: "error", text: "That work email was already gone." };
-    case "invalid": return { tone: "error", text: "That does not look like an email address." };
-    case "taken": return { tone: "error", text: "That email is already someone else's work email." };
-    case "main-email-of-another": return { tone: "error", text: "That email is someone else's HR email." };
-    case "no-person": return { tone: "error", text: "That person was not found. Reload the page and try again." };
-    default: return null;
-  }
-}
+// App messages show inside the app that was saved; Kind and work emails show their own answers.
 
 const APP_NOTICES: Record<string, Notice> = {
   saved: { tone: "ok", text: "Saved." },
@@ -80,6 +62,7 @@ function AppSection({ person, app, kindLabel, canManage, isMe, open, notice }: {
       appName={app.name}
       isPrototype={app.isPrototype}
       hue={app.hue}
+      icon={app.icon}
       version={app.version}
       roles={app.roles.map(({ key, name, actions }) => ({ key, name, actions }))}
       actions={app.actions.map(({ key, description, on }) => ({ key, description, on: on && !app.keptOut }))}
@@ -106,7 +89,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
   const openApp = typeof search.app === "string" ? search.app : "";
   const noticeKey = typeof search.notice === "string" ? search.notice : "";
   const appForNotice = person.apps.find((a) => a.key === openApp);
-  const topNotice = topNoticeFor(noticeKey, person, appForNotice) ?? (!appForNotice ? pick(SHARED_NOTICES, noticeKey) : null);
+  const topNotice = !appForNotice ? pick(SHARED_NOTICES, noticeKey) : null;
   const appNotice = appForNotice && !topNotice ? pick(APP_NOTICES, noticeKey) ?? pick(SHARED_NOTICES, noticeKey) : null;
   const isMe = person.id === me.person_id;
   const withAccess = person.apps.filter((a) => accessSummary(a, "").on > 0).length;
@@ -132,33 +115,11 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
         {!canManage ? <p className="notice">View only</p> : null}
 
         <section className="panel details" aria-label="Details">
-          <KindForm save={setKindAction} personId={person.id} kinds={kinds.map(({ key, name }) => ({ key, name }))} current={person.kind}
-            locked={!canManage || !person.is_active || isMe} />
-          <div className="detail-row">
-            <span className="detail-label">Work emails</span>
-            <div className="chips">
-              {person.work_emails.map((e) => (
-                <span key={e} className="chip">
-                  {e}
-                  {canManage ? (
-                    <form action={removeWorkEmailAction}>
-                      <input type="hidden" name="person_id" value={person.id} />
-                      <input type="hidden" name="email" value={e} />
-                      <button type="submit" className="chip-x" aria-label={`Remove ${e}`}>×</button>
-                    </form>
-                  ) : null}
-                </span>
-              ))}
-              {canManage && person.is_active ? (
-                <form action={addWorkEmailAction} className="inline">
-                  <input type="hidden" name="person_id" value={person.id} />
-                  <label className="sr-only" htmlFor="work-email">Add a work email</label>
-                  <input id="work-email" name="email" type="email" placeholder="name@designally.co" required />
-                  <button type="submit" className="secondary small">Add</button>
-                </form>
-              ) : person.work_emails.length === 0 ? <span className="muted">None</span> : null}
-            </div>
-          </div>
+          <KindForm save={setKindAction} personId={person.id} personName={person.display_name}
+            kinds={kinds.map(({ key, name }) => ({ key, name }))} appNames={Object.fromEntries(person.apps.map((a) => [a.key, a.name]))}
+            current={person.kind} locked={!canManage || !person.is_active || isMe} />
+          <WorkEmails action={workEmailAction} personId={person.id} emails={person.work_emails} canManage={canManage}
+            canAdd={canManage && person.is_active} />
         </section>
 
         <section className="stack">

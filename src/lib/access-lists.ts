@@ -22,6 +22,8 @@ export type AppAccess = {
   name: string;
   isPrototype: boolean;
   hue: number | null;                    // the app's colour on screen (account.apps.hue)
+  url: string | null;                    // where the app opens (account.apps.url)
+  icon: string | null;                   // the app's own graphic (account.apps.icon)
   keptOut: boolean;                      // the person's kind may never use this app
   roles: { key: string; name: string; description: string; actions: string[] }[];
   roleKeys: string[];                    // the person's ready roles here (normally one)
@@ -54,8 +56,8 @@ function versionOf(app: Omit<AppAccess, "version">): string {
 // Every app (or one app) with its roles, the person's roles and each action's state for this person.
 // Always inside a transaction, so the four reads (and the version made from them) agree.
 async function readApps(sql: postgres.TransactionSql, personId: string, kind: string, onlyApp: string | null): Promise<AppAccess[]> {
-  const apps = await sql<{ key: string; name: string; is_prototype: boolean; hue: number | null; kept_out: boolean }[]>`
-    select a.key, a.name, a.is_prototype, a.hue,
+  const apps = await sql<{ key: string; name: string; is_prototype: boolean; hue: number | null; url: string | null; icon: string | null; kept_out: boolean }[]>`
+    select a.key, a.name, a.is_prototype, a.hue, a.url, a.icon,
            exists (select 1 from account.kind_blocked_apps b where b.kind = ${kind} and b.app_key = a.key) as kept_out
     from account.apps a
     where ${onlyApp}::text is null or a.key = ${onlyApp}
@@ -87,6 +89,8 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
       name: app.name,
       isPrototype: app.is_prototype,
       hue: app.hue,
+      url: app.url,
+      icon: app.icon,
       keptOut: app.kept_out,
       roles: roles.filter((r) => r.app_key === app.key).map(({ key, name, description, actions }) => ({ key, name, description, actions })),
       roleKeys: grants.filter((g) => g.app_key === app.key).map((g) => g.role_key),
@@ -149,9 +153,12 @@ async function lockPerson(tx: postgres.TransactionSql, personId: string): Promis
 
 // Runs one change to one app of one person's list, after the checks every such change needs:
 // the person exists and is active, the app exists, and the page was built from the list as it is now.
+// A save from an older page that asks for exactly what is stored now (for example the same save sent twice)
+// is simply done: `sameAsNow` says so, and nothing is written.
 async function changeApp(
   sql: postgres.Sql, actorId: string, personId: string, appKey: string, version: string,
   work: (tx: postgres.TransactionSql, app: AppAccess) => Promise<SaveResult>,
+  sameAsNow?: (app: AppAccess) => boolean,
 ): Promise<SaveResult> {
   if (!isUuid(personId)) return "not-found";
   // Nobody changes their own Account Center access, so an admin cannot lock themselves out by mistake.
@@ -162,7 +169,7 @@ async function changeApp(
       if (typeof person === "string") return person;
       const [app] = await readApps(tx, personId, person.kind, appKey);
       if (!app) return "unknown-app";
-      if (app.version !== version) return "changed";
+      if (app.version !== version) return sameAsNow?.(app) ? "saved" : "changed";
       return work(tx, app);
     });
   } catch (error) {
@@ -180,13 +187,20 @@ export async function saveAppAccess(
   sql: postgres.Sql, actorId: string, personId: string, appKey: string,
   roleKey: string | null, ticked: string[] | null, version: string,
 ): Promise<SaveResult> {
+  // What each action would be after this save: the role, or the ticks when they were made for this role.
+  const finalOn = (app: AppAccess, key: string) => {
+    const role = roleKey === null ? null : app.roles.find((r) => r.key === roleKey);
+    return ticked === null ? role?.actions.includes(key) ?? false : ticked.includes(key);
+  };
+  const sameAsNow = (app: AppAccess) =>
+    app.roleKeys.length === (roleKey === null ? 0 : 1) && (roleKey === null || app.roleKeys[0] === roleKey) &&
+    app.actions.every((a) => a.on === finalOn(app, a.key));
   return changeApp(sql, actorId, personId, appKey, version, async (tx, app) => {
     const role = roleKey === null ? null : app.roles.find((r) => r.key === roleKey);
     if (role === undefined) return "unknown-role";
     // Someone who could manage Account Center without seeing it could act unseen, and would not count as an
     // admin for the way back (account.bootstrap_first_admin), so that list is refused.
-    const finalOn = (key: string) => (ticked === null ? role?.actions.includes(key) ?? false : ticked.includes(key));
-    if (appKey === "account_center" && finalOn("account_center.manage") && !finalOn("account_center.view")) return "manage-needs-view";
+    if (appKey === "account_center" && finalOn(app, "account_center.manage") && !finalOn(app, "account_center.view")) return "manage-needs-view";
     await tx`delete from account.grants where person_id = ${personId}::uuid and app_key = ${appKey}
              and (${roleKey}::text is null or role_key <> ${roleKey})`;
     if (role) {
@@ -205,7 +219,7 @@ export async function saveAppAccess(
       }
     }
     return "saved";
-  });
+  }, sameAsNow);
 }
 
 export type KindResult = { result: SaveResult | "kind-blocked"; app?: string };

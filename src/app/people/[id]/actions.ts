@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ACTIONS } from "@/lib/access";
 import { saveAppAccess, setKind } from "@/lib/access-lists";
@@ -10,19 +11,22 @@ import { requireAction } from "@/lib/session";
 // Every action checks "manage" again on the server (and the change itself checks "view" and "manage" once
 // more, inside its transaction); hiding the controls is only for the screen.
 
-function back(personId: string, notice: string, app?: string, jump = true): never {
+function back(personId: string, notice: string, app: string): never {
   const id = isUuid(personId) ? personId : "";
   if (!id) redirect(`/people?notice=no-person`);
-  const where = app ? `&app=${encodeURIComponent(app)}${jump ? `#app-${encodeURIComponent(app)}` : ""}` : "";
-  redirect(`/people/${id}?notice=${notice}${where}`);
+  redirect(`/people/${id}?notice=${notice}&app=${encodeURIComponent(app)}#app-${encodeURIComponent(app)}`);
 }
 
-export async function setKindAction(form: FormData) {
+// The answer comes back to the Kind form, and the page refreshes in place, so unsaved changes in the app
+// panels stay. A refusal names the app that blocks the change.
+export type KindNotice = { notice?: string; app?: string; n?: number };
+
+export async function setKindAction(prev: KindNotice, form: FormData): Promise<KindNotice> {
   const { me } = await requireAction(ACTIONS.manage);
   const personId = String(form.get("person_id") ?? "");
   const { result, app } = await setKind(db(), me.person_id, personId, String(form.get("kind") ?? ""));
-  // A refused kind change opens the app that blocks it, but stays at the top, where its message is.
-  back(personId, result === "saved" ? "kind-saved" : result === "yourself" ? "kind-yourself" : result, app, false);
+  if (isUuid(personId)) revalidatePath(`/people/${personId}`);
+  return { notice: result === "saved" ? "kind-saved" : result === "yourself" ? "kind-yourself" : result, app, n: (prev.n ?? 0) + 1 };
 }
 
 // One app of the access list: the ready role and the ticked actions, saved together.

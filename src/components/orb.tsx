@@ -1,5 +1,6 @@
-// A soft gradient orb that stands for an app (people have avatars). The colours come from the key, so the
-// same app always gets the same orb. Decoration only: screen readers skip it.
+// A soft gradient orb that stands for an app (people have avatars). The main colour is the app's hue, stored as
+// data (account.apps.hue); the key only adds the neighbouring colours, and the main one when no hue is set.
+// Decoration only: screen readers skip it.
 
 function hash(text: string): number {
   let h = 2166136261;

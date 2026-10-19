@@ -72,9 +72,9 @@ Account Center is an experiment: nothing below changes anything in use until Buk
 ### Avatars: made by each person, for fun in the office
 
 - Every person makes their own avatar (Buk, 2026-10-19): drawn faces in the Notion style ("Notionists" by Zoish, CC0, drawn by the DiceBear library, MIT), chosen part by part (hair, eyes, brows, mouth, nose, glasses, beard, outfit, hands, badge, colour), with "Surprise me". Until they make one, they see a stable starting face made from their id.
-- **When:** the first time a person signs in to Account Center, they land on the avatar step ("Welcome, Ann"). It becomes a step of account creation when that is built (section 1). They can change it any time from Home.
+- **When:** the first time a person signs in to Account Center, they land on the avatar step ("Welcome, Ann"). "Later" skips it on that browser; Home still offers it. It becomes a step of account creation when that is built (section 1). They can change it any time from Home.
 - **Stored as their choices** (`account.people.avatar`, a small object), never as an image. Account Center's server accepts only known parts with known values; the database keeps the shape and size in check.
-- **Only the person changes their own avatar**, through their own signed-in account (`saveMyAvatar`, `src/lib/self.ts`); admins cannot. Every change is in the change log.
+- **Only the person changes their own avatar**, through their own signed-in account (`saveMyAvatar`, `src/lib/self.ts`); admins cannot. Every change is in the change log; an unchanged avatar is not written again, and a person can save at most once every few seconds.
 - `account.me` (and so `me_by_user`, `me_by_email`) returns the avatar, so an app that later shows people can show it too.
 
 ### Access: per app and per action
@@ -137,15 +137,15 @@ An Account Center admin presses **Remove** on the People page and confirms (Buk,
 
 Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). **An app's user gets the checks only on the day that app starts using Account Center**, in that app's own migration: `grant usage on schema account` and `grant execute on function account.can_user(uuid, text), account.can_email(text, text)` (and `me_by_*` only if the app needs the name and roles). Until then it has no access to `account` at all (migration `20261019100000_account_hardening.sql`, 2026-10-19), so no app can look up staff before it uses Account Center. (Earlier plan, now open, section 8: the brand guideline portal's database is not in Project Friday, so it would need its own small Friday user that may only call the check.) The apps never read `account` tables directly and never read HR.
 
-### Schema `account` (written: `supabase/migrations/`, `20261014100000_account_schema.sql`, `20261019100000_account_hardening.sql`, `20261019110000_kinds_and_access_lists.sql`)
+### Schema `account` (written: `supabase/migrations/`, `20261014100000_account_schema.sql`, `20261019100000_account_hardening.sql`, `20261019110000_kinds_and_access_lists.sql`, `20261019113000_avatars.sql`)
 
 | Table | Holds |
 |---|---|
-| `account.people` | One row per person: account id, HR employee id (when imported from HR), where they came from (`hr` or `account_center`), name, email, kind, active. Whether the login is blocked is read from the account itself at each check, not copied |
+| `account.people` | One row per person: account id, HR employee id (when imported from HR), where they came from (`hr` or `account_center`), name, email, kind, active, avatar (the person's own choices; empty until they make one). Whether the login is blocked is read from the account itself at each check, not copied |
 | `account.kinds` | The kinds of people (employee, outsource). Read-only for Account Center's server; changed by a migration |
 | `account.kind_blocked_apps` | Apps a kind may never use (outsource: HR). Read-only for Account Center's server; changed by a migration |
 | `account.person_emails` | Extra emails per person (work email for Google sign-in), added in Account Center |
-| `account.apps` | The apps that use Account Center |
+| `account.apps` | The apps that use Account Center, each with its colour on screen (`hue`), where it opens (`url`) and its own graphic (`icon`, a file under `/apps/` shipped with Account Center) |
 | `account.actions` | Each app's actions, with a short description |
 | `account.roles` | Roles per app |
 | `account.role_actions` | Which actions each role includes |
@@ -183,7 +183,7 @@ Example:
 
 ## 4. Account Center
 
-**Who can sign in:** every active company person with a working login (Buk, 2026-10-19), to see their own access and make their avatar. The People pages and every change to access need Account Center's own actions (view, manage).
+**Who can sign in:** every active company person with a working login (Buk, 2026-10-19), to see their own access and make their avatar. **Home** shows one card per app the person can use, with the app's own graphic (its orb until it has one); the card opens the app (Buk, 2026-10-19). The People pages and every change to access need Account Center's own actions (view, manage).
 
 **Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone with their status and kind, **Remove** for people who leave; every change in the change log with the admin's id); step 3 (first version, 2026-10-19), **each person's page**: kind, work emails, and per app a ready role and one allowed/blocked row per action; step 4, **avatars** (the maker, shown at first sign-in). Design: minimal, black and white, with a soft gradient orb per app and a drawn avatar per person (Buk, 2026-10-19: "minimal, modern and intentional", like ElevenLabs). Release and hosting: `docs/deploy-nas.md`. The HR list is imported once, by a person, when Account Center starts in Friday.
 

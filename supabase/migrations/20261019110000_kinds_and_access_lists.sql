@@ -14,6 +14,20 @@
 -- the apps are easy to tell apart. Empty for a new app until someone chooses one (the screen then picks one
 -- from the app's key). The Account Center app uses 190, which is also the brand mark's colour.
 alter table account.apps add column hue smallint check (hue between 0 and 359);
+-- Where the app opens (its own address, or a page of Account Center), and its own graphic: a file that ships
+-- with Account Center under /apps/. Empty when not known yet: the card then cannot open the app, or shows
+-- the orb instead of a graphic.
+alter table account.apps add column url text check (url ~ '^(https://[a-z0-9.-]+(/[^\s]*)?|/[a-z0-9/_-]*)$');
+alter table account.apps add column icon text check (icon ~ '^/apps/[a-z0-9_-]+\.(png|svg)$');
+update account.apps set url = v.url, icon = v.icon
+from (values
+  ('account_center', '/people', null),
+  ('studio', 'https://article-studio.designally.co', '/apps/studio.png'),
+  ('hub', 'https://hub.designally.co', null),
+  ('survey', 'https://survey.designally.co', null),
+  ('brand', 'https://brand-guideline-portal.vercel.app/admin', null),
+  ('hr', 'https://hr.designally.co', '/apps/hr.svg')) v(key, url, icon)
+where account.apps.key = v.key;
 update account.apps set hue = v.hue
 from (values ('account_center', 190), ('studio', 220), ('hub', 150), ('brand', 330), ('survey', 40), ('ma', 270), ('hr', 10)) v(key, hue)
 where account.apps.key = v.key;

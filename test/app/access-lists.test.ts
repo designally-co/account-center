@@ -120,7 +120,12 @@ describe("Access lists", () => {
     // A new action for the app also makes older pages out of date.
     const now = await v(annId, "studio");
     await db.setup`insert into account.actions (app_key, key, description) values ('studio', 'studio.article.delete', 'Delete an article')`;
-    expect(await saveAppActions(app, deeId, annId, "studio", ["studio.article.generate"], now)).toBe("changed");
+    expect(await saveAppActions(app, deeId, annId, "studio", ["studio.article.generate", "studio.article.publish"], now)).toBe("changed");
+    // The same save sent twice (a double click): the second one finds it already done, and says saved.
+    const once = await v(annId, "studio");
+    expect(await saveAppActions(app, deeId, annId, "studio", ["studio.article.generate", "studio.article.publish"], once)).toBe("saved");
+    expect(await saveAppActions(app, deeId, annId, "studio", ["studio.article.generate", "studio.article.publish"], once)).toBe("saved");
+    expect(await saveAppActions(app, deeId, annId, "studio", ["studio.article.generate"], once)).toBe("changed");
     expect(await setAppRole(app, deeId, annId, "studio", "publisher", await v(annId, "studio"))).toBe("saved");
   });
 

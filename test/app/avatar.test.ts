@@ -1,7 +1,7 @@
 // Avatars: the strict check of the choices, the stable starting face, and saving your own avatar only.
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { BACKGROUNDS, PARTS, avatarDataUri, defaultAvatar, parseAvatar } from "../../src/lib/avatar";
+import { BACKGROUNDS, BADGE_OUTFITS, PARTS, avatarDataUri, defaultAvatar, parseAvatar } from "../../src/lib/avatar";
 import { saveMyAvatar } from "../../src/lib/self";
 import { ANN, BEN, createTestDb } from "./setup";
 
@@ -25,10 +25,20 @@ describe("Avatar choices", () => {
     expect(parseAvatar({ ...ok, hair: null })).toBeNull();          // hair is not optional
     expect(parseAvatar({ ...ok, glasses: null })).not.toBeNull();    // glasses are
     expect(parseAvatar({ ...ok, background: "ff0000" })).toBeNull(); // only the palette
-    expect(parseAvatar({ ...ok, background: BACKGROUNDS[0] })).not.toBeNull();
+    expect(parseAvatar({ ...ok, background: BACKGROUNDS[0].hex })).not.toBeNull();
     expect(parseAvatar([ok])).toBeNull();
     expect(parseAvatar("hair")).toBeNull();
     expect(parseAvatar(null)).toBeNull();
+  });
+
+  it("keeps a badge only on outfits that can show one", () => {
+    const outfits = PARTS.find((p) => p.key === "body")!.options;
+    expect(BADGE_OUTFITS.size).toBeGreaterThan(0);
+    expect(BADGE_OUTFITS.size).toBeLessThan(outfits.length);
+    for (const body of outfits) {
+      const kept = parseAvatar({ ...defaultAvatar("x"), body, bodyIcon: "galaxy" })!.bodyIcon;
+      expect(kept).toBe(BADGE_OUTFITS.has(body) ? "galaxy" : null);
+    }
   });
 
   it("draws an image address, never markup to put in the page", () => {
@@ -54,6 +64,19 @@ describe("Saving your own avatar", () => {
     expect(row.me.avatar).toEqual(choice);
     const [log] = await db.setup<{ n: number }[]>`select count(*)::int as n from account.log where actor = ${row.me.person_id} and table_name = 'people'`;
     expect(log.n).toBe(1);
+  });
+
+  it("writes only real changes, at most once every few seconds", async () => {
+    const [before] = await db.setup<{ n: number }[]>`select count(*)::int as n from account.log where table_name = 'people'`;
+    const [row] = await app<{ me: { avatar: Record<string, unknown> } }[]>`select account.me_by_user(${ANN}::uuid) as me`;
+    expect(await saveMyAvatar(app, ANN, row.me.avatar)).toBe("saved");                       // the same avatar: nothing written
+    expect(await saveMyAvatar(app, ANN, { ...row.me.avatar, glasses: null })).toBe("wait");  // too soon after the last change
+    const [after] = await db.setup<{ n: number }[]>`select count(*)::int as n from account.log where table_name = 'people'`;
+    expect(after.n).toBe(before.n);
+    await db.setup`update account.log set at = at - interval '1 minute' where table_name = 'people'`;
+    expect(await saveMyAvatar(app, ANN, { ...row.me.avatar, glasses: null })).toBe("saved");
+    const [later] = await db.setup<{ n: number }[]>`select count(*)::int as n from account.log where table_name = 'people'`;
+    expect(later.n).toBe(before.n + 1);
   });
 
   it("refuses a bad avatar, a blocked login, a removed person and an unknown account", async () => {

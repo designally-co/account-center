@@ -27,8 +27,13 @@ export const PARTS = [
 
 export type PartKey = "hair" | "eyes" | "brows" | "lips" | "nose" | "glasses" | "beard" | "body" | "gesture" | "bodyIcon";
 
-// Soft backgrounds, like paper. Hex without "#", as the drawing library wants it.
-export const BACKGROUNDS = ["f4efe6", "fde2d8", "fcefc7", "dff3e4", "d9ecf7", "e6e1f7", "f6dcec", "e8e8e6"];
+// Soft backgrounds, like paper, with names for screen readers. Hex without "#", as the drawing library wants it.
+export const BACKGROUNDS = [
+  { hex: "f4efe6", name: "Cream" }, { hex: "fde2d8", name: "Peach" }, { hex: "fcefc7", name: "Butter" },
+  { hex: "dff3e4", name: "Mint" }, { hex: "d9ecf7", name: "Sky" }, { hex: "e6e1f7", name: "Lilac" },
+  { hex: "f6dcec", name: "Rose" }, { hex: "e8e8e6", name: "Stone" },
+];
+const BACKGROUND_HEX = BACKGROUNDS.map((b) => b.hex);
 
 export type AvatarChoice = Record<PartKey, string | null> & { background: string };
 
@@ -38,12 +43,22 @@ function hash(text: string): number {
   return h >>> 0;
 }
 
+// The outfits that have room for a badge. Worked out from the drawings themselves (a badge changes the
+// drawing only on these), so it stays right if the drawing library changes.
+export const BADGE_OUTFITS: ReadonlySet<string> = new Set(
+  PARTS.find((p) => p.key === "body")!.options.filter((body) => {
+    const base = { background: "f4efe6", hair: null, eyes: null, brows: null, lips: null, nose: null, glasses: null, beard: null, gesture: null } as const;
+    const plain = drawing({ ...base, body, bodyIcon: null }).toString();
+    return PARTS.find((p) => p.key === "bodyIcon")!.options.some((icon) => drawing({ ...base, body, bodyIcon: icon }).toString() !== plain);
+  }),
+);
+
 // A stable starting avatar for someone who has not made one: the same person always gets the same face.
 export function defaultAvatar(seed: string): AvatarChoice {
   const pick = (part: string, list: string[]) => list[hash(`${seed}:${part}`) % list.length];
   const sometimes = (part: string, list: string[], percent: number) =>
     hash(`${seed}:${part}:on`) % 100 < percent ? pick(part, list) : null;
-  const choice = { background: pick("background", BACKGROUNDS) } as AvatarChoice;
+  const choice = { background: pick("background", BACKGROUND_HEX) } as AvatarChoice;
   for (const p of PARTS) {
     const key = p.key as PartKey;
     choice[key] = !p.optional ? pick(key, p.options)
@@ -65,7 +80,7 @@ export function parseAvatar(raw: unknown): AvatarChoice | null {
   const input = raw as Record<string, unknown>;
   const allowed = new Set(["background", ...PARTS.map((p) => p.key)]);
   if (Object.keys(input).some((k) => !allowed.has(k))) return null;
-  if (typeof input.background !== "string" || !BACKGROUNDS.includes(input.background)) return null;
+  if (typeof input.background !== "string" || !BACKGROUND_HEX.includes(input.background)) return null;
   const choice = { background: input.background } as AvatarChoice;
   for (const p of PARTS) {
     const value = input[p.key];
@@ -78,13 +93,19 @@ export function parseAvatar(raw: unknown): AvatarChoice | null {
       return null;
     }
   }
+  // A badge only shows on some outfits; on the others it is dropped, so it never pops up unseen later.
+  if (choice.bodyIcon && !BADGE_OUTFITS.has(choice.body ?? "")) choice.bodyIcon = null;
   return choice;
 }
 
 // The drawing, as an image address the browser can show directly (an <img>, never inline SVG).
 export function avatarDataUri(choice: AvatarChoice, focus: "full" | "face" = "full"): string {
+  return drawing(choice, focus).toDataUri();
+}
+
+function drawing(choice: Omit<AvatarChoice, "background"> & { background: string }, focus: "full" | "face" = "full") {
   const on = (v: string | null) => (v ? [v] : undefined);
-  const avatar = createAvatar(notionists, {
+  return createAvatar(notionists, {
     seed: "fixed",
     backgroundColor: [choice.background],
     hair: on(choice.hair) as never,
@@ -103,5 +124,4 @@ export function avatarDataUri(choice: AvatarChoice, focus: "full" | "face" = "fu
     bodyIconProbability: choice.bodyIcon ? 100 : 0,
     ...(focus === "face" ? { scale: 150, translateY: 14 } : {}),
   });
-  return avatar.toDataUri();
 }

@@ -9,6 +9,10 @@
 alter table account.people add column avatar jsonb
   check (avatar is null or (jsonb_typeof(avatar) = 'object' and length(avatar::text) <= 1000));
 
+-- A person's own avatar saves are limited to one every few seconds (Account Center's server looks for their
+-- latest change in the log), so the log needs a quick way to find a person's latest changes.
+create index log_actor_at_idx on account.log (actor, at);
+
 -- "Who is this?" also gives the avatar, so Account Center (and, later, an app that needs it) can show it.
 -- Same name, arguments and rights as before.
 create or replace function account.me(p_person_id uuid) returns jsonb

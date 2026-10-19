@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Orb } from "@/components/orb";
+import { useFormStatus } from "react-dom";
+import { AppIcon } from "@/components/app-icon";
 
 type Role = { key: string; name: string; actions: string[] };
 type Action = { key: string; description: string; on: boolean };
@@ -39,18 +40,34 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-// The result of a save, shown in the app that was saved. It takes the focus, so the screen scrolls to it
-// and a screen reader reads it out.
-export function SaveNotice({ tone, text }: Notice) {
+// The result of a save, shown where the change was made. The first time it appears it takes the focus, so
+// the screen scrolls to it and a screen reader reads it out.
+export function SaveNotice({ tone, text, autoFocus = true }: Notice & { autoFocus?: boolean }) {
   const ref = useRef<HTMLParagraphElement>(null);
-  useEffect(() => { ref.current?.focus(); }, []);
+  useEffect(() => { if (autoFocus) ref.current?.focus(); }, [autoFocus]);
   return <p ref={ref} tabIndex={-1} className={`notice ${tone}`} role={tone === "error" ? "alert" : "status"}>{text}</p>;
+}
+
+// A submit button that cannot be pressed twice: while its form is saving it is disabled and says so.
+export function SubmitButton({ children, pendingText, className }: { children: React.ReactNode; pendingText: string; className?: string }) {
+  const { pending } = useFormStatus();
+  return <button type="submit" className={className} disabled={pending} aria-disabled={pending}>{pending ? pendingText : children}</button>;
+}
+
+function SaveBar({ onCancel }: { onCancel: () => void }) {
+  const { pending } = useFormStatus();
+  return (
+    <div className="savebar">
+      <button type="button" className="secondary small" onClick={onCancel} disabled={pending}>Cancel</button>
+      <SubmitButton className="small" pendingText="Saving…">Save</SubmitButton>
+    </div>
+  );
 }
 
 // One app of a person's access list. The header holds the ready role; each action is one row, allowed or
 // blocked. Choosing a role sets every row to what the role gives; changing a row makes it "custom".
 // Save stores the role and only the rows that differ from it (single changes for this person).
-export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, version, roles, actions, currentRole, locked,
+export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, icon, version, roles, actions, currentRole, locked,
   lockedNote, keptOut, leftover, initiallyOpen, notice }: {
   save: (form: FormData) => Promise<void>;
   personId: string;
@@ -58,6 +75,7 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ve
   appName: string;
   isPrototype: boolean;
   hue: number | null;
+  icon: string | null;
   version: string;
   roles: Role[];
   actions: Action[];
@@ -70,6 +88,11 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ve
   notice: Notice | null;
 }) {
   const bodyId = useId();
+  const roleSelect = useRef<HTMLSelectElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  // The save notice takes the focus once, when the page comes back from the save; not again on re-opening.
+  const announced = useRef(false);
+  useEffect(() => { announced.current = true; }, []);
   const initial = new Set(actions.filter((a) => a.on).map((a) => a.key));
   const [open, setOpen] = useState(initiallyOpen);
   const [role, setRole] = useState(currentRole);
@@ -95,9 +118,11 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ve
     });
   }
 
+  // Cancel removes the Save bar, so the focus goes to the role menu (or the app's name) instead of nowhere.
   function reset() {
     setRole(currentRole);
     setAllowed(initial);
+    (roleSelect.current ?? toggle.current)?.focus();
   }
 
   const roleName = roles.find((r) => r.key === role)?.name;
@@ -112,16 +137,16 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ve
 
       <div className="app-head">
         {expandable ? (
-          <button type="button" className="app-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
+          <button ref={toggle} type="button" className="app-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
             <Chevron open={open} />
-            <Orb seed={appKey} hue={hue} size={28} />
+            <AppIcon appKey={appKey} icon={icon} hue={hue} size={28} />
             <span className="app-name">{appName}</span>
             {!keptOut ? <span className="count">{allowed.size}/{actions.length}</span> : null}
           </button>
         ) : (
           <span className="app-toggle static">
             <span className="chevron-space" />
-            <Orb seed={appKey} hue={hue} size={28} />
+            <AppIcon appKey={appKey} icon={icon} hue={hue} size={28} />
             <span className="app-name">{appName}</span>
           </span>
         )}
@@ -131,7 +156,7 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ve
         ) : actions.length === 0 ? (
           <span className="head-note">No actions yet</span>
         ) : (
-          <select aria-label={`${appName} role`} value={custom ? CUSTOM : role} disabled={locked} onChange={(e) => chooseRole(e.target.value)}>
+          <select ref={roleSelect} aria-label={`${appName} role`} value={custom ? CUSTOM : role} disabled={locked} onChange={(e) => chooseRole(e.target.value)}>
             {custom ? <option value={CUSTOM} disabled>{roleName ? `${roleName} (custom)` : "Custom"}</option> : null}
             <option value="">No access</option>
             {roles.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
@@ -141,11 +166,11 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ve
 
       {open && (expandable || notice) ? (
         <div className="app-body" id={bodyId}>
-          {notice ? <SaveNotice {...notice} /> : null}
+          {notice ? <SaveNotice {...notice} autoFocus={!announced.current} /> : null}
           {!expandable ? null : keptOut ? (
             <div className="row">
               <span className="muted">Old access is still stored here.</span>
-              {!locked ? <button type="submit" className="secondary small">Remove</button> : null}
+              {!locked ? <SubmitButton className="secondary small" pendingText="Removing…">Remove</SubmitButton> : null}
             </div>
           ) : (
             <>
@@ -176,10 +201,7 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ve
               </ul>
               {lockedNote ? <p className="muted small-text">{lockedNote}</p> : null}
               {changed && !locked ? (
-                <div className="savebar">
-                  <button type="button" className="secondary small" onClick={reset}>Cancel</button>
-                  <button type="submit" className="small">Save</button>
-                </div>
+                <SaveBar onCancel={reset} />
               ) : null}
             </>
           )}

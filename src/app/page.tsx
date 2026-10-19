@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requirePerson } from "@/lib/session";
 import { Nav } from "@/components/nav";
 import { Avatar } from "@/components/avatar";
-import { Orb } from "@/components/orb";
+import { AppIcon } from "@/components/app-icon";
 
 export const dynamic = "force-dynamic";
 
@@ -36,14 +36,29 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </div>
 
         {mine.length ? (
-          <ul className="access-cards">
-            {mine.map(({ app, s }) => (
-              <li key={app.key} className="access-card">
-                <Orb seed={app.key} hue={app.hue} size={32} />
-                <strong>{app.name}</strong>
-                <span className="what">{s.text}</span>
-              </li>
-            ))}
+          <ul className="app-cards" aria-label="Your apps">
+            {mine.map(({ app, s }) => {
+              const inner = (
+                <>
+                  <AppIcon appKey={app.key} icon={app.icon} hue={app.hue} size={48} />
+                  <span className="app-card-text">
+                    <strong>{app.name}</strong>
+                    <span className="muted">{s.text}</span>
+                  </span>
+                  {app.url ? <span className="app-card-go" aria-hidden="true">↗</span> : <span className="pill plain">Not online yet</span>}
+                </>
+              );
+              const outside = app.url?.startsWith("https://");
+              return (
+                <li key={app.key}>
+                  {app.url ? (
+                    <a className="app-card" href={app.url} {...(outside ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+                      {inner}<span className="sr-only">{outside ? " (opens in a new tab)" : ""}</span>
+                    </a>
+                  ) : <div className="app-card off">{inner}</div>}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="empty">No app access yet. An Account Center admin gives it.</p>

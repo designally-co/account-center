@@ -15,9 +15,9 @@ sources:
 ## Decision
 
 - People have drawn avatars in the Notion style: the "Notionists" drawings (Zoish, CC0) drawn by the DiceBear library (MIT), inside the app, with no outside service. Apps keep their gradient orbs.
-- The avatar maker shows a big preview, "Surprise me", one tab per part and a grid of choices. It opens the first time a person signs in ("Welcome, Ann"); account creation is not built yet (it waits for the switch), and the maker becomes a step of it then. Home has "Edit" to change it later.
+- The avatar maker shows a big preview, "Surprise me", one tab per part and a grid of choices. It opens the first time a person signs in ("Welcome, Ann"; "Later" skips it on that browser); account creation is not built yet (it waits for the switch), and the maker becomes a step of it then. Home has "Edit" to change it later.
 - The avatar is stored as the person's choices in `account.people.avatar`, never as an image. The server accepts only known parts and values; the database limits shape and size. Until a person makes one, a stable starting face is made from their id.
-- Only the person changes their own avatar, through their signed-in account (`saveMyAvatar`); the change is logged.
+- Only the person changes their own avatar, through their signed-in account (`saveMyAvatar`); the change is logged. An unchanged avatar is not written again, and saves are limited to one every few seconds, so nobody can fill the change log (found by an independent review, 2026-10-19).
 - So that everyone can make one, every active company person with a working login can now sign in to Account Center and see Home (their avatar and their own access). The People pages still need Account Center's view right.
 
 ## Why
