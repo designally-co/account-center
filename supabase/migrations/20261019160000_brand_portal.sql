@@ -9,8 +9,9 @@
 --    the portal starts asking Account Center: an editor may do everything except delete a brand, an owner
 --    may do everything. Viewer is new.
 -- 2. `portal_check`: the portal's database user in Friday. The portal's data is not in Friday yet (it moves
---    later), so this user may only ask one question, account.can_user(account id, action): no table, no
---    other function, nothing outside schema `account`. Its login is made by a person
+--    later), so in schema `account` this user may only ask one question, account.can_user(account id,
+--    action): no table, no other Account Center function. It reads no HR table. Like every login it keeps
+--    PostgreSQL's everyone-rights (PUBLIC) on other schemas' functions; sql/portal-check-user.sql lists them. Its login is made by a person
 --    (sql/portal-check-user.sql), never by a migration.
 
 insert into account.actions (app_key, key, description) values
