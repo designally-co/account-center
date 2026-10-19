@@ -1,28 +1,35 @@
 # Account Center: spec
 
-Account Center is the app and the database part that hold every account and all access across the Designally ecosystem. It was called the "front desk" until Buk named it on 2026-10-14. Its database schema is `account` (name to be confirmed in the build).
+Account Center is the app and the database part that hold every account and all access for **Designally's own people** (employees and outsourced workers, never clients; Buk, 2026-10-19) in the company's apps. It was called the "front desk" until Buk named it on 2026-10-14. Its database schema is `account` (name to be confirmed in the build).
 
-Status: **approach agreed by Buk on 2026-10-14; schema `account` is written and tested on a local database (`supabase/migrations/`, `test/`); applying it to Project Friday waits for P Aek (`docs/apply-to-friday.md`).** Copied on 2026-10-14 from `designally-co/designally-brain`, `docs/account-center.md`; this file is now the living spec. Company decision notes (in the brain repo): `decisions/company-account-center-owns-people-and-access.md`, `decisions/company-account-center-for-every-app.md`.
+Status: **a plan and Buk's experiment, not live** (Buk, 2026-10-19). The approach was agreed by Buk on 2026-10-14. Schema `account` is written and tested on a local database (`supabase/migrations/`, `test/`), and the app's first steps are built and tested locally (section 4). Applying the schema to Project Friday waits for P Aek (`docs/apply-to-friday.md`). **Nothing in use changes:** the current HR app stays the system everyone uses, and no live app changes how people sign in, until Buk and P Aek decide to switch (Buk, 2026-10-19). Company decision note (in the brain repo): `decisions/company-account-center-experiment.md`. Copied on 2026-10-14 from the brain repo; this file is the living spec.
 
-The goal (Buk, 2026-10-14): one place that decides who may do what across the Designally ecosystem. Account Center comes first; every app, HR included, sits behind it.
+The goal (Buk, 2026-10-14 and 2026-10-19): one place that decides who in the company may do what in each app. It is Buk's experiment to rebuild the system: everyone in the company gets one account from Account Center, and from there they use every app, HR included.
 
-**End state (Buk, 2026-10-14):** every account and all access come from Account Center. A person's roles there decide which apps they can use (HR, Article Studio, the Knowledge Hub, the survey, MA Desk and the rest) and what they may do in each. No app has its own accounts, user list or access rules. HR reaches this state when P Aek agrees; until then its part is a prototype.
+**End state:** every company account and all access come from Account Center. When someone joins the company, an account is made for them and they get a role. The account works like a **badge**: it says which apps the person can use and what they can do in each (Buk, 2026-10-19). No company app has its own accounts, user list or access rules. HR reaches this state when P Aek agrees; until then its part is a prototype.
 
-## 1. What is real now, and what is a prototype
+**Who has an account** (Buk, 2026-10-19):
 
-| Part | Now | Why |
+- **Employees and outsourced workers.** Each account says what **kind** of person it is. Example: an outsourced worker's account is marked as outsource, so they cannot use the HR app, but they can use Article Studio. The full list of kinds is not decided.
+- **Never clients.** The future client product (the brand ecosystem, starting from the Brand Guideline Portal) has its own accounts, for clients and for Designally staff, and does not use Account Center (brain note `decisions/company-ecosystem-product-logins-apart-from-account-center.md`).
+
+## 1. What is built, and what waits for the switch
+
+Account Center is an experiment: nothing below changes anything in use until Buk and P Aek decide to switch (Buk, 2026-10-19). This replaces the 2026-10-14 plan, where access for Buk's apps and account creation were "real now".
+
+| Part | Now | At the switch (Buk and P Aek decide) |
 |---|---|---|
-| **Access for Buk's apps** (MA Desk, Knowledge Hub, Article Studio, survey, brand guideline portal) | **Real.** Account Center decides who may do what in them | They are Buk's apps |
-| **People list** | **Real.** Imported **once** from HR when Account Center starts; from then on Account Center's list is the real list: people are added and removed here (Buk, 2026-10-14) | No need to read HR again and again |
-| **Leaving** | **Real.** Someone who leaves is removed in Account Center: every role in every app is gone at once. HR follows (Buk, 2026-10-14; section 3, "When someone leaves") | One place for joining and leaving |
-| **Account creation** | **Real** (Buk, 2026-10-14). Account Center creates accounts and gives a one-time link to set a password | Account Center is the starting point |
-| **Sign-in** | **Goal: every app accepts only Account Center accounts.** Account Center and MA Desk use them from day one. The Hub, Studio, the survey and the brand guideline portal keep their Designally Google sign-in **for now**, next to the new sign-in, and drop it once everyone has moved | So nobody who uses them now is locked out |
-| **Anything that touches HR** (HR's roles, HR records, HR's own rules) | **Prototype only.** Screens that show how it would work, with no effect on HR | HR is P Aek's; it changes only when he agrees |
+| **People list** | Imported **once** from HR when Account Center starts in Friday (with P Aek's agreement); from then on Account Center's list is the real list (Buk, 2026-10-14 and 2026-10-19). Reading HR changes nothing in HR | No change |
+| **Access** (which apps, and which actions in each) | Designed and built; tested locally. No live app asks Account Center yet | Apps start asking Account Center |
+| **Leaving** | Removing someone in Account Center takes away every role (built, local) | Their login is also blocked, and HR follows |
+| **Account creation** | Designed, not built. It would write Friday's Auth, so it waits | Account Center creates accounts and gives a one-time link to set a password |
+| **Sign-in** | Every live app keeps its own sign-in as it is | Apps add Account Center sign-in; in the end every company app accepts only Account Center accounts |
+| **Anything that touches HR** (HR's roles, HR records, HR's own rules) | **Prototype only.** Screens that show how it would work, with no effect on HR | Real when P Aek agrees |
 
 ```
-            Account Center: people (imported once from HR), access (real)
+        Account Center (experiment): company people (imported once from HR), access per app and action
      ┌──────────┬──────────┬──────────┬──────────┬──────────┐
-  MA Desk     Studio      Hub      Survey   Brand guide   HR (prototype)
+  MA Desk     Studio      Hub      Survey   Recruit ...   HR (prototype)
 ```
 
 ## 2. What already exists (read-only check, 2026-10-14)
@@ -62,9 +69,11 @@ The goal (Buk, 2026-10-14): one place that decides who may do what across the De
 - **Each person can have more than one email.** The HR email (their Account Center account) is usually a personal Gmail, but Google sign-in in Buk's apps uses their designally.co account. During the move, an Account Center admin adds each person's work email in Account Center (`account.person_emails`), so a Google sign-in finds the right person. Google has already proven the work email, so the apps can match on it safely.
 - Account Center can show HR details as a prototype only; it does not write to HR.
 
-### Access: real, for Buk's apps
+### Access: per app and per action
 
-- Each app lists its actions (for example `studio.article.publish`). Actions are grouped into roles per app (for example Writer, Publisher, Admin). People are given roles.
+- **A person's access list** shows the apps they can use, and inside each app what they can do (Buk, 2026-10-19). Access is never only "can use this app" or "cannot". Example: in Article Studio a person can generate an article but cannot publish it.
+- Each app lists its actions (for example `studio.article.publish`). Actions are grouped into roles per app (for example Writer, Publisher, Admin). People are given roles. Whether admins choose actions person by person, through ready roles, or both, is not decided (section 8).
+- **A person's kind limits their access** (Buk, 2026-10-19): an outsource account cannot get access to the HR app. To build: a kind on each person (`account.people`; the list of kinds is not decided) and a check that refuses an HR role for an outsource account.
 - **Nobody has access by default.** A person can do something only after an Account Center admin gives them a role in that app.
 - **An inactive person or a blocked login loses everything,** in every app, on the next action.
 - **Apps check the action, never a role name,** on the server, for every action. Hiding a button is only for the screen.
@@ -74,8 +83,8 @@ The goal (Buk, 2026-10-14): one place that decides who may do what across the De
 
 - **An Account Center account** is the person's account in Project Friday's Auth. For people already in HR it is the account they use for HR (their HR email and password). New people get one from Account Center (below).
 - **One sign-in for all apps:** the apps run on addresses under designally.co, so Account Center's sign-in can be shared across them (one session cookie for `.designally.co`): sign in once, and every app knows who you are. To be proven in the build; the fallback is the same account on a sign-in page in each app.
-- **Account Center and MA Desk** accept Account Center accounts only, from day one.
-- **The Hub, Studio, the survey and the brand guideline portal, during the move:** they show both "Sign in with your Designally account" (new) and the current Google sign-in (old). A person who signs in with Google is matched to their Account Center person by their work email (`account.person_emails`), so their access is the same either way. When everyone uses the new sign-in, the app drops Google sign-in.
+- **Account Center itself** accepts Account Center accounts only. **MA Desk** does too, from the switch (section 7).
+- **The Hub, Studio and the survey, during the move (after the switch):** they show both "Sign in with your Designally account" (new) and the current Google sign-in (old). A person who signs in with Google is matched to their Account Center person by their work email (`account.person_emails`), so their access is the same either way. When everyone uses the new sign-in, the app drops Google sign-in.
 
 ### Creating an account in Account Center
 
@@ -89,14 +98,14 @@ Rules:
 
 - **Only Account Center admins** can create accounts.
 - **The account is blocked until the person sets their password**, and the link works once and expires (for example after 7 days).
-- **No HR record is made.** A person created here is not an employee in HR. This also makes accounts for freelancers and partners possible.
+- **No HR record is made.** A person created here is not an employee in HR. This also makes accounts for outsourced workers possible.
 - **People who leave are removed in Account Center** (below).
 - **Check the email before creating:** if an account with that email already exists (for example from HR), Account Center links to it instead of creating a second one.
 
 **The clash with HR, and how to avoid it:** HR's **Add Employee** and invite link always create a new account, and they refuse an email that already has one ("An account with this email already exists"). So if Account Center creates an account for someone who later becomes an employee, HR cannot onboard them with that email. Until P Aek changes HR to link an existing account:
 
 - for a **new employee**, create them in HR as today, then add their existing account in Account Center (it finds the account by email and links to it; part of step 4);
-- use Account Center creation for **everyone else** (freelancers, partners, and people who are not in HR).
+- use Account Center creation for **outsourced workers** and other company people who are not in HR.
 
 When P Aek agrees, HR's onboarding links to Account Center account instead, and every account is created in Account Center.
 
@@ -116,7 +125,7 @@ An Account Center admin presses **Remove** on the People page and confirms (Buk,
 2. The app's server asks Account Center: `account.can_user(account id, action)` for an Account Center account, or `account.can_email(work email, action)` for a Google sign-in. The answer is yes or no.
 3. The app allows or refuses the action.
 
-Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). Only these users, and Account Center, may call the check. The brand guideline portal's database is not in Project Friday, so it would need its own small Friday user that may only call the check. The apps never read `account` tables directly and never read HR.
+Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). Only these users, and Account Center, may call the check. (Earlier plan, now open, section 8: the brand guideline portal's database is not in Project Friday, so it would need its own small Friday user that may only call the check.) The apps never read `account` tables directly and never read HR.
 
 ### Schema `account` (written: `supabase/migrations/20261014100000_account_schema.sql`)
 
@@ -165,9 +174,10 @@ Example:
 
 **Stack:** Next.js on the Designally NAS, like MA Desk (Buk, 2026-10-14; `decisions/stack-nextjs-on-nas.md`). **Address:** account.designally.co (Buk, 2026-10-14).
 
-- **Real:** creating accounts; the list of people (imported once from HR, then managed here) with their work emails; removing people who leave; apps, actions and roles; giving and removing roles; the change history.
+- **Planned for the experiment:** the list of people (imported once from HR, then managed here) with their kind and work emails; removing people who leave; apps, actions and roles; each person's access list (apps, then actions); the change history.
+- **Waits for the switch:** creating accounts and blocking logins in Friday's Auth.
 - **Prototype:** HR screens (HR roles, HR records). They show the future flow and change nothing.
-- Sign-in: Account Center accounts only. Its repo and address: see the open questions.
+- Sign-in: Account Center accounts only.
 
 ## 5. Later, when P Aek agrees: HR follows Account Center
 
@@ -190,18 +200,27 @@ Found in the read-only check. They are in P Aek's system, so he decides how to f
 
 ## 7. Steps
 
-1. **P Aek agrees** to a new schema `account` in Project Friday that imports HR's employee list once (the fields in section 3 only) and changes nothing in HR, and to Account Center **creating accounts** and **blocking the login of people who leave** in Friday's Auth.
-2. **Build `account`** as a migration: tested on a local database, then in Friday inside a transaction that undoes itself, then for real. Check that the import holds no HR details beyond section 3.
-3. **Build Account Center** (real account creation, removal and access screens, HR screens as a prototype) and the `account-invite` and `account-remove` functions.
-4. **MA Desk** signs in with Account Center accounts and checks every action with Account Center from day one.
-5. **Article Studio, the Hub, the survey and the brand guideline portal**, one at a time: add Account Center sign-in next to Google, and the access check. Each starts with today's users given the role that matches what they can do now (everyone is an admin in the Hub and Studio), so nobody loses access on the day of the switch.
-6. **Drop Google sign-in** in each app once everyone in it signs in with their Account Center account.
+**Now (the experiment; changes nothing in use):**
+
+1. **P Aek agrees** to a new schema `account` in Project Friday that imports HR's employee list once (the fields in section 3 only) and changes nothing in HR.
+2. **Build `account`** as a migration: tested on a local database (done), then in Friday inside a transaction that undoes itself, then for real. Check that the import holds no HR details beyond section 3.
+3. **Build Account Center** (people with their kind, access lists per app and action, removal; HR screens as a prototype). Steps 1 and 2 of the app are built locally (section 4).
+
+**At the switch (Buk and P Aek decide when):**
+
+4. Account creation and login blocking in Friday's Auth: the `account-invite` and `account-remove` functions.
+5. **MA Desk** signs in with Account Center accounts and checks every action with Account Center.
+6. **The other company apps** (Article Studio, the Hub, the survey, Recruit and the rest), one at a time: add Account Center sign-in next to their current sign-in, and the access check. Each starts with today's users given the access that matches what they can do now (everyone is an admin in the Hub and Studio), so nobody loses access on the day of the switch. Drop the old sign-in once everyone has moved.
+7. **HR follows Account Center** when P Aek agrees (section 5).
 
 ## 8. Open questions
 
-1. P Aek: may `account` import HR's employee list once (section 3 fields only), and may Account Center create accounts and block the login of people who leave in Friday's Auth?
+1. P Aek: may `account` import HR's employee list once (section 3 fields only)? And, at the switch, may Account Center create accounts and block the login of people who leave in Friday's Auth?
 2. Account Center accounts use email and password today (the HR password). With no "forgot password" and unchecked emails (section 6), these accounts will guard every app. Turning on Google sign-in for Friday's accounts would fix both, but it is a setting in P Aek's project: ask him when and how.
 3. ~~Account Center's repo name and address~~ Decided: `designally-co/account-center`, account.designally.co (Buk, 2026-10-14).
 4. Who may change access: only Buk, or also P Aek and each app's owner?
-5. Brand guideline portal: how does it sign people in today? (Not in the brain.)
+5. Brand guideline portal: it becomes the start of the client product, which has its own accounts (section "Who has an account"). Whether the team uses Account Center for it before then is not decided.
 6. P Aek: when can HR's Add Employee link an account that already exists, so that every account can start in Account Center?
+7. The kinds of people besides employee and outsource.
+8. Access lists: chosen person by person, through ready roles, or both? (Ready roles are faster with many people and apps; both keeps it flexible.)
+9. When the switch happens (Buk and P Aek).
