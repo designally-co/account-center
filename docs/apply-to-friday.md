@@ -37,12 +37,40 @@ What the migration does in Friday: creates schema `account` with its tables and 
    - functions added later: every migration revokes them from public itself, and `test/run.sh` fails otherwise (a per-schema default privilege cannot remove PostgreSQL's global default, and the global one would change all of Friday);
    - indexes for the three foreign keys the performance advisor listed;
    - change-log triggers on `account.apps` and `account.actions`.
-4. **The one-time import and the first admin** (Buk, in the Supabase SQL Editor):
+3c. **Kinds of people and per-person access lists** (`20261019110000_kinds_and_access_lists.sql`), with the same guard. Not applied yet. It adds `account.kinds`, `account.kind_blocked_apps` and `account.person_actions`, a `kind` column on `account.people` (everyone starts as an employee), `hue`, `url` and `icon` columns on `account.apps` (each app's colour on screen, where it opens, and its graphic; set for the apps whose values are known), the checks that keep an outsource account out of HR, and new versions of `account.person_can`, `account.me` and `account.bootstrap_first_admin` (same names, arguments and rights). Run it before the release of Account Center that needs it. Together with it: `20261019113000_avatars.sql` (the `avatar` column on `account.people`, and `account.me` returns it).
+3d. **Invitations** (`20261019130000_invitations.sql`), with the same guard: `account.login_state` also says `invited` (a login made by an invitation that was not accepted yet). Same name, arguments and rights. Run it with or after 3c.
+3e. **App cards** (`20261019140000_app_cards.sql`), with the same guard: `description` (one short line) and `art` (a small picture of what the app does, a file under `/apps/art/` shipped with Account Center) columns on `account.apps`, shown on Home's app cards, set for the 7 apps. Run it with or after 3c.
+3f. **Teams** (`20261019150000_teams.sql`), with the same guard: `account.teams`, `team_members` (one team per person), `team_roles` (a team's default role per app, never Account Center) and `team_opt_outs`; `account.base_allows`, `account.is_lead_of`; new versions of `person_can`, `me` and `import_from_hr` (same names, arguments and rights; the import also copies HR's teams, members and leads, reading HR only).
+3g. **The Brand Guideline Portal** (`20261019160000_brand_portal.sql`; actions and roles approved by Buk, 2026-10-19), with the same guard: the portal's 12 actions and its roles Viewer, Editor and Owner (Editor and Owner match the portal's own roles today), and the role `portal_check`, which may only call `account.can_user`. Its login: `sql/portal-check-user.sql` (Buk, after the apply; the connection string goes straight into the portal's setting `ACCOUNT_CENTER_DB_URL`).
+3h. **3c to 3g and the import in one go, in the SQL Editor** (2026-10-19). Through the connector every write call of more than a few lines stopped after 60 seconds without reaching the database (Postgres logged nothing; the counts were unchanged afterwards), so Buk runs `supabase/apply/2026-10-19-kinds-to-portal-and-import.sql` himself: open it on GitHub, copy all, paste into Friday's SQL Editor, press Run (and "Run this query" if Supabase warns about destructive operations). One transaction: the six migrations, copied exactly from their files (tested on a copy with Friday's state), their records in the migration history, `account.import_from_hr()`, then the guard. On any difference outside `account` it stops with "GUARD STOPPED" and keeps nothing; a second run stops at its first line and keeps nothing. Success is one row: the import's counts, the guard's line, and the numbers of people, teams and members. Not outside 02:30 to 05:00 Bangkok time (step 3).
+   **Done 2026-10-20** (Buk, about 10:00 Bangkok time). Supabase's SQL Editor warned "creates a table without enabling Row Level Security: `supabase_migrations.schema_migrations`": a misreading (the file only inserts rows there); Buk chose **Run without RLS**, because "Run and enable RLS" would have changed Supabase's own migration table, outside `account`, which the guard does not watch. Result: import `{"added": 22, "leads": 4, "teams": 6, "team_members": 21, "leads_in_another_team": 2}`, guard 3,680 items compared, 0 changed. Checked afterwards through the connector (read only): all six versions recorded, 16 tables in `account`, 11 active people with a working login, 0 active people without a team, no function in `account` executable by everyone, the migration table's RLS unchanged.
+4. **The one-time import and the first admin** (Buk, in the Supabase SQL Editor; the import is already in 3h's file). **Done 2026-10-20:** Buk is the first admin; `portal_check` has its login (`sql/portal-check-user.sql`). Its list of outside functions showed HR functions open to every login, `hr_enc_key` among them (see "Found while applying", below).
    - `select account.import_from_hr();` (once; a second run is refused). Look through the imported list once.
    - `select account.bootstrap_first_admin('<your HR email>');`
 5. **No timer.** After the import, Account Center's list is the real list (Buk, 2026-10-14). People are added and removed in Account Center.
 6. **Account Center's login** (when the app is about to go live): `sql/account-app-user.sql`.
 7. **Backup:** Friday's nightly backup dumps every non-Supabase schema, so `account` is included; check that the next run counts its tables (the brain repo's `docs/backups.md`).
+
+## Server functions (account-invite and account-recover)
+
+Built and tested locally on 2026-10-19; **not deployed**. They make logins and reset links in Friday's Auth, so they wait for P Aek's agreement (`docs/spec.md`, section 8, question 1). Code: `supabase/functions/`.
+
+When P Aek agrees:
+
+1. **Email sender.** The functions send through Resend, like HR's server functions. Set these function secrets in Project Friday (Edge Functions > Secrets), typed there, never in chat or in this repo:
+   - `RESEND_API_KEY`: a Resend key for the verified designally.co domain (HR's sender domain);
+   - `ACCOUNT_MAIL_FROM`: the sender, for example `Designally <people@designally.co>` (agree the address with P Aek, as HR's was);
+   - `ACCOUNT_APP_URL`: `https://account.designally.co`.
+   Without `RESEND_API_KEY` nothing is emailed: the admin gets the invitation link to send by hand, and "Forgot your password?" sends nothing.
+2. **Deploy both with JWT checking off** (each function checks its caller itself): `supabase functions deploy account-invite --no-verify-jwt` and the same for `account-recover`, from this repo, linked to Project Friday. Friday gives them `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL` itself.
+3. **Check:** add a made-up person with an email you can read, accept the invitation, set a password, make the avatar; then "Forgot your password?" for the same email; then remove the made-up person.
+4. **Link lifetime:** an invitation or reset link stops working after Friday's Auth setting "Email OTP expiration" (Authentication > Providers > Email; Supabase's default is 1 hour). Not checked in Friday yet. The admin can always press Send again.
+
+Nothing in Friday's Auth settings changes: no email templates, no SMTP sender, no redirect addresses. That keeps other apps that use Friday's Auth (Recruit, for example) as they are.
+
+## Found while applying (2026-10-20)
+
+`sql/portal-check-user.sql` lists the functions outside `account` that `portal_check` can run through PostgreSQL's everyone-rights (PUBLIC). The same rights belong to `anon`, the public key the HR website sends to every browser, so `portal_check` adds nothing. Checked read only, without showing any code or value: most HR functions refuse unless the caller is an HR admin or signed in, but `public.hr_enc_key()` (security definer, returns HR's encryption key for salaries, bank accounts and national IDs) checks nothing, and `hr_emit_system_alert`, `blink_0003_reconcile_cohort` and `blink_roll_rarity_min` check nothing either. Supabase's API log showed 0 calls to `rpc/hr_enc_key` in the 24 hours before. This is HR's code and P Aek's database: reported to Buk to pass on; not changed from here.
 
 ## Undo
 

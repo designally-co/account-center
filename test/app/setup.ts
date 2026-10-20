@@ -6,6 +6,7 @@ import postgres from "postgres";
 
 export const ANN = "00000000-0000-0000-0000-00000000000a"; // active, login ok
 export const BEN = "00000000-0000-0000-0000-00000000000b"; // active, login blocked
+export const DEE = "00000000-0000-0000-0000-00000000000d"; // not in HR; added in Account Center as the admin
 
 const read = (p: string) => readFileSync(join(__dirname, "..", "..", p), "utf8");
 
@@ -27,10 +28,20 @@ export async function createTestDb(name: string) {
   const migrations = readdirSync(join(__dirname, "..", "..", "supabase", "migrations")).filter((f) => f.endsWith(".sql")).sort();
   for (const m of migrations) await setup.unsafe(read(`supabase/migrations/${m}`));
   // The app connects as Account Center's own user, like in Friday.
-  const app = postgres(url, { max: 1, connection: { role: "account_app" }, onnotice: () => {} });
+  const appClient = () => postgres(url, { max: 1, connection: { role: "account_app" }, onnotice: () => {} });
+  const app = appClient();
+  const extra: postgres.Sql[] = [];
   return {
     setup,
     app,
-    async close() { await app.end(); await setup.end(); await dropAll(); await admin.end(); },
+    // Another connection as Account Center's user, for two changes at the same moment.
+    otherApp() { const c = appClient(); extra.push(c); return c; },
+    // A made-up admin who is not in HR (Dee), so the tests act as a real admin. Returns their person id.
+    async addAdmin() {
+      await setup`insert into account.people (auth_user_id, source, display_name, email) values (${DEE}::uuid, 'account_center', 'Dee', 'dee@example.com')`;
+      const [row] = await setup<{ id: string }[]>`select account.bootstrap_first_admin('dee@example.com')::text as id`;
+      return row.id;
+    },
+    async close() { for (const c of extra) await c.end(); await app.end(); await setup.end(); await dropAll(); await admin.end(); },
   };
 }

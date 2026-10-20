@@ -4,6 +4,7 @@ Every account and all access for Designally's own people (employees and outsourc
 
 - Spec: [`docs/spec.md`](docs/spec.md)
 - Applying the database part to Project Friday (only after P Aek agrees): [`docs/apply-to-friday.md`](docs/apply-to-friday.md)
+- Release and hosting on the NAS: [`docs/deploy-nas.md`](docs/deploy-nas.md)
 - Rules for AI build sessions: [`AGENTS.md`](AGENTS.md)
 
 ## Work locally
