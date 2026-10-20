@@ -201,7 +201,7 @@ Example:
 
 **Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone with their status and kind, **Remove** for people who leave; every change in the change log with the admin's id); step 3 (first version, 2026-10-19), **each person's page**: kind, work emails, and per app a ready role and one allowed/blocked row per action; step 4, **avatars** (the maker, shown at first sign-in); step 5 (2026-10-19), **Add person with an invitation email, Forgot your password and Change password** (section 3, "Creating an account" and "Passwords"; the server functions are not deployed to Friday). Design: minimal, black and white, with a soft gradient orb per app and a drawn avatar per person (Buk, 2026-10-19: "minimal, modern and intentional", like ElevenLabs). Release and hosting: `docs/deploy-nas.md`. The HR list is imported once, by a person, when Account Center starts in Friday.
 
-**Stack:** Next.js on the Designally NAS, like MA Desk (Buk, 2026-10-14; `decisions/stack-nextjs-on-nas.md`). **Address:** account.designally.co (Buk, 2026-10-14).
+**Stack:** Next.js. On Vercel for now, while only the portal and MA Desk use it (Buk, 2026-10-20; `decisions/hosting-on-vercel-first.md`); the NAS release in `docs/deploy-nas.md` stays ready (`decisions/stack-nextjs-on-nas.md`). **Address:** account.designally.co (Buk, 2026-10-14).
 
 - **Planned for the experiment:** the list of people (imported once from HR, then managed here) with their kind and work emails; removing people who leave; apps, actions and roles; each person's access list (apps, then actions); the change history.
 - **Waits for the switch:** creating accounts and blocking logins in Friday's Auth.

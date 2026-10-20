@@ -11,6 +11,8 @@ sources:
   - decisions/schema-as-plain-sql.md
 ---
 
+**Changed 2026-10-20:** for now it runs on Vercel; see `hosting-on-vercel-first.md`. The NAS release stays ready.
+
 ## Decision
 
 The Account Center app is a Next.js app. It runs on the Designally NAS from a `release-*` image, set in Portainer, like MA Desk and Buk's other apps. Its database tables stay in the plain SQL migrations of schema `account`; the app does not create or change them. Its address is account.designally.co.
