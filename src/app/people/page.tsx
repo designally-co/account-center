@@ -82,7 +82,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                 </div>
                 <div className="person-card-meta">
                   <Status p={p} />
-                  <span>{p.kind}</span>
+                  <span>{p.team ? `${p.team}${p.is_lead ? " · lead" : ""}` : "No team"}</span>
                   <span>{p.app_count} {p.app_count === 1 ? "app" : "apps"}</span>
                 </div>
               </li>
@@ -92,13 +92,14 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           <div className="tablewrap">
             <table>
               <thead>
-                <tr><th>Name</th><th>Email</th><th>Work emails</th><th>Employment</th><th>Status</th><th>Apps</th></tr>
+                <tr><th>Name</th><th>Email</th><th>Team</th><th>Work emails</th><th>Employment</th><th>Status</th><th>Apps</th></tr>
               </thead>
               <tbody>
                 {people.map((p) => (
                   <tr key={p.id} className={p.is_active ? undefined : "faded"}>
                     <td className="name"><Link href={`/people/${p.id}`}><Avatar avatar={p.avatar} seed={p.id} size={36} /><span>{p.display_name}</span></Link></td>
                     <td>{p.email}</td>
+                    <td>{p.team ? <>{p.team}{p.is_lead ? <span className="pill plain">Lead</span> : null}</> : <span className="muted">No team</span>}</td>
                     <td>
                       {p.work_emails.length ? (
                         <div className="chips">{p.work_emails.map((e) => <span key={e} className="chip">{e}</span>)}</div>

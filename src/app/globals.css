@@ -377,3 +377,27 @@ main.home { max-width: 1160px; }
 .remove-zone > .row { justify-content: space-between; }
 a.button.danger-outline { color: var(--error); border-color: var(--error-soft); }
 a.button.danger-outline:hover { background: var(--error-soft); }
+
+/* A small check box with its words beside it (Team lead). */
+label.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
+label.check input[type="checkbox"] { width: 18px; height: 18px; padding: 0; margin: 0; accent-color: var(--primary); cursor: pointer; }
+label.check:has(input:disabled) { cursor: default; color: var(--muted); }
+
+/* Teams: cards on the list, members on a team's page. */
+.team-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.team-card { position: relative; display: grid; gap: 10px; align-content: start; padding: 20px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius); box-shadow: var(--shadow); transition: box-shadow 0.15s; }
+.team-card:hover { box-shadow: var(--shadow-hover); }
+.team-card.faded { opacity: 0.6; }
+.team-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.team-card-name { font-weight: 600; font-size: 16px; color: var(--fg); text-decoration: none; }
+.team-card-name::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+.team-card-name:focus-visible { outline: none; }
+.team-card:has(.team-card-name:focus-visible) { box-shadow: 0 0 0 3px var(--layer), 0 0 0 4px var(--fg); }
+.team-card-avatars { display: flex; align-items: center; flex-wrap: wrap; }
+.team-card-avatars > span { margin-right: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
+.team-card-avatars > span.lead { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--fg-2); }
+.team-card-avatars > .more { margin-left: 12px; box-shadow: none; font-size: 13px; color: var(--muted); }
+.team-members { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.team-members li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-inner); }
+.team-members a { display: flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; font-weight: 500; }
+.team-members a:hover span { text-decoration: underline; }

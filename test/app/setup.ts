@@ -18,7 +18,7 @@ export async function createTestDb(name: string) {
   const admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
   const dropAll = async () => {
     await admin.unsafe(`drop database if exists ${name}`);
-    for (const r of ["account_app", "hub_app", "studio_app"]) await admin.unsafe(`drop role if exists ${r}`);
+    for (const r of ["account_app", "hub_app", "studio_app", "portal_check"]) await admin.unsafe(`drop role if exists ${r}`);
   };
   await dropAll();
   await admin.unsafe(`create database ${name}`);
