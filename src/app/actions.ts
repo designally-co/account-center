@@ -25,6 +25,8 @@ export async function signIn(_: SignInState, form: FormData): Promise<SignInStat
 
 export async function signOut() {
   const supabase = await supabaseServer();
-  await supabase.auth.signOut();
+  // Only this browser: the same Friday account is also signed in to HR and Blink, which must stay signed in
+  // (the library's default would end every session of the account, everywhere).
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/login");
 }
