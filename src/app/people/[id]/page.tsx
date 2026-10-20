@@ -8,11 +8,13 @@ import { db } from "@/lib/db";
 import { requireAction } from "@/lib/session";
 import { AppPanel, SaveNotice } from "./access-form";
 import { KindForm } from "./kind-form";
+import { TeamForm } from "./team-form";
+import { activeTeams } from "@/lib/teams";
 import { WorkEmails } from "./work-emails";
 import { removePersonAction, sendInviteAction, workEmailAction } from "../actions";
 import { inviteMessage } from "../invite-messages";
 import { InviteRow } from "./invite-row";
-import { saveAppAccessAction, setKindAction } from "./actions";
+import { saveAppAccessAction, setKindAction, setTeamAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +90,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
   const { userId, me } = await requireAction(ACTIONS.view);
   const sql = db();
   const [{ id }, search] = await Promise.all([params, searchParams]);
-  const [person, kinds, canManage] = await Promise.all([getPersonAccess(sql, id), listKinds(sql), canUser(sql, userId, ACTIONS.manage)]);
+  const [person, kinds, canManage, teams] = await Promise.all([getPersonAccess(sql, id), listKinds(sql), canUser(sql, userId, ACTIONS.manage), activeTeams(sql)]);
   if (!person) notFound();
 
   const kind = kinds.find((k) => k.key === person.kind);
@@ -125,6 +127,8 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
           <KindForm save={setKindAction} personId={person.id} personName={person.display_name}
             kinds={kinds.map(({ key, name }) => ({ key, name }))} appNames={Object.fromEntries(person.apps.map((a) => [a.key, a.name]))}
             current={person.kind} locked={!canManage || !person.is_active || isMe} />
+          <TeamForm save={setTeamAction} personId={person.id} teams={teams} current={person.team}
+            locked={!canManage || !person.is_active} />
           {canManage && person.is_active && (person.login === "missing" || person.login === "invited") ? (
             <InviteRow action={sendInviteAction} personId={person.id} invited={person.login === "invited"} offerLink={noticeKey === "invite-account-exists"} />
           ) : null}

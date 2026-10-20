@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ACTIONS } from "@/lib/access";
 import { saveAppAccess, setKind } from "@/lib/access-lists";
+import { setPersonTeam } from "@/lib/teams";
 import { db } from "@/lib/db";
 import { isUuid } from "@/lib/ids";
 import { requireAction } from "@/lib/session";
@@ -41,4 +42,17 @@ export async function saveAppAccessAction(form: FormData) {
   const ticked = ticksMatchRole ? form.getAll("action").map(String) : null;
   const result = await saveAppAccess(db(), me.person_id, personId, app, role === "" ? null : role, ticked, String(form.get("version") ?? ""));
   back(personId, result !== "saved" ? result : ticksMatchRole ? "saved" : "role-only", app);
+}
+
+// The person's team and whether they lead it. The answer comes back to the Team form; the page refreshes in
+// place, so the app panels below show the new team's default access at once.
+export type TeamNotice = { notice?: string; n?: number };
+
+export async function setTeamAction(prev: TeamNotice, form: FormData): Promise<TeamNotice> {
+  const { me } = await requireAction(ACTIONS.manage);
+  const personId = String(form.get("person_id") ?? "");
+  const team = String(form.get("team") ?? "");
+  const result = await setPersonTeam(db(), me.person_id, personId, team === "" ? null : team, team !== "" && form.get("is_lead") === "on");
+  if (isUuid(personId)) revalidatePath(`/people/${personId}`);
+  return { notice: result === "saved" ? "team-saved" : result, n: (prev.n ?? 0) + 1 };
 }

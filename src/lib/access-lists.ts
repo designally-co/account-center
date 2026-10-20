@@ -49,6 +49,7 @@ export type PersonAccess = {
   login: LoginState;
   work_emails: string[];
   avatar: unknown;
+  team: { id: string; name: string; is_active: boolean; is_lead: boolean } | null;  // one team at most
   apps: AppAccess[];
 };
 
@@ -146,7 +147,9 @@ export async function getPersonAccess(sql: postgres.Sql, personId: string): Prom
   if (!isUuid(personId)) return null;
   const [person] = await sql<Omit<PersonAccess, "apps">[]>`
     select p.id, p.display_name, p.email, p.kind, p.source, p.is_active, p.avatar, account.login_state(p.auth_user_id) as login,
-           coalesce(array(select e.email from account.person_emails e where e.person_id = p.id order by e.email), '{}') as work_emails
+           coalesce(array(select e.email from account.person_emails e where e.person_id = p.id order by e.email), '{}') as work_emails,
+           (select jsonb_build_object('id', t.id, 'name', t.name, 'is_active', t.is_active, 'is_lead', m.is_lead)
+            from account.team_members m join account.teams t on t.id = m.team_id where m.person_id = p.id) as team
     from account.people p where p.id = ${personId}::uuid`;
   if (!person) return null;
   const apps = await sql.begin("read only isolation level repeatable read",
