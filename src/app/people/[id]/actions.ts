@@ -12,10 +12,13 @@ import { requireAction } from "@/lib/session";
 // Every action checks "manage" again on the server (and the change itself checks "view" and "manage" once
 // more, inside its transaction); hiding the controls is only for the screen.
 
+// After saving one app, back to that app's own page (or the person's page when the app key is not a plain key).
 function back(personId: string, notice: string, app: string): never {
   const id = isUuid(personId) ? personId : "";
   if (!id) redirect(`/people?notice=no-person`);
-  redirect(`/people/${id}?notice=${notice}&app=${encodeURIComponent(app)}#app-${encodeURIComponent(app)}`);
+  revalidatePath(`/people/${id}`);
+  if (!/^[a-z][a-z0-9_]*$/.test(app)) redirect(`/people/${id}?notice=${notice}`);
+  redirect(`/people/${id}/apps/${app}?notice=${notice}`);
 }
 
 // The answer comes back to the Kind form, and the page refreshes in place, so unsaved changes in the app

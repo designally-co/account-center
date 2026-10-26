@@ -405,3 +405,28 @@ label.check:has(input:disabled) { cursor: default; color: var(--muted); }
 /* A warning that needs someone to act (a person who left still knows a shared login). */
 .notice.warn { background: var(--error-soft); color: var(--error); }
 .notice.warn::before { background: var(--error); }
+
+/* A person's apps as cards, two to a row; each opens the app's own access page (Buk, 2026-10-26, after
+   Claude's connector cards). */
+.access-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 720px) { .access-grid { grid-template-columns: 1fr; } }
+.access-card { position: relative; display: flex; align-items: flex-start; gap: 16px; padding: 20px; height: 100%; background: var(--surface);
+  border: 1px solid var(--outline); border-radius: var(--radius); color: var(--fg); text-decoration: none; box-shadow: var(--shadow);
+  transition: box-shadow 0.15s, border-color 0.15s; }
+.access-card:hover { box-shadow: var(--shadow-hover); border-color: var(--outline-strong); }
+.access-card:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--layer), 0 0 0 4px var(--fg); }
+.access-card-icon { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border: 1px solid var(--outline-strong);
+  border-radius: 12px; background: var(--surface); }
+.access-card-text { display: grid; gap: 4px; flex: 1; min-width: 0; padding-right: 8px; }
+.access-card-text strong { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; font-size: 16px; }
+.access-card-desc { color: var(--fg-2); font-size: 14px; }
+.access-card-summary { font-size: 13px; color: var(--muted); }
+.access-card-summary.warn { color: var(--error); }
+.access-card-state { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--layer); color: var(--fg); }
+.access-card-state.on { background: var(--ok-soft); color: var(--ok); }
+.app-page-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.app-page-head h1 { font-size: 28px; }
+.app-page-desc { max-width: 760px; margin-top: -8px; }
+
+/* On the app's own page there is no arrow and icon before the rows, so they start at the edge. */
+.app-panel.standalone .app-body { padding-left: 20px; }

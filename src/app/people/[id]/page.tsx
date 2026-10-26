@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { Avatar } from "@/components/avatar";
 import { ACTIONS, canUser } from "@/lib/access";
-import { accessSummary, getPersonAccess, listKinds, type AppAccess, type PersonAccess } from "@/lib/access-lists";
+import { accessSummary, getPersonAccess, listKinds, type PersonAccess } from "@/lib/access-lists";
+import { AppIcon } from "@/components/app-icon";
 import { db } from "@/lib/db";
 import { requireAction } from "@/lib/session";
-import { AppPanel, SaveNotice } from "./access-form";
+import { SaveNotice } from "./access-form";
+import { SHARED_NOTICES, pick } from "./app-access";
 import { KindForm } from "./kind-form";
 import { TeamForm } from "./team-form";
 import { activeTeams } from "@/lib/teams";
@@ -15,76 +17,17 @@ import { WorkEmails } from "./work-emails";
 import { removePersonAction, sendInviteAction, workEmailAction } from "../actions";
 import { inviteMessage } from "../invite-messages";
 import { InviteRow } from "./invite-row";
-import { saveAppAccessAction, setKindAction, setTeamAction } from "./actions";
+import { setKindAction, setTeamAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 type Search = Record<string, string | string[] | undefined>;
-type Notice = { tone: "ok" | "error"; text: string };
-
-// Messages come from these fixed lists only; nothing from the address bar is shown as typed.
-// App messages show inside the app that was saved; Kind and work emails show their own answers.
-
-const APP_NOTICES: Record<string, Notice> = {
-  saved: { tone: "ok", text: "Saved." },
-  "role-only": { tone: "ok", text: "Role saved. Check the actions below and save again if needed." },
-  "kept-out": { tone: "error", text: "Not saved: this person's employment type can never use this app." },
-  "manage-needs-view": { tone: "error", text: "Not saved: someone who can manage Account Center must also be able to see it." },
-  changed: { tone: "error", text: "Not saved: someone changed this access after you opened the page. Check it again below, then save." },
-  yourself: { tone: "error", text: "You cannot change your own Account Center access. Ask another admin." },
-  "unknown-role": { tone: "error", text: "That role does not exist for this app. Reload the page and try again." },
-  "unknown-app": { tone: "error", text: "That app was not found. Reload the page and try again." },
-};
-
-// Only the lists' own keys count ("constructor" or "toString" in the address must find nothing).
-function pick<T>(list: Record<string, T>, key: string): T | null {
-  return Object.hasOwn(list, key) ? list[key] : null;
-}
-
-// Messages that can come from either kind of form.
-const SHARED_NOTICES: Record<string, Notice> = {
-  inactive: { tone: "error", text: "This person was removed. Their access cannot be changed." },
-  "not-found": { tone: "error", text: "That person was not found. Reload the page and try again." },
-  "not-allowed": { tone: "error", text: "Not saved: you can no longer manage Account Center. Ask another admin." },
-  "remove-not-found": { tone: "error", text: "This person was already removed." },
-  "remove-yourself": { tone: "error", text: "You cannot remove yourself. Ask another admin." },
-  "remove-not-allowed": { tone: "error", text: "Not removed: you can no longer manage Account Center. Ask another admin." },
-};
-
 function Status({ p }: { p: PersonAccess }) {
   if (!p.is_active) return <span className="pill muted">Removed</span>;
   if (p.login === "blocked") return <span className="pill warn">Login blocked</span>;
   if (p.login === "missing") return <span className="pill warn">No login</span>;
   if (p.login === "invited") return <span className="pill">Invited</span>;
   return <span className="pill ok">Active</span>;
-}
-
-function AppSection({ person, app, kindLabel, canManage, isMe, open, notice }: {
-  person: PersonAccess; app: AppAccess; kindLabel: string; canManage: boolean; isMe: boolean; open: boolean; notice: Notice | null;
-}) {
-  const own = isMe && app.key === "account_center";
-  return (
-    <AppPanel
-      save={saveAppAccessAction}
-      personId={person.id}
-      appKey={app.key}
-      appName={app.name}
-      isPrototype={app.isPrototype}
-      hue={app.hue}
-      icon={app.icon}
-      version={app.version}
-      roles={app.roles.map(({ key, name, actions }) => ({ key, name, actions }))}
-      actions={app.actions.map(({ key, description, on }) => ({ key, description, on: on && !app.keptOut }))}
-      currentRole={app.baseKey}
-      locked={!canManage || !person.is_active || own || app.allByAdmin}
-      lockedNote={app.allByAdmin ? "Account Center admins have every action in every app." : own && canManage ? "Ask another admin to change your own access." : null}
-      fixedNote={app.allByAdmin ? "Admin: all access" : null}
-      keptOut={app.keptOut ? `Never for ${kindLabel}` : null}
-      leftover={app.keptOut && (app.roleKeys.length > 0 || app.actions.some((a) => a.exception !== null))}
-      initiallyOpen={open}
-      notice={notice}
-    />
-  );
 }
 
 export default async function PersonPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
@@ -96,11 +39,8 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
 
   const kind = kinds.find((k) => k.key === person.kind);
   const kindLabel = kind?.name ?? person.kind;
-  const openApp = typeof search.app === "string" ? search.app : "";
   const noticeKey = typeof search.notice === "string" ? search.notice : "";
-  const appForNotice = person.apps.find((a) => a.key === openApp);
-  const topNotice = !appForNotice ? pick(SHARED_NOTICES, noticeKey) ?? (noticeKey.startsWith("invite-") ? inviteMessage(noticeKey.slice(7)) : null) : null;
-  const appNotice = appForNotice && !topNotice ? pick(APP_NOTICES, noticeKey) ?? pick(SHARED_NOTICES, noticeKey) : null;
+  const topNotice = pick(SHARED_NOTICES, noticeKey) ?? (noticeKey.startsWith("invite-") ? inviteMessage(noticeKey.slice(7)) : null);
   const isMe = person.id === me.person_id;
   const withAccess = person.apps.filter((a) => accessSummary(a, "").on > 0).length;
 
@@ -154,14 +94,36 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
           </section>
         ) : null}
 
-        <section className="stack">
-          <h2>Apps</h2>
-          <div className="apps">
-            {person.apps.map((app) => (
-              <AppSection key={`${app.key}:${app.version}`} person={person} app={app} kindLabel={kindLabel} canManage={canManage} isMe={isMe}
-                open={openApp === app.key} notice={app.key === appForNotice?.key ? appNotice : null} />
-            ))}
-          </div>
+        <section className="stack" aria-labelledby="apps-title">
+          <h2 id="apps-title">Apps</h2>
+          {/* One card per app, two to a row (Buk, 2026-10-26); each opens the app's own access page. */}
+          <ul className="access-grid">
+            {person.apps.map((app) => {
+              const summary = accessSummary(app, kindLabel);
+              const has = summary.on > 0;
+              const line = app.actions.length === 0 && !app.keptOut ? "No actions yet" : summary.text;
+              // Like Claude's connector cards (Buk's reference, 2026-10-26): icon tile, name, what the app does,
+              // the access in one muted line, and a tick or a plus at the top right.
+              return (
+                <li key={app.key}>
+                  <Link href={`/people/${person.id}/apps/${app.key}`} className="access-card"
+                    aria-label={`${app.name}: ${line}. Open to change ${person.display_name}'s access`}>
+                    <span className="access-card-icon"><AppIcon appKey={app.key} icon={app.icon} hue={app.hue} size={32} /></span>
+                    <span className="access-card-text">
+                      <strong>{app.name}{app.isPrototype ? <span className="pill plain">Prototype</span> : null}</strong>
+                      {app.description ? <span className="access-card-desc">{app.description}</span> : null}
+                      <span className={`access-card-summary ${summary.tone}`}>{line}</span>
+                    </span>
+                    <span className={`access-card-state${has ? " on" : ""}`} aria-hidden="true">
+                      {has
+                        ? <svg width="18" height="18" viewBox="0 0 18 18"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        : <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 3.5v11M3.5 9h11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </section>
         {canManage && person.is_active && !isMe ? (
           <section className="stack remove-zone" aria-labelledby="remove-title">
