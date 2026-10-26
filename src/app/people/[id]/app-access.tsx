@@ -41,6 +41,10 @@ export function AppSection({ person, app, kindLabel, canManage, isMe, open, noti
   person: PersonAccess; app: AppAccess; kindLabel: string; canManage: boolean; isMe: boolean; open: boolean; notice: Notice | null; standalone?: boolean;
 }) {
   const own = isMe && app.key === "account_center";
+  // Hidden means no access (Buk, 2026-10-26): while the app is hidden from the person, the box is locked and every
+  // action shows as blocked. The visible/hidden button at the top is the only way to turn the app on.
+  const hidden = !app.keptOut && !app.allByAdmin && app.actions.length > 0 && !app.actions.some((a) => a.on);
+  const canPress = canManage && person.is_active && !own;
   return (
     <AppPanel
       save={saveAppAccessAction}
@@ -53,9 +57,12 @@ export function AppSection({ person, app, kindLabel, canManage, isMe, open, noti
       version={app.version}
       roles={app.roles.map(({ key, name, actions }) => ({ key, name, actions }))}
       actions={app.actions.map(({ key, description, on }) => ({ key, description, on: on && !app.keptOut }))}
-      currentRole={app.baseKey}
-      locked={!canManage || !person.is_active || own || app.allByAdmin}
-      lockedNote={app.allByAdmin ? "Account Center admins have every action in every app." : own && canManage ? "Ask another admin to change your own access." : null}
+      currentRole={hidden ? "" : app.baseKey}
+      locked={!canManage || !person.is_active || own || app.allByAdmin || hidden}
+      lockedNote={app.allByAdmin ? "Account Center admins have every action in every app."
+        : own && canManage ? "Ask another admin to change your own access."
+        : hidden && canPress ? `Hidden from ${person.display_name}, so there is no access. Make it visible above to choose a role.`
+        : null}
       fixedNote={app.allByAdmin ? "Admin: all access" : null}
       keptOut={app.keptOut ? `Never for ${kindLabel}` : null}
       leftover={app.keptOut && (app.roleKeys.length > 0 || app.actions.some((a) => a.exception !== null))}
