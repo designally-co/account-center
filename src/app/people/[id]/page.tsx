@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { Avatar } from "@/components/avatar";
 import { ACTIONS, canUser } from "@/lib/access";
-import { accessSummary, getPersonAccess, listKinds, type PersonAccess } from "@/lib/access-lists";
+import { accessSummary, getPersonAccess, listKinds, visibilityOf, type PersonAccess } from "@/lib/access-lists";
+import { VisibilityToggle } from "./visibility-toggle";
 import { AppIcon } from "@/components/app-icon";
 import { db } from "@/lib/db";
 import { requireAction } from "@/lib/session";
 import { SaveNotice } from "./access-form";
-import { SHARED_NOTICES, pick } from "./app-access";
+import { APP_NOTICES, SHARED_NOTICES, pick } from "./app-access";
 import { KindForm } from "./kind-form";
 import { TeamForm } from "./team-form";
 import { activeTeams } from "@/lib/teams";
@@ -17,7 +18,7 @@ import { WorkEmails } from "./work-emails";
 import { removePersonAction, sendInviteAction, workEmailAction } from "../actions";
 import { inviteMessage } from "../invite-messages";
 import { InviteRow } from "./invite-row";
-import { setKindAction, setTeamAction } from "./actions";
+import { setAppVisibleAction, setKindAction, setTeamAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
   const kind = kinds.find((k) => k.key === person.kind);
   const kindLabel = kind?.name ?? person.kind;
   const noticeKey = typeof search.notice === "string" ? search.notice : "";
-  const topNotice = pick(SHARED_NOTICES, noticeKey) ?? (noticeKey.startsWith("invite-") ? inviteMessage(noticeKey.slice(7)) : null);
+  const topNotice = pick(SHARED_NOTICES, noticeKey) ?? pick(APP_NOTICES, noticeKey) ?? (noticeKey.startsWith("invite-") ? inviteMessage(noticeKey.slice(7)) : null);
   const isMe = person.id === me.person_id;
   const withAccess = person.apps.filter((a) => accessSummary(a, "").on > 0).length;
 
@@ -100,26 +101,26 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
           <ul className="access-grid">
             {person.apps.map((app) => {
               const summary = accessSummary(app, kindLabel);
-              const has = summary.on > 0;
               const line = app.actions.length === 0 && !app.keptOut ? "No actions yet" : summary.text;
+              const vis = visibilityOf(app, person, { canManage, isMe });
               // Like Claude's connector cards (Buk's reference, 2026-10-26): icon tile, name, what the app does,
-              // the access in one muted line, and a tick or a plus at the top right.
+              // the access in one muted line. The card opens the app's page; the button at the top right makes
+              // the app visible or hidden for this person, after a confirmation.
               return (
                 <li key={app.key}>
-                  <Link href={`/people/${person.id}/apps/${app.key}`} className="access-card"
-                    aria-label={`${app.name}: ${line}. Open to change ${person.display_name}'s access`}>
+                  <div className="access-card">
                     <span className="access-card-icon"><AppIcon appKey={app.key} icon={app.icon} hue={app.hue} size={32} /></span>
                     <span className="access-card-text">
-                      <strong>{app.name}{app.isPrototype ? <span className="pill plain">Prototype</span> : null}</strong>
+                      <strong>
+                        <Link href={`/people/${person.id}/apps/${app.key}`} className="access-card-link">{app.name}</Link>
+                        {app.isPrototype ? <span className="pill plain">Prototype</span> : null}
+                      </strong>
                       {app.description ? <span className="access-card-desc">{app.description}</span> : null}
                       <span className={`access-card-summary ${summary.tone}`}>{line}</span>
                     </span>
-                    <span className={`access-card-state${has ? " on" : ""}`} aria-hidden="true">
-                      {has
-                        ? <svg width="18" height="18" viewBox="0 0 18 18"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        : <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 3.5v11M3.5 9h11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}
-                    </span>
-                  </Link>
+                    <VisibilityToggle action={setAppVisibleAction} personId={person.id} personName={person.display_name} appKey={app.key}
+                      appName={app.name} version={app.version} on={vis.on} roleName={vis.roleName} locked={vis.locked} from="person" variant="icon" />
+                  </div>
                 </li>
               );
             })}

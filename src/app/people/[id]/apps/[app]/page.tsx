@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { AppIcon } from "@/components/app-icon";
 import { ACTIONS, canUser } from "@/lib/access";
-import { getPersonAccess, listKinds } from "@/lib/access-lists";
+import { getPersonAccess, listKinds, visibilityOf } from "@/lib/access-lists";
+import { VisibilityToggle } from "../../visibility-toggle";
+import { setAppVisibleAction } from "../../actions";
 import { db } from "@/lib/db";
 import { requireAction } from "@/lib/session";
 import { APP_NOTICES, AppSection, SHARED_NOTICES, pick } from "../../app-access";
@@ -26,6 +28,7 @@ export default async function PersonAppPage({ params, searchParams }: { params: 
   const noticeKey = typeof search.notice === "string" ? search.notice : "";
   const notice = pick(APP_NOTICES, noticeKey) ?? pick(SHARED_NOTICES, noticeKey);
   const isMe = person.id === me.person_id;
+  const vis = visibilityOf(app, person, { canManage, isMe });
 
   return (
     <>
@@ -36,6 +39,10 @@ export default async function PersonAppPage({ params, searchParams }: { params: 
           <span className="access-card-icon"><AppIcon appKey={app.key} icon={app.icon} hue={app.hue} size={32} /></span>
           <h1>{app.name}</h1>
           {app.isPrototype ? <span className="pill plain">Prototype</span> : null}
+          <span className="app-page-toggle">
+            <VisibilityToggle action={setAppVisibleAction} personId={person.id} personName={person.display_name} appKey={app.key}
+              appName={app.name} version={app.version} on={vis.on} roleName={vis.roleName} locked={vis.locked} from="app" variant="full" />
+          </span>
         </div>
         <p className="muted app-page-desc">
           {app.description ? `${app.description} ` : ""}Choose {person.display_name}&apos;s role, then allow or block single actions for {person.display_name} only.

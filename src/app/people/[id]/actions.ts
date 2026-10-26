@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ACTIONS } from "@/lib/access";
-import { saveAppAccess, setKind } from "@/lib/access-lists";
+import { getPersonAccess, saveAppAccess, setKind, visibleRoleFor } from "@/lib/access-lists";
 import { setPersonTeam } from "@/lib/teams";
 import { db } from "@/lib/db";
 import { isUuid } from "@/lib/ids";
@@ -58,4 +58,31 @@ export async function setTeamAction(prev: TeamNotice, form: FormData): Promise<T
   const result = await setPersonTeam(db(), me.person_id, personId, team === "" ? null : team, team !== "" && form.get("is_lead") === "on");
   if (isUuid(personId)) revalidatePath(`/people/${personId}`);
   return { notice: result === "saved" ? "team-saved" : result, n: (prev.n ?? 0) + 1 };
+}
+
+// The app's visible / hidden button (Buk, 2026-10-26), after the admin confirmed it. On gives the team's default
+// role or the app's smallest role; off is "No access". The page's version guards against a stale page.
+export async function setAppVisibleAction(form: FormData) {
+  const { me } = await requireAction(ACTIONS.manage);
+  const personId = String(form.get("person_id") ?? "");
+  const app = String(form.get("app") ?? "");
+  const on = form.get("on") === "1";
+  const from = form.get("from") === "app" ? "app" : "person";
+  const sql = db();
+  let result: string;
+  if (on) {
+    const person = await getPersonAccess(sql, personId);
+    const target = person?.apps.find((a) => a.key === app);
+    const role = target ? visibleRoleFor(target) : null;
+    result = !person ? "not-found" : !target ? "unknown-app" : !role ? "unknown-role"
+      : await saveAppAccess(sql, me.person_id, personId, app, role.key, null, String(form.get("version") ?? ""));
+  } else {
+    result = await saveAppAccess(sql, me.person_id, personId, app, null, [], String(form.get("version") ?? ""));
+  }
+  const notice = result === "saved" ? (on ? "app-on" : "app-off") : result;
+  if (from === "app") back(personId, notice, app);
+  const id = isUuid(personId) ? personId : "";
+  if (!id) redirect("/people?notice=no-person");
+  revalidatePath(`/people/${id}`);
+  redirect(`/people/${id}?notice=${notice}#apps-title`);
 }

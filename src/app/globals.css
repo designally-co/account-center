@@ -411,10 +411,14 @@ label.check:has(input:disabled) { cursor: default; color: var(--muted); }
 .access-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 720px) { .access-grid { grid-template-columns: 1fr; } }
 .access-card { position: relative; display: flex; align-items: flex-start; gap: 16px; padding: 20px; height: 100%; background: var(--surface);
-  border: 1px solid var(--outline); border-radius: var(--radius); color: var(--fg); text-decoration: none; box-shadow: var(--shadow);
+  border: 1px solid var(--outline); border-radius: var(--radius); color: var(--fg); box-shadow: var(--shadow);
   transition: box-shadow 0.15s, border-color 0.15s; }
 .access-card:hover { box-shadow: var(--shadow-hover); border-color: var(--outline-strong); }
-.access-card:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--layer), 0 0 0 4px var(--fg); }
+/* The name is the link; it covers the whole card, and the visibility button sits above it. */
+.access-card-link { color: var(--fg); text-decoration: none; }
+.access-card-link::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+.access-card-link:focus-visible { outline: none; }
+.access-card:has(.access-card-link:focus-visible) { box-shadow: 0 0 0 3px var(--layer), 0 0 0 4px var(--fg); }
 .access-card-icon { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border: 1px solid var(--outline-strong);
   border-radius: 12px; background: var(--surface); }
 .access-card-text { display: grid; gap: 4px; flex: 1; min-width: 0; padding-right: 8px; }
@@ -422,8 +426,23 @@ label.check:has(input:disabled) { cursor: default; color: var(--muted); }
 .access-card-desc { color: var(--fg-2); font-size: 14px; }
 .access-card-summary { font-size: 13px; color: var(--muted); }
 .access-card-summary.warn { color: var(--error); }
-.access-card-state { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--layer); color: var(--fg); }
+.access-card-state { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+  border: 1px solid transparent; border-radius: 9px; background: var(--layer); color: var(--fg); cursor: pointer; }
+button.access-card-state:hover { border-color: var(--outline-strong); }
 .access-card-state.on { background: var(--ok-soft); color: var(--ok); }
+span.access-card-state { cursor: default; opacity: 0.7; }
+/* The full button on the app's page: "Visible to Ann" / "Hidden from Ann". */
+.app-page-toggle { margin-left: auto; }
+.visibility-button { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: var(--radius-control);
+  border: 1px solid var(--input-outline); background: var(--surface); color: var(--fg); font-weight: 500; cursor: pointer; }
+.visibility-button.on { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+.visibility-button.locked { cursor: default; }
+/* A confirmation dialog (the browser's own <dialog>: Escape closes it, focus stays inside). */
+dialog.modal { width: min(440px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--outline-strong); border-radius: var(--radius);
+  background: var(--modal); color: var(--fg); box-shadow: var(--shadow-modal); }
+dialog.modal::backdrop { background: var(--overlay); }
+dialog.modal h2 { font-size: 18px; }
+.modal-actions { justify-content: flex-end; }
 .app-page-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .app-page-head h1 { font-size: 28px; }
 .app-page-desc { max-width: 760px; margin-top: -8px; }

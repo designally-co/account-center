@@ -10,6 +10,8 @@ export type Notice = { tone: "ok" | "error"; text: string };
 // App messages show inside the app that was saved; Kind and work emails show their own answers.
 
 export const APP_NOTICES: Record<string, Notice> = {
+  "app-on": { tone: "ok", text: "Turned on. The app is visible to them now." },
+  "app-off": { tone: "ok", text: "Turned off. The app is hidden from them, and they have no access in it." },
   saved: { tone: "ok", text: "Saved." },
   "role-only": { tone: "ok", text: "Role saved. Check the actions below and save again if needed." },
   "kept-out": { tone: "error", text: "Not saved: this person's employment type can never use this app." },
