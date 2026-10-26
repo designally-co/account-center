@@ -7,6 +7,7 @@ import { Nav } from "@/components/nav";
 import { Avatar } from "@/components/avatar";
 import { AppIcon } from "@/components/app-icon";
 import { Toast } from "@/components/toast";
+import { subscriptionsOf } from "@/lib/subscriptions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,8 @@ type Search = Record<string, string | string[] | undefined>;
 export default async function HomePage({ searchParams }: { searchParams: Promise<Search> }) {
   const { userId, me } = await requirePerson();
   const sql = db();
-  const [access, canView, search] = await Promise.all([getPersonAccess(sql, me.person_id), canUser(sql, userId, ACTIONS.view), searchParams]);
+  const [access, canView, search, subs] = await Promise.all([getPersonAccess(sql, me.person_id), canUser(sql, userId, ACTIONS.view), searchParams, subscriptionsOf(sql, me.person_id)]);
+  const tools = subs.filter((s) => s.is_active);
   // What the real check gives: roles, plus or minus single changes, never an app the kind is kept out of.
   // Account Center itself is not a card (Buk, 2026-10-19: it would only lead back here); admins use the menu.
   const mine = (access?.apps ?? [])
@@ -69,6 +71,21 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         ) : (
           <p className="empty">No app access yet. An Account Center admin gives it.</p>
         )}
+
+        {tools.length ? (
+          <section className="stack" aria-labelledby="tools-title">
+            <h2 id="tools-title">Shared tools you may use</h2>
+            <p className="muted small-text">Sign in with the shared email. The password is in the company&apos;s password manager.</p>
+            <ul className="team-members">
+              {tools.map((s) => (
+                <li key={s.id}>
+                  {s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer"><span>{s.name}</span><span className="sr-only"> (opens in a new tab)</span></a> : <strong>{s.name}</strong>}
+                  <span className="muted small-text">{s.shared_email}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </main>
     </>
   );

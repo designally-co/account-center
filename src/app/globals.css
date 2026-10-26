@@ -401,3 +401,7 @@ label.check:has(input:disabled) { cursor: default; color: var(--muted); }
 .team-members li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-inner); }
 .team-members a { display: flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; font-weight: 500; }
 .team-members a:hover span { text-decoration: underline; }
+
+/* A warning that needs someone to act (a person who left still knows a shared login). */
+.notice.warn { background: var(--error-soft); color: var(--error); }
+.notice.warn::before { background: var(--error); }

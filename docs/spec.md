@@ -91,6 +91,10 @@ Account Center is an experiment: nothing below changes anything in use until Buk
 - **Apps check the action, never a role name,** on the server, for every action. Hiding a button is only for the screen.
 - **Every change is logged:** who gave or removed which role, and when.
 
+### Shared subscriptions (Buk, 2026-10-26)
+
+People share company logins for paid tools (Claude, ChatGPT, Magnific and others), and use their personal email for HR (Buk, 2026-10-26). So a shared login is a **tool, not a person**, and is never a person's work email. **Subscriptions** in the menu lists each tool with its shared login email, plan, sign-in address, renewal date and **who may use it**. Account Center **never holds a password**: there is no password or free-text field, and the page says the password stays in the company's password manager. Each person sees their shared tools and the shared email on Home; admins add and take off people on the tool's page. When someone who knew a shared login leaves, the tool's page and their own page say to change that password, until they are taken off. Built 2026-10-26 (migration `20261026100000_shared_subscriptions.sql`; `decisions/shared-subscriptions-without-passwords.md`).
+
 ### Sign-in: Account Center accounts
 
 - **An Account Center account** is the person's account in Project Friday's Auth. For people already in HR it is the account they use for HR (their HR email and password). New people get one from Account Center (below).
@@ -152,7 +156,7 @@ An Account Center admin opens the person's page, presses **Remove** at the botto
 
 Each app connects with its own database user (`hub_app`, `studio_app`, `survey_app`, later MA Desk's). **An app's user gets the checks only on the day that app starts using Account Center**, in that app's own migration: `grant usage on schema account` and `grant execute on function account.can_user(uuid, text), account.can_email(text, text)` (and `me_by_*` only if the app needs the name and roles). Until then it has no access to `account` at all (migration `20261019100000_account_hardening.sql`, 2026-10-19), so no app can look up staff before it uses Account Center. The Brand Guideline Portal's database is not in Project Friday yet, so it has its own small Friday user, `portal_check`, that may only call `account.can_user` (migration `20261019160000_brand_portal.sql`, login `sql/portal-check-user.sql`; Buk, 2026-10-19). The apps never read `account` tables directly and never read HR.
 
-### Schema `account` (written: `supabase/migrations/`, `20261014100000_account_schema.sql`, `20261019100000_account_hardening.sql`, `20261019110000_kinds_and_access_lists.sql`, `20261019113000_avatars.sql`, `20261019130000_invitations.sql`, `20261019140000_app_cards.sql`, `20261019150000_teams.sql`, `20261019160000_brand_portal.sql`)
+### Schema `account` (written: `supabase/migrations/`, `20261014100000_account_schema.sql`, `20261019100000_account_hardening.sql`, `20261019110000_kinds_and_access_lists.sql`, `20261019113000_avatars.sql`, `20261019130000_invitations.sql`, `20261019140000_app_cards.sql`, `20261019150000_teams.sql`, `20261019160000_brand_portal.sql`, `20261026100000_shared_subscriptions.sql`)
 
 | Table | Holds |
 |---|---|
@@ -170,7 +174,9 @@ Each app connects with its own database user (`hub_app`, `studio_app`, `survey_a
 | `account.team_members` | Which team each person is in (one at most), and whether they lead it |
 | `account.team_roles` | A team's default role per app (never Account Center) |
 | `account.team_opt_outs` | "No access in this app" for one person, whatever their team gives |
-| `account.log` | History of every change to people, emails, roles, grants and teams, written by triggers; the actor is set by Account Center's server |
+| `account.subscriptions` | Shared subscriptions: tool, shared login email, plan, sign-in address, renewal date, on or off. Never a password |
+| `account.subscription_members` | Who may use each shared subscription (people who left stay listed until they are taken off) |
+| `account.log` | History of every change to people, emails, roles, grants, teams and shared subscriptions, written by triggers; the actor is set by Account Center's server |
 
 Database functions (all in schema `account`; every check fails closed):
 
@@ -204,7 +210,7 @@ Example:
 
 **Who can sign in:** every active company person with a working login (Buk, 2026-10-19), to see their own access and make their avatar. **Home** shows one card per app the person can use, with a small picture of what the app does (`account.apps.art`, like the cards in Buk's design reference; the app's own graphic or orb when there is no picture) and one short line about what the app is for (`account.apps.description`); the card opens the app (Buk, 2026-10-19). The card does not show the person's role or how many actions they have: that means little to an employee (Buk, 2026-10-19: "use the app desc"). Admins see roles and counts on each person's page. The People pages and every change to access need Account Center's own actions (view, manage).
 
-**Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone with their status and kind, **Remove** for people who leave; every change in the change log with the admin's id); step 3 (first version, 2026-10-19), **each person's page**: kind, work emails, and per app a ready role and one allowed/blocked row per action; step 4, **avatars** (the maker, shown at first sign-in); step 5 (2026-10-19), **Add person with an invitation email, Forgot your password and Change password** (section 3, "Creating an account" and "Passwords"; the server functions are not deployed to Friday); step 6 (2026-10-20), **Teams** (section 3, "Access"). Design: minimal, black and white, with a soft gradient orb per app and a drawn avatar per person (Buk, 2026-10-19: "minimal, modern and intentional", like ElevenLabs). Release and hosting: `docs/deploy-nas.md`. The HR list is imported once, by a person, when Account Center starts in Friday.
+**Built so far** (tested on a local database only): step 1, sign-in and an access check on every page; step 2, the **People** page (everyone with their status and kind, **Remove** for people who leave; every change in the change log with the admin's id); step 3 (first version, 2026-10-19), **each person's page**: kind, work emails, and per app a ready role and one allowed/blocked row per action; step 4, **avatars** (the maker, shown at first sign-in); step 5 (2026-10-19), **Add person with an invitation email, Forgot your password and Change password** (section 3, "Creating an account" and "Passwords"; the server functions are not deployed to Friday); step 6 (2026-10-20), **Teams** (section 3, "Access"); step 7 (2026-10-26), **Shared subscriptions** (section 3). Design: minimal, black and white, with a soft gradient orb per app and a drawn avatar per person (Buk, 2026-10-19: "minimal, modern and intentional", like ElevenLabs). Release and hosting: `docs/deploy-nas.md`. The HR list is imported once, by a person, when Account Center starts in Friday.
 
 **Stack:** Next.js. On Vercel for now, while only the portal and MA Desk use it (Buk, 2026-10-20; `decisions/hosting-on-vercel-first.md`); the NAS release in `docs/deploy-nas.md` stays ready (`decisions/stack-nextjs-on-nas.md`). **Address:** account.designally.co (Buk, 2026-10-14).
 

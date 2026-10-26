@@ -1,0 +1,20 @@
+// Messages for the subscription pages. Only these fixed texts are shown; nothing from the address bar.
+export const SUBSCRIPTION_NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
+  added: { tone: "ok", text: "Subscription added. Now add the people who may use it." },
+  "details-saved": { tone: "ok", text: "Saved." },
+  "turned-on": { tone: "ok", text: "Turned on." },
+  "turned-off": { tone: "ok", text: "Turned off. Its people stay listed, so you know who knew the login." },
+  "member-added": { tone: "ok", text: "Added. Give them the login from the password manager." },
+  "member-removed": { tone: "ok", text: "Taken off. If they still know the password, change it in the tool and in the password manager." },
+  "invalid-name": { tone: "error", text: "Not saved: give the tool a name of up to 60 characters." },
+  "invalid-email": { tone: "error", text: "Not saved: the shared email does not look like an email address." },
+  "invalid-plan": { tone: "error", text: "Not saved: keep the plan to 60 characters." },
+  "invalid-url": { tone: "error", text: "Not saved: the sign-in address must start with https:// (no name or password in it)." },
+  "invalid-date": { tone: "error", text: "Not saved: that renewal date is not a real date." },
+  taken: { tone: "error", text: "Not saved: a subscription with that name already exists." },
+  "inactive-person": { tone: "error", text: "Not added: that person was removed from Account Center." },
+  "already-member": { tone: "error", text: "That person is already on this subscription." },
+  "not-member": { tone: "error", text: "That person was not on this subscription." },
+  "not-found": { tone: "error", text: "That subscription or person was not found. Reload the page and try again." },
+  "not-allowed": { tone: "error", text: "Not saved: you can no longer manage Account Center. Ask another admin." },
+};

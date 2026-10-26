@@ -4,8 +4,8 @@ import type { Me } from "@/lib/access";
 import { Avatar } from "./avatar";
 import { BRAND_HUE, Orb } from "./orb";
 
-// People and Teams are shown only to those who may see them; the pages check again on the server.
-export function Nav({ current, me, canView }: { current: "home" | "people" | "teams" | "avatar"; me: Me; canView: boolean }) {
+// People, Teams and Subscriptions are shown only to those who may see them; the pages check again on the server.
+export function Nav({ current, me, canView }: { current: "home" | "people" | "teams" | "subscriptions" | "avatar"; me: Me; canView: boolean }) {
   return (
     <header className="nav">
       <nav aria-label="Account Center">
@@ -13,6 +13,7 @@ export function Nav({ current, me, canView }: { current: "home" | "people" | "te
         <Link href="/" aria-current={current === "home" ? "page" : undefined}>Home</Link>
         {canView ? <Link href="/people" aria-current={current === "people" ? "page" : undefined}>People</Link> : null}
         {canView ? <Link href="/teams" aria-current={current === "teams" ? "page" : undefined}>Teams</Link> : null}
+        {canView ? <Link href="/subscriptions" aria-current={current === "subscriptions" ? "page" : undefined}>Subscriptions</Link> : null}
       </nav>
       <form action={signOut} className="who">
         <Link href="/avatar" className="who-avatar" aria-label="Your avatar" aria-current={current === "avatar" ? "page" : undefined}>

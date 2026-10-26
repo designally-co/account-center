@@ -10,6 +10,7 @@ import { AppPanel, SaveNotice } from "./access-form";
 import { KindForm } from "./kind-form";
 import { TeamForm } from "./team-form";
 import { activeTeams } from "@/lib/teams";
+import { subscriptionsOf } from "@/lib/subscriptions";
 import { WorkEmails } from "./work-emails";
 import { removePersonAction, sendInviteAction, workEmailAction } from "../actions";
 import { inviteMessage } from "../invite-messages";
@@ -90,7 +91,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
   const { userId, me } = await requireAction(ACTIONS.view);
   const sql = db();
   const [{ id }, search] = await Promise.all([params, searchParams]);
-  const [person, kinds, canManage, teams] = await Promise.all([getPersonAccess(sql, id), listKinds(sql), canUser(sql, userId, ACTIONS.manage), activeTeams(sql)]);
+  const [person, kinds, canManage, teams, subs] = await Promise.all([getPersonAccess(sql, id), listKinds(sql), canUser(sql, userId, ACTIONS.manage), activeTeams(sql), subscriptionsOf(sql, id)]);
   if (!person) notFound();
 
   const kind = kinds.find((k) => k.key === person.kind);
@@ -135,6 +136,23 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
           <WorkEmails action={workEmailAction} personId={person.id} emails={person.work_emails} canManage={canManage}
             canAdd={canManage && person.is_active} />
         </section>
+
+        {subs.length ? (
+          <section className="stack" aria-labelledby="subs-title">
+            <h2 id="subs-title">Shared subscriptions</h2>
+            {!person.is_active ? (
+              <p className="notice warn" role="status">{person.display_name} left and knew these shared logins. Change each password, then take them off on the subscription&apos;s page.</p>
+            ) : null}
+            <ul className="team-members">
+              {subs.map((s) => (
+                <li key={s.id}>
+                  <Link href={`/subscriptions/${s.id}`}><span>{s.name}</span></Link>
+                  <span className="muted small-text">{s.shared_email}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <section className="stack">
           <h2>Apps</h2>
