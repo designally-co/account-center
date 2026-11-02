@@ -17,7 +17,7 @@ export function SignInForm() {
         <input id="password" name="password" type="password" autoComplete="current-password" required />
       </label>
       {state.error ? <p className="error" role="alert">{state.error}</p> : null}
-      <button type="submit" disabled={pending}>{pending ? "Signing in..." : "Sign in"}</button>
+      <button type="submit" className={pending ? "busy" : undefined} disabled={pending}>{pending ? "Signing in…" : "Sign in"}</button>
       <p><Link href="/forgot-password" className="back">Forgot your password?</Link></p>
     </form>
   );

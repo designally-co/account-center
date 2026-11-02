@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BRAND_HUE, Orb } from "@/components/orb";
+import { Mark } from "@/components/mark";
 import { meByUser } from "@/lib/access";
 import { db } from "@/lib/db";
 import { currentSignIn } from "@/lib/session";
@@ -20,7 +20,7 @@ export default async function PasswordPage({ searchParams }: { searchParams: Pro
   return (
     <main className="login">
       <div className="login-card">
-        <span className="orb-wrap"><Orb seed="account_center" hue={BRAND_HUE} size={88} /></span>
+        <span className="hero-mark"><Mark size={56} /></span>
         <div className="stack tight">
           <h1>{welcome ? `Welcome, ${me.display_name}` : "Choose a password"}</h1>
           <p className="muted">{welcome ? "Choose your password. You sign in with it and your email." : signIn.byLinkRecently ? "Choose a new password." : "Type your current password, then the new one."}</p>

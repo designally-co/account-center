@@ -1,5 +1,6 @@
-/* Account Center: minimal, black and white, soft cards and pills, with gradient orbs as the one playful
-   element. Colours are tokens; dark mode follows the system.
+/* Account Center: minimal, black and white, soft cards and pills. The playful part is motion: small,
+   quick responses to what a person does (Buk, 2026-11-02; no orbs). Colours are tokens; dark mode follows
+   the system.
    Light colours are measured from Buk's design reference (2026-10-19): page, cards, layers, modal, outlines,
    text and button. Values the reference does not show (field borders, green and red, dark mode) are ours. */
 
@@ -32,6 +33,8 @@
   --radius-inner: 10px;            /* cards and tiles inside a card or dialog, notices */
   --radius-control: 8px;           /* buttons, fields, menus */
   --ease: cubic-bezier(0.3, 0.7, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);   /* expo out: quick start, soft landing; no bounce */
+  --warn: #9a5b00;                 /* a date coming soon: amber, 5.2:1 on white */
   color-scheme: light;
   font-family: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
   font-feature-settings: "cv11", "ss01";
@@ -42,7 +45,7 @@
     --outline: #262626; --outline-strong: #2e2e2e; --input-outline: #3a3a3a;
     --fg: #f5f5f5; --fg-2: #c4c4c4; --muted: #9a9a9a; --icon-off: #7a7a7a; --link: #5aa9f0;
     --primary: #f5f5f5; --primary-fg: #111111;
-    --ok: #3fcf96; --ok-soft: rgb(63 207 150 / 0.12); --error: #ff6b5e; --error-soft: rgb(255 107 94 / 0.12); --on-ok: #0a0a0a;
+    --ok: #3fcf96; --ok-soft: rgb(63 207 150 / 0.12); --error: #ff6b5e; --error-soft: rgb(255 107 94 / 0.12); --on-ok: #0a0a0a; --warn: #f0b35a;
     --shadow-hover: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 28px -16px rgb(0 0 0 / 0.6);
     --shadow-modal: 0 24px 64px -12px rgb(0 0 0 / 0.7);
     color-scheme: dark;
@@ -70,6 +73,8 @@ a { color: inherit; }
 .stack.tight { gap: 6px; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.top > div:first-child { flex: 1 1 320px; min-width: 0; }
+.top > div:first-child > p { margin-top: 6px; max-width: 64ch; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .error { color: var(--error); font-size: 14px; }
 
@@ -106,48 +111,77 @@ select {
 select:disabled { cursor: default; opacity: 0.7; }
 .field { display: grid; gap: 6px; font-size: 14px; font-weight: 500; }
 
-/* Navigation */
+/* Navigation: one row on every screen. The mark, the page links (they scroll sideways when a phone is
+   too narrow) and your avatar, which opens the account menu. */
 .nav {
-  position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  flex-wrap: wrap; padding: 12px max(16px, env(safe-area-inset-left));
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px 16px;
+  padding: 10px max(16px, env(safe-area-inset-left));
   background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--outline);
 }
-.nav nav { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-.nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; padding: 6px 12px; border-radius: var(--radius-control); transition: background 0.15s, color 0.15s; }
-.nav a:hover { color: var(--fg); background: var(--layer); }
-.nav a[aria-current="page"] { color: var(--fg); background: var(--layer); }
-.nav .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.02em; margin-right: 12px; }
-.who { display: flex; gap: 10px; align-items: center; font-size: 14px; }
+.nav .brand { display: inline-flex; align-items: center; gap: 10px; flex: none; font-weight: 600; letter-spacing: -0.02em; color: var(--fg); text-decoration: none; }
+.nav .brand .mark { transition: transform 0.4s var(--ease-out); }
+.nav .brand:hover .mark { transform: rotate(-8deg) scale(1.05); }
+.nav-links { position: relative; display: flex; gap: 2px; align-items: center; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.nav-links::-webkit-scrollbar { display: none; }
+.nav-links a { position: relative; z-index: 1; flex: none; color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500;
+  padding: 6px 12px; border-radius: var(--radius-control); transition: color 0.2s; }
+.nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--fg); }
+/* The soft highlight under the current page slides to the next one. */
+.nav-pill { position: absolute; left: 0; top: 50%; height: 32px; margin-top: -16px; border-radius: var(--radius-control); background: var(--layer);
+  transition: transform 0.35s var(--ease-out), width 0.35s var(--ease-out); }
+.who { flex: none; }
+.who-button { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid transparent;
+  background: transparent; color: var(--fg); font-size: 14px; font-weight: 500; }
+.who-button:hover { opacity: 1; background: var(--layer); }
+.who-button .avatar { transition: transform 0.3s var(--ease-out); }
+.who-button:hover .avatar { transform: rotate(-6deg); }
+.who-chevron { color: var(--muted); transition: transform 0.25s var(--ease-out); }
+.who:has(.menu:popover-open) .who-chevron { transform: rotate(180deg); }
+.who:has(.menu:popover-open) .who-button { background: var(--layer); }
 
-/* Orbs: the one playful element. The colours come from the app or person; a blurred colour wheel turns
-   slowly inside a circle, with a soft highlight on top. */
-.orb {
-  position: relative; display: inline-grid; place-items: center; flex: none; border-radius: 50%; overflow: hidden;
-  isolation: isolate; background: var(--orb-b); box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+/* The progress line under the bar: it runs while the next page loads, then fills and fades. */
+.nav-progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background: var(--fg); opacity: 0; pointer-events: none; }
+.nav-progress.busy { opacity: 1; width: 82%; transition: width 6s cubic-bezier(0.05, 0.7, 0.1, 1), opacity 0.1s; }
+.nav-progress.done { opacity: 0; width: 100%; transition: width 0.2s ease-out, opacity 0.3s 0.15s; }
+
+/* The account menu: a popover in the top layer (Escape and a click outside close it). It grows from the
+   avatar's corner. */
+.menu {
+  position: fixed; inset: auto; top: 58px; right: max(12px, env(safe-area-inset-right)); margin: 0; z-index: 30;
+  width: 240px; padding: 6px; border: 1px solid var(--outline-strong); border-radius: 14px; background: var(--surface); color: var(--fg);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 16px 40px -16px rgb(0 0 0 / 0.22);
+  transform-origin: top right; opacity: 1; transform: none;
+  transition: opacity 0.16s, transform 0.22s var(--ease-out), overlay 0.22s allow-discrete, display 0.22s allow-discrete;
 }
-.orb::before {
-  content: ""; position: absolute; inset: -30%; z-index: -2;
-  background: conic-gradient(from 200deg, var(--orb-a), var(--orb-b), var(--orb-c), var(--orb-a));
-  filter: blur(calc(var(--orb-size) * 0.14)); transition: transform 1.2s var(--ease);
-}
-.orb::after {
-  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 24%, rgb(255 255 255 / 0.78), transparent 42%),
-    radial-gradient(circle at 50% 118%, rgb(0 0 0 / 0.16), transparent 56%);
-}
-.app-panel:hover .orb::before { transform: rotate(140deg); }
-.orb-wrap { display: grid; place-items: center; }
-.orb-wrap .orb { animation: orb-float 6s ease-in-out infinite; box-shadow: 0 28px 60px -24px var(--orb-b); }
-.orb-wrap .orb::before { animation: orb-spin 16s linear infinite; }
-@keyframes orb-spin { to { transform: rotate(360deg); } }
-@keyframes orb-float { 50% { transform: translateY(-6px); } }
+.menu:not(:popover-open) { opacity: 0; transform: translateY(-4px) scale(0.97); }
+@starting-style { .menu:popover-open { opacity: 0; transform: translateY(-4px) scale(0.97); } }
+.menu-head { display: flex; align-items: center; gap: 10px; padding: 8px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--outline); }
+.menu form { margin: 0; }
+.menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: none; border-radius: var(--radius-control);
+  background: transparent; color: var(--fg); font-size: 14px; font-weight: 500; text-decoration: none; text-align: left; }
+.menu-item svg { flex: none; fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.25s var(--ease-out); }
+.menu-item:hover { opacity: 1; background: var(--layer); }
+.menu-item:hover svg { transform: translateX(1px); stroke: var(--fg); }
+button.menu-item:active { transform: none; }
+
+/* The Account Center mark: a keyhole in a tile in the text colour. */
+.mark { display: block; flex: none; }
+.mark-tile { fill: var(--fg); }
+.mark-hole { fill: var(--bg); transform-box: fill-box; transform-origin: 50% 40%; transition: transform 0.6s var(--ease-out); }
+.hero-mark { display: grid; place-items: center; }
+.hero-mark .mark { filter: drop-shadow(0 14px 22px rgb(0 0 0 / 0.16)); animation: mark-in 0.7s var(--ease-out) backwards; }
+@keyframes mark-in { from { opacity: 0; transform: translateY(8px) scale(0.92); } }
+/* Signing in turns the key. */
+.login-card:has(button.busy) .mark-hole { transform: rotate(90deg); }
+
+/* An app without its own graphic: its first letter on a soft tile in the app's colour (account.apps.hue). */
+.monogram { display: inline-grid; place-items: center; flex: none; border-radius: 26%; font-weight: 650; line-height: 1; letter-spacing: -0.02em;
+  background: oklch(0.94 0.045 var(--h)); color: oklch(0.42 0.13 var(--h)); }
+.monogram.neutral { width: 40px; height: 40px; font-size: 18px; background: var(--layer); color: var(--fg); }
+@media (prefers-color-scheme: dark) { .monogram { background: oklch(0.32 0.06 var(--h)); color: oklch(0.9 0.08 var(--h)); } }
 
 /* Avatars: drawn faces people make themselves */
 .avatar { display: block; flex: none; border-radius: 50%; background: var(--layer); box-shadow: 0 0 0 1px var(--outline); }
-.nav .who-avatar, .nav .who-avatar:hover, .nav .who-avatar[aria-current="page"] { display: inline-flex; padding: 0; border-radius: 50%; background: none; transition: transform 0.2s var(--ease); }
-.nav .who-avatar:hover { transform: scale(1.06); }
-.nav .who-avatar[aria-current="page"] .avatar { box-shadow: 0 0 0 2px var(--fg); }
 .avatar-edit { position: relative; display: inline-flex; border-radius: 50%; }
 .avatar-edit .avatar { transition: transform 0.25s var(--ease); }
 .avatar-edit:hover .avatar { transform: rotate(-4deg) scale(1.04); }
@@ -275,7 +309,6 @@ ul.perm-list li:last-child { border-bottom: none; }
   color: var(--fg); text-decoration: none; transition: transform 0.2s var(--ease), border-color 0.2s, box-shadow 0.2s;
 }
 a.app-card:hover { transform: translateY(-2px); border-color: var(--outline-strong); box-shadow: var(--shadow-hover); }
-a.app-card:hover .orb::before { transform: rotate(140deg); }
 .app-card.off { opacity: 0.7; }
 .app-card-text { display: grid; gap: 6px; align-content: center; min-width: 0; }
 .app-card-text strong { font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
@@ -327,11 +360,15 @@ form.inline input { padding: 6px 12px; font-size: 14px; width: 200px; }
 @media (max-width: 560px) {
   h1 { font-size: 28px; }
   .app-body { padding-left: 16px; padding-right: 16px; }
-  .nav .brand-text, .who .muted { display: none; }
+  .nav .brand-text, .who-name, .who-chevron { display: none; }
+  /* On a phone the mark is the way Home, so the four page links fit on one row. */
+  .nav-links a:first-of-type:not(:only-of-type) { display: none; }
+  .nav-links a { padding: 6px 10px; }
+  .who-button { padding: 2px; }
+  .nav { gap: 8px; }
   .app-head { display: grid; grid-template-columns: 1fr auto; padding: 12px 16px 12px 8px; }
   .app-head > select, .app-head > .head-note { grid-column: 1 / -1; justify-self: start; margin-left: 8px; }
   .app-head > .pill { grid-column: 2; grid-row: 1; }
-  .nav .brand { margin-right: 4px; }
 }
 
 /* Add person, and an invitation link to pass on by hand */
@@ -449,3 +486,90 @@ dialog.modal h2 { font-size: 18px; }
 
 /* On the app's own page there is no arrow and icon before the rows, so they start at the edge. */
 .app-panel.standalone .app-body { padding-left: 20px; }
+
+/* ---- Motion and small helpers (Buk, 2026-11-02: think about how people use it, with microinteractions) ---- */
+
+/* A button that is saving shows a small turning ring before its words. */
+button.busy::before { content: ""; width: 13px; height: 13px; flex: none; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent;
+  animation: spin 0.7s linear infinite; }
+button.busy:disabled { opacity: 0.8; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Cards in a list arrive one after another, quickly; each is fully visible without the motion. */
+.app-cards > li, .access-grid > li, .people-cards > li, .team-cards > li, .tool-list > li {
+  animation: card-in 0.45s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 35ms);
+}
+@keyframes card-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* A count that changes gives a small bump, so the eye sees what moved. */
+.count.bump { display: inline-block; animation: bump 0.32s var(--ease-out); }
+@keyframes bump { 40% { transform: scale(1.18); } }
+.pop-in { animation: pop-in 0.2s var(--ease-out); }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.96); } }
+
+/* The visible/hidden button: the plus turns as you point at it; pressing pushes it in a little. */
+.access-card-state svg { transition: transform 0.3s var(--ease-out); }
+button.access-card-state:not(.on):hover svg { transform: rotate(90deg); }
+button.access-card-state:active { transform: scale(0.92); }
+button.access-card-state.on:hover { background: color-mix(in srgb, var(--ok) 16%, transparent); }
+
+/* Dialogs grow in from the middle; the page behind fades. */
+dialog.modal[open] { animation: modal-in 0.24s var(--ease-out); }
+dialog.modal[open]::backdrop { animation: fade-in 0.2s ease-out; }
+@keyframes modal-in { from { opacity: 0; transform: translateY(6px) scale(0.97); } }
+@keyframes fade-in { from { opacity: 0; } }
+dialog.modal.wide { width: min(520px, calc(100vw - 32px)); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+button.icon-button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 999px; border: none;
+  background: transparent; color: var(--muted); }
+button.icon-button:hover { opacity: 1; background: var(--layer); color: var(--fg); }
+
+/* People: find someone fast */
+.people-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.search { position: relative; display: flex; align-items: center; flex: 1 1 280px; max-width: 420px; }
+.search svg { position: absolute; left: 13px; fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; pointer-events: none; }
+.search input { width: 100%; padding: 9px 40px 9px 38px; font-size: 14px; border-radius: 999px; }
+.search input::-webkit-search-cancel-button { cursor: pointer; }
+.search kbd { position: absolute; right: 10px; display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 6px;
+  border: 1px solid var(--input-outline); background: var(--layer); color: var(--muted); font: 500 12px/1 inherit; pointer-events: none; }
+.seg-tabs { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--layer); }
+.seg-tabs label { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 14px; font-weight: 500;
+  color: var(--muted); cursor: pointer; transition: background 0.2s, color 0.2s, box-shadow 0.2s; }
+.seg-tabs label:hover { color: var(--fg); }
+.seg-tabs label.on { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
+.seg-tabs label:has(input:focus-visible) { outline: 2px solid var(--fg); outline-offset: 1px; }
+.seg-count { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* Home: shared tools, each with Copy (the shared email) and Open */
+.tool-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); }
+.tool-list li { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius); }
+.tool-text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.tool-text strong { font-weight: 600; }
+.tool-email { font-size: 13px; color: var(--fg-2); overflow-wrap: anywhere; }
+.tool-actions { display: flex; gap: 6px; flex: none; }
+button.copy { padding: 7px 12px; font-size: 14px; background: var(--surface); color: var(--fg); border-color: var(--input-outline); }
+button.copy:hover { opacity: 1; background: var(--layer); }
+.copy-icon { position: relative; display: grid; width: 16px; height: 16px; }
+.copy-icon svg { grid-area: 1 / 1; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+  transition: opacity 0.2s, transform 0.3s var(--ease-out); }
+.copy-tick { opacity: 0; transform: scale(0.5); stroke: var(--ok); stroke-width: 1.9; }
+.copy.done { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 35%, transparent); background: var(--ok-soft); }
+.copy.done .copy-sheets { opacity: 0; transform: scale(0.5) rotate(-20deg); }
+.copy.done .copy-tick { opacity: 1; transform: none; }
+
+/* Renewals that need someone soon */
+.renew-soon { color: var(--warn); font-weight: 500; }
+.renew-past { color: var(--error); font-weight: 500; }
+
+@media (max-width: 560px) {
+  .tool-list li { flex-wrap: wrap; }
+  .tool-actions { width: 100%; justify-content: flex-end; }
+  .people-tools { align-items: stretch; }
+  .search { max-width: none; }
+}
+
+/* The reduced-motion rule above stops every animation and transition; these keep their meaning without it. */
+@media (prefers-reduced-motion: reduce) {
+  .nav-pill { transition: none; }
+  .copy.done .copy-sheets { display: none; }
+}
