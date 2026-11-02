@@ -298,3 +298,31 @@ export async function setKind(sql: postgres.Sql, actorId: string, personId: stri
     throw error;
   }
 }
+
+// Visible or hidden (Buk, 2026-10-26): whether the person has any action in the app, so it shows on their Home.
+// Turning an app on gives the team's default role when the person's team has one, else the app's smallest
+// ready role (the fewest actions); the admin can change it on the app's page. Turning it off is "No access".
+export function visibleRoleFor(app: AppAccess): { key: string; name: string } | null {
+  if (app.keptOut) return null;
+  const team = app.roles.find((r) => r.key === TEAM_ROLE);
+  if (team) return { key: TEAM_ROLE, name: team.name };
+  const own = app.roles.filter((r) => r.key !== TEAM_ROLE && r.actions.length > 0)
+    .sort((a, b) => a.actions.length - b.actions.length || a.name.localeCompare(b.name));
+  return own[0] ? { key: own[0].key, name: own[0].name } : null;
+}
+
+export type Visibility = { on: boolean; canTurnOn: boolean; roleName: string | null; locked: string | null };
+
+// What the visibility button may do for one app of one person. `locked` says why it cannot be pressed.
+export function visibilityOf(app: AppAccess, person: { is_active: boolean }, opts: { canManage: boolean; isMe: boolean }): Visibility {
+  const on = !app.keptOut && app.actions.some((a) => a.on);
+  const role = visibleRoleFor(app);
+  const locked = !opts.canManage ? "View only"
+    : !person.is_active ? "Removed from Account Center"
+    : app.keptOut ? "Never for this employment type"
+    : app.allByAdmin ? "Admins see every app"
+    : opts.isMe && app.key === "account_center" ? "Ask another admin"
+    : !on && !role ? "No actions yet"
+    : null;
+  return { on, canTurnOn: role !== null, roleName: role?.name ?? null, locked };
+}

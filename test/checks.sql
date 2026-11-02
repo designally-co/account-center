@@ -450,4 +450,30 @@ exception when insufficient_privilege then raise notice 'ok: the portal cannot r
 end $$;
 reset role;
 
+
+-- Shared subscriptions (20261026100000): Account Center's server only, no password field, people kept when they leave
+select pg_temp.ok(not exists (select 1 from information_schema.columns where table_schema = 'account' and table_name = 'subscriptions'
+                              and column_name ~ '(pass|secret|token|key|note)'), 'a shared subscription has no field for a password or free notes');
+select pg_temp.ok(has_table_privilege('account_app', 'account.subscriptions', 'INSERT') and has_table_privilege('account_app', 'account.subscription_members', 'DELETE'),
+                  'Account Center''s server manages shared subscriptions');
+select pg_temp.ok(not has_table_privilege('portal_check', 'account.subscriptions', 'SELECT') and not has_table_privilege('hub_app', 'account.subscriptions', 'SELECT'),
+                  'no app can read the shared subscriptions');
+do $$ begin
+  insert into account.subscriptions (name, shared_email) values ('Bad', 'Not-Lower@Example.com');
+  raise exception 'FAILED: a shared email that is not cleaned up was stored';
+exception when check_violation then raise notice 'ok: a shared email is stored cleaned up only';
+end $$;
+begin;
+select set_config('account.actor', 'test-admin', true);
+insert into account.subscriptions (name, shared_email) values ('Tool A', 'team@example.com');
+insert into account.subscription_members (subscription_id, person_id)
+select s.id, p.id from account.subscriptions s, account.people p where s.name = 'Tool A' and p.email = 'ann@example.com';
+commit;
+select pg_temp.ok((select count(*) from account.log where table_name in ('subscriptions', 'subscription_members')) = 2, 'shared subscription changes are logged');
+do $$ begin
+  insert into account.subscriptions (name, shared_email) values ('tool a', 'other@example.com');
+  raise exception 'FAILED: two subscriptions with the same name';
+exception when unique_violation then raise notice 'ok: one subscription per tool name';
+end $$;
+
 select 'ALL CHECKS PASSED' as result;

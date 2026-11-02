@@ -27,7 +27,7 @@ export function KindForm({ save, personId, personName, kinds, appNames, current,
   const [state, action] = useActionState(save, {});
   const app = state.app && Object.hasOwn(appNames, state.app) ? appNames[state.app] : "an app";
   const message = state.notice === "kind-blocked"
-    ? { tone: "error" as const, text: `Not saved: that employment type can never use ${app}, and ${personName} still has access there. In ${app} below, choose "No access" and save. Then change the employment type.` }
+    ? { tone: "error" as const, text: `Not saved: that employment type can never use ${app}, and ${personName} still has access there. Open ${app} under Apps below, choose "No access" and save. Then change the employment type.` }
     : state.notice && Object.hasOwn(MESSAGES, state.notice) ? MESSAGES[state.notice] : null;
   return (
     <form action={action} className="detail-row">

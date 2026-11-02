@@ -71,7 +71,7 @@ function SaveBar({ onCancel }: { onCancel: () => void }) {
 // blocked. Choosing a role sets every row to what the role gives; changing a row makes it "custom".
 // Save stores the role and only the rows that differ from it (single changes for this person).
 export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, icon, version, roles, actions, currentRole, locked,
-  lockedNote, keptOut, leftover, initiallyOpen, notice, fixedNote = null }: {
+  lockedNote, keptOut, leftover, initiallyOpen, notice, fixedNote = null, standalone = false }: {
   save: (form: FormData) => Promise<void>;
   personId: string;
   appKey: string;
@@ -90,6 +90,7 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ic
   initiallyOpen: boolean;
   notice: Notice | null;
   fixedNote?: string | null;      // shown instead of the role menu (an admin has every action)
+  standalone?: boolean;           // on the app's own page: always open, titled "Permissions"
 }) {
   const bodyId = useId();
   const roleSelect = useRef<HTMLSelectElement>(null);
@@ -98,7 +99,8 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ic
   const announced = useRef(false);
   useEffect(() => { announced.current = true; }, []);
   const initial = new Set(actions.filter((a) => a.on).map((a) => a.key));
-  const [open, setOpen] = useState(initiallyOpen);
+  const [openState, setOpen] = useState(initiallyOpen || standalone);
+  const open = standalone || openState;
   const [role, setRole] = useState(currentRole);
   const [allowed, setAllowed] = useState(initial);
   const roleActions = new Set(roles.find((r) => r.key === role)?.actions ?? []);
@@ -131,7 +133,7 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ic
 
   const roleName = roles.find((r) => r.key === role)?.name;
   return (
-    <form action={save} className={open ? "app-panel open" : "app-panel"} id={`app-${appKey}`}>
+    <form action={save} className={`app-panel${open ? " open" : ""}${standalone ? " standalone" : ""}`} id={`app-${appKey}`}>
       <input type="hidden" name="person_id" value={personId} />
       <input type="hidden" name="app" value={appKey} />
       <input type="hidden" name="version" value={version} />
@@ -140,7 +142,12 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ic
       {keptOut ? null : [...allowed].map((k) => <input key={k} type="hidden" name="action" value={k} />)}
 
       <div className="app-head">
-        {expandable ? (
+        {standalone ? (
+          <span className="app-toggle static">
+            <span className="app-name">Permissions</span>
+            {!keptOut && actions.length > 0 ? <span className="count">{allowed.size}/{actions.length}</span> : null}
+          </span>
+        ) : expandable ? (
           <button ref={toggle} type="button" className="app-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
             <Chevron open={open} />
             <AppIcon appKey={appKey} icon={icon} hue={hue} size={28} />
@@ -154,7 +161,7 @@ export function AppPanel({ save, personId, appKey, appName, isPrototype, hue, ic
             <span className="app-name">{appName}</span>
           </span>
         )}
-        {isPrototype ? <span className="pill plain">Prototype</span> : null}
+        {isPrototype && !standalone ? <span className="pill plain">Prototype</span> : null}
         {keptOut ? (
           <span className="head-note">{keptOut}</span>
         ) : fixedNote && actions.length > 0 ? (
