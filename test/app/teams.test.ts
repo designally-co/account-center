@@ -3,7 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPersonAccess } from "../../src/lib/access-lists";
 import { listPeople } from "../../src/lib/people";
-import { activeTeams, createTeam, getTeam, listTeams, setPersonTeam, setTeamActive, setTeamRole, updateTeam } from "../../src/lib/teams";
+import { activeTeams, addToTeam, createTeam, getTeam, listTeams, setPersonTeam, setTeamActive, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
 import { ANN, createTestDb } from "./setup";
 
 let db: Awaited<ReturnType<typeof createTestDb>>;
@@ -79,6 +79,30 @@ describe("Teams", () => {
     expect((await getPersonAccess(app, annId))!.team).toMatchObject({ id: branding, is_lead: true });
     expect(await setPersonTeam(app, deeId, annId, null)).toBe("saved");
     expect((await getPersonAccess(app, annId))!.team).toBeNull();
+    expect(await setPersonTeam(app, deeId, annId, branding, true)).toBe("saved");
+  });
+
+  it("a team card's ticks: adding keeps a lead a lead, taking off only removes from that team", async () => {
+    // Ann leads Branding. Ticking her again on Branding's card changes nothing.
+    expect(await addToTeam(app, deeId, annId, branding)).toBe("saved");
+    expect((await getPersonAccess(app, annId))!.team).toMatchObject({ id: branding, is_lead: true });
+    // Ticking her on Digital's card moves her there, not as lead.
+    expect(await addToTeam(app, deeId, annId, digital)).toBe("saved");
+    expect((await getPersonAccess(app, annId))!.team).toMatchObject({ id: digital, is_lead: false });
+    // An untick on Branding's card (an older page) does not pull her out of Digital.
+    expect(await takeOffTeam(app, deeId, annId, branding)).toBe("saved");
+    expect((await getPersonAccess(app, annId))!.team).toMatchObject({ id: digital });
+    // An untick on Digital's card takes her off.
+    expect(await takeOffTeam(app, deeId, annId, digital)).toBe("saved");
+    expect((await getPersonAccess(app, annId))!.team).toBeNull();
+    // Refused: a removed person, a team that is off, and someone who is not an admin.
+    expect(await addToTeam(app, deeId, catId, digital)).toBe("inactive");
+    expect(await setTeamActive(app, deeId, branding, false)).toBe("saved");
+    expect(await addToTeam(app, deeId, annId, branding)).toBe("unknown-team");
+    expect(await setTeamActive(app, deeId, branding, true)).toBe("saved");
+    expect(await addToTeam(app, annId, annId, digital)).toBe("not-allowed");
+    expect(await takeOffTeam(app, annId, annId, digital)).toBe("not-allowed");
+    // Put her back as Branding's lead for the tests below.
     expect(await setPersonTeam(app, deeId, annId, branding, true)).toBe("saved");
   });
 

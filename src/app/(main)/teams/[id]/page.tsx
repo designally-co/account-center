@@ -79,7 +79,7 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
 
         <section className="stack" aria-labelledby="members-title">
           <h2 id="members-title">Members</h2>
-          <p className="muted small-text">To add someone, or move them here from another team, open their page and choose this team.</p>
+          <p className="muted small-text">To add someone, or move them here from another team, use this team's card on Teams, or open their page and choose this team.</p>
           {team.members.length === 0 ? <p className="empty">No active members.</p> : (
             <ul className="team-members">
               {team.members.map((m) => (

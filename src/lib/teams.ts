@@ -148,6 +148,27 @@ export async function setPersonTeam(sql: postgres.Sql, actorId: string, personId
   return guarded(() => withActor(sql, actorId, async (tx) => putInTeam(tx, personId, teamId, isLead)));
 }
 
+// From a team's card on the Teams page (Buk, 2026-11-02): tick someone to put them in this team (moving them
+// out of their old one, and not as lead), untick to take them off. Taking off only removes them from THIS team:
+// if another admin has moved them meanwhile, they stay where they are now. Ticking someone already in the team
+// changes nothing, so a lead stays a lead.
+export async function addToTeam(sql: postgres.Sql, actorId: string, personId: string, teamId: string): Promise<TeamResult> {
+  if (!isUuid(personId)) return "not-found";
+  if (!isUuid(teamId)) return "unknown-team";
+  return guarded(() => withActor(sql, actorId, async (tx) => {
+    const [here] = await tx`select 1 from account.team_members where person_id = ${personId}::uuid and team_id = ${teamId}::uuid`;
+    return here ? "saved" as const : putInTeam(tx, personId, teamId, false);
+  }));
+}
+
+export async function takeOffTeam(sql: postgres.Sql, actorId: string, personId: string, teamId: string): Promise<TeamResult> {
+  if (!isUuid(personId) || !isUuid(teamId)) return "not-found";
+  return guarded(() => withActor(sql, actorId, async (tx) => {
+    await tx`delete from account.team_members where person_id = ${personId}::uuid and team_id = ${teamId}::uuid`;
+    return "saved" as const;
+  }));
+}
+
 // The same step inside a change that is already running (adding a new person).
 export async function putInTeam(tx: postgres.TransactionSql, personId: string, teamId: string | null, isLead: boolean): Promise<TeamResult> {
   const [person] = await tx<{ is_active: boolean }[]>`select is_active from account.people where id = ${personId}::uuid for update`;
