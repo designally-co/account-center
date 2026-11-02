@@ -8,6 +8,8 @@ sources:
   - "Project Friday, read-only check 2026-10-20 through the Supabase connector: account_app has its login (connection limit 10) and one open session; a person saved an avatar through the app at 11:16 Bangkok time"
   - decisions/stack-nextjs-on-nas.md
   - docs/deploy-nas.md
+  - "Buk, 2026-11-02 (\"I clicked a button and I need to wait too long\"; Vercel's Function Region showed iad1; changed to Singapore, redeployed: \"it's faster now\")"
+  - "Project Friday, read-only check 2026-11-02 through the Supabase connector: region ap-southeast-1 (Singapore); account_app statements about 9 ms on average, portal_check about 2 ms (pg_stat_statements)"
 ---
 
 ## Context
@@ -18,6 +20,7 @@ sources:
 
 - **For now Account Center runs on Vercel**, in Buk's personal (Hobby) Vercel account, built from `main` of `designally-co/account-center`. The NAS release (`docs/deploy-nas.md`, the image built by `.github/workflows/release.yml`) stays ready and unused.
 - Settings in Vercel: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `DATABASE_URL` for the user `account_app` through Friday's **shared transaction pooler** (Supabase's Connect, "Use IPv4 connection"), because Vercel cannot reach Friday's IPv6-only addresses. The app already turns prepared statements off, which that pooler needs.
+- **Function Region: Singapore (`sin1`)** since 2026-11-02, next to Friday (`ap-southeast-1`). Vercel's default was Washington, D.C. (`iad1`): one click makes several database trips one after another, each crossing the Pacific (about 0.2 s), so buttons were slow while the database itself answered in milliseconds. The Hobby plan allows one region; a change needs a new deployment.
 - The address is Vercel's own for now; account.designally.co comes later, with a DNS change P Aek is told about first.
 
 ## Why
