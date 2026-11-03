@@ -50,34 +50,27 @@ export function TeamBoard({ teams, details, people, canManage, canView, error }:
   return (
     <MotionConfig reducedMotion="user">
       {teams.length === 0 ? <p className="empty">No teams yet.</p> : (
-        <ul className="team-cards" aria-label="Teams">
+        <ul className="team-cards teams-grid" aria-label="Teams">
           {teams.map((t, i) => {
             const isOpen = t.id === openId;
+            // A card (Buk, 2026-11-03, "Frame 1"): the team's name large, its description, and its people as a row
+            // of faces. Everything else is inside the team's popup.
             const inner = (
               <>
-                <div className="team-card-head">
-                  <a href={`/teams?team=${t.id}`} className="team-card-name" aria-haspopup="dialog"
-                    onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); open(t.id); }}>
-                    {t.name}
-                  </a>
-                </div>
-                {t.description ? <p className="muted small-text">{t.description}</p> : null}
-                <div className="team-card-avatars" aria-label={`${t.members.length} ${t.members.length === 1 ? "member" : "members"}`}>
-                  {t.members.slice(0, 8).map((m) => (
-                    <span key={m.id} title={`${m.display_name}${m.is_lead ? " (lead)" : ""}`} className={m.is_lead ? "lead" : undefined}>
-                      <Avatar avatar={m.avatar} seed={m.id} size={32} />
+                <a href={`/teams?team=${t.id}`} className="team-card-name" aria-haspopup="dialog"
+                  onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); open(t.id); }}>
+                  {t.name}
+                </a>
+                {t.description ? <p className="team-card-desc">{t.description}</p> : null}
+                <div className="team-card-avatars" aria-label={`${t.members.length} ${t.members.length === 1 ? "person" : "people"}`}>
+                  {t.members.slice(0, 6).map((m, n) => (
+                    <span key={m.id} title={`${m.display_name}${m.is_lead ? " (lead)" : ""}`} style={{ zIndex: 10 - n }}>
+                      <Avatar avatar={m.avatar} seed={m.id} size={40} />
                     </span>
                   ))}
-                  {t.members.length > 8 ? <span className="more">+{t.members.length - 8}</span> : null}
-                  {t.members.length === 0 ? <span className="muted small-text">No active members</span> : null}
+                  {t.members.length > 6 ? <span className="more">+{t.members.length - 6}</span> : null}
+                  {t.members.length === 0 ? <span className="muted small-text">Nobody yet</span> : null}
                 </div>
-                {canManage ? (
-                  <p className="small-text">
-                    {t.defaults.length
-                      ? t.defaults.map((d) => `${d.app_name}: ${d.role_name}`).join(" · ")
-                      : <span className="muted">No default access yet</span>}
-                  </p>
-                ) : null}
               </>
             );
             return (
@@ -87,7 +80,7 @@ export function TeamBoard({ teams, details, people, canManage, canView, error }:
                   <div className="team-card placeholder" aria-hidden="true" inert>{inner}</div>
                 ) : (
                   <motion.div layoutId={`team-${t.id}`} transition={grow} className="team-card"
-                    style={{ borderRadius: 16 }} onLayoutAnimationComplete={() => { if (returning === t.id) setReturning(null); }}>
+                    style={{ borderRadius: 24 }} onLayoutAnimationComplete={() => { if (returning === t.id) setReturning(null); }}>
                     <motion.div className="team-card-inner" initial={returning === t.id ? { opacity: 0 } : false}
                       animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.16 } }}>
                       {inner}
@@ -100,8 +93,8 @@ export function TeamBoard({ teams, details, people, canManage, canView, error }:
         </ul>
       )}
 
-      <Popup open={team !== null} layoutId={`team-${team?.id ?? lastOpen.current}`} labelledBy={titleId} onClose={close} afterClose={backToCard}>
-        {team ? <Detail team={team} people={people} canManage={canManage} canView={canView} error={error} titleId={titleId} /> : null}
+      <Popup open={team !== null} layoutId={`team-${team?.id ?? lastOpen.current}`} labelledBy={titleId} onClose={close} afterClose={backToCard} stack>
+        {team ? <Detail team={team} people={people} canManage={canManage} canView={canView} error={error} titleId={titleId} onClose={close} /> : null}
       </Popup>
     </MotionConfig>
   );

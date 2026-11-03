@@ -3,7 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPersonAccess } from "../../src/lib/access-lists";
 import { listPeople } from "../../src/lib/people";
-import { activeTeams, addToTeam, createTeam, getTeam, listTeams, setExtraTeams, setPersonTeam, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
+import { activeTeams, addToTeam, createTeam, getTeam, listTeams, setExtraTeams, setPersonTeam, setTeamAction, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
 import { ANN, createTestDb } from "./setup";
 
 let db: Awaited<ReturnType<typeof createTestDb>>;
@@ -154,6 +154,51 @@ describe("Teams", () => {
     expect(await setExtraTeams(app, deeId, catId, [digital])).toBe("inactive");
     expect(await setExtraTeams(app, annId, annId, [digital])).toBe("not-allowed");
     expect(await setTeamRole(app, deeId, digital, "brand", null)).toBe("saved");
+  });
+
+  it("a team's single changes: block or allow one action on top of its role, shown on the person's page", async () => {
+    // Ann is in Branding only; Branding gives Brand Portal editor.
+    expect(await canAnn("brand.guideline.edit")).toBe(true);
+    expect(await setTeamAction(app, deeId, branding, "brand", "brand.guideline.edit", false)).toBe("saved");
+    expect(await canAnn("brand.guideline.edit")).toBe(false);
+    expect(await canAnn("brand.view")).toBe(true);
+    let team = await getTeam(app, branding);
+    let brand = team!.defaults.find((d) => d.app_key === "brand")!;
+    expect(brand.role_key).toBe("editor");
+    expect(brand.changes).toEqual({ "brand.guideline.edit": false });
+    expect(brand.actions.some((a) => a.key === "brand.brand.delete")).toBe(true);
+    expect(brand.roles.find((r) => r.key === "editor")!.actions).toContain("brand.view");
+    let ann = await getPersonAccess(app, annId);
+    let row = ann!.apps.find((a) => a.key === "brand")!;
+    expect(row.roles[0].name).toBe("Editor + changes (Branding default)");
+    expect(row.actions.find((a) => a.key === "brand.guideline.edit")!.on).toBe(false);
+    // Allowing it again is what the role gives: the single change goes.
+    expect(await setTeamAction(app, deeId, branding, "brand", "brand.guideline.edit", true)).toBe("saved");
+    expect((await getTeam(app, branding))!.defaults.find((d) => d.app_key === "brand")!.changes).toEqual({});
+    // An action the role does not give, allowed for the whole team.
+    expect(await canAnn("brand.brand.delete")).toBe(false);
+    expect(await setTeamAction(app, deeId, branding, "brand", "brand.brand.delete", true)).toBe("saved");
+    expect(await canAnn("brand.brand.delete")).toBe(true);
+    // Choosing a role again starts from that role.
+    expect(await setTeamRole(app, deeId, branding, "brand", "editor")).toBe("saved");
+    team = await getTeam(app, branding);
+    brand = team!.defaults.find((d) => d.app_key === "brand")!;
+    expect(brand.changes).toEqual({});
+    expect(await canAnn("brand.brand.delete")).toBe(false);
+    // Single actions with no role: the person's page names it.
+    expect(await setTeamRole(app, deeId, branding, "brand", null)).toBe("saved");
+    expect(await setTeamAction(app, deeId, branding, "brand", "brand.view", true)).toBe("saved");
+    ann = await getPersonAccess(app, annId);
+    row = ann!.apps.find((a) => a.key === "brand")!;
+    expect(row.roles[0].name).toBe("Single actions (Branding default)");
+    expect(row.actions.filter((a) => a.on).map((a) => a.key)).toEqual(["brand.view"]);
+    // Refused: Account Center, an unknown action, someone who is not an admin.
+    expect(await setTeamAction(app, deeId, branding, "account_center", "account_center.view", true)).toBe("unknown-role");
+    expect(await setTeamAction(app, deeId, branding, "brand", "brand.nope", true)).toBe("unknown-role");
+    expect(await setTeamAction(app, annId, branding, "brand", "brand.view", false)).toBe("not-allowed");
+    // Back as before: Branding gives editor.
+    expect(await setTeamRole(app, deeId, branding, "brand", "editor")).toBe("saved");
+    expect(await canAnn("brand.guideline.edit")).toBe(true);
   });
 
   it("refuses a removed person, bad names, a taken name and someone who is not an admin", async () => {

@@ -11,13 +11,18 @@ import { AnimatePresence, motion } from "framer-motion";
 // it is open, which Escape closes first), Tab stays inside, and afterFocus() says where focus goes after it.
 export const GROW = { type: "spring" as const, stiffness: 420, damping: 38, mass: 0.9 };
 
-export function Popup({ open, layoutId, labelledBy, onClose, afterClose, className, children }: {
+//
+// `stack` (Buk, 2026-11-03, a team): no big box. The popup is a column of separate cards floating over the
+// page; the children draw the cards, the first of them carrying the layoutId of the card it grows out of, and
+// their own Close button (class "popup-close").
+export function Popup({ open, layoutId, labelledBy, onClose, afterClose, className, stack = false, children }: {
   open: boolean;
   layoutId: string;              // the same id as the card it grows out of
   labelledBy: string;            // the id of the popup's title
   onClose: () => void;
   afterClose?: () => void;       // runs once it has closed, for example to put focus back on the card
   className?: string;
+  stack?: boolean;
   children: React.ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -57,7 +62,15 @@ export function Popup({ open, layoutId, labelledBy, onClose, afterClose, classNa
 
   return (
     <AnimatePresence initial={false}>
-      {open ? (
+      {open && stack ? (
+        <div className="popup-stack-layer" key="popup">
+          <motion.div className="popup-stack-backdrop" onClick={onClose}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }} />
+          <div ref={panel} className={`popup-stack${className ? ` ${className}` : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+            {children}
+          </div>
+        </div>
+      ) : open ? (
         <div className="team-modal-layer" key="popup">
           <motion.div className="team-modal-backdrop" onClick={onClose}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
