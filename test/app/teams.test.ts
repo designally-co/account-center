@@ -3,7 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPersonAccess } from "../../src/lib/access-lists";
 import { listPeople } from "../../src/lib/people";
-import { activeTeams, addToTeam, createTeam, getTeam, listTeams, setPersonTeam, setTeamActive, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
+import { activeTeams, addToTeam, createTeam, getTeam, listTeams, setPersonTeam, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
 import { ANN, createTestDb } from "./setup";
 
 let db: Awaited<ReturnType<typeof createTestDb>>;
@@ -34,6 +34,10 @@ beforeAll(async () => {
 
 afterAll(async () => { await db?.close(); });
 
+// The app has no way to turn a team off (Buk, 2026-11-03), but the database still knows a team that is off,
+// as a safety net. These tests switch it in the database directly.
+const setActive = async (teamId: string, on: boolean) => { await db.setup`update account.teams set is_active = ${on} where id = ${teamId}::uuid`; };
+
 describe("Teams", () => {
   it("lists the teams copied from HR, with active members only and their leads", async () => {
     const teams = await listTeams(app);
@@ -60,12 +64,12 @@ describe("Teams", () => {
     expect(team!.defaults.some((d) => d.app_key === "account_center")).toBe(false);
   });
 
-  it("a team that is turned off gives nothing, and nobody can be moved into it", async () => {
-    expect(await setTeamActive(app, deeId, branding, false)).toBe("saved");
+  it("a team that is off in the database gives nothing, and nobody can be moved into it", async () => {
+    await setActive(branding, false);
     expect(await canAnn("brand.guideline.edit")).toBe(false);
     expect((await activeTeams(app)).map((t) => t.name)).toEqual(["Digital"]);
     expect(await setPersonTeam(app, deeId, annId, branding, true)).toBe("unknown-team");
-    expect(await setTeamActive(app, deeId, branding, true)).toBe("saved");
+    await setActive(branding, true);
     expect(await canAnn("brand.guideline.edit")).toBe(true);
   });
 
@@ -97,9 +101,9 @@ describe("Teams", () => {
     expect((await getPersonAccess(app, annId))!.team).toBeNull();
     // Refused: a removed person, a team that is off, and someone who is not an admin.
     expect(await addToTeam(app, deeId, catId, digital)).toBe("inactive");
-    expect(await setTeamActive(app, deeId, branding, false)).toBe("saved");
+    await setActive(branding, false);
     expect(await addToTeam(app, deeId, annId, branding)).toBe("unknown-team");
-    expect(await setTeamActive(app, deeId, branding, true)).toBe("saved");
+    await setActive(branding, true);
     expect(await addToTeam(app, annId, annId, digital)).toBe("not-allowed");
     expect(await takeOffTeam(app, annId, annId, digital)).toBe("not-allowed");
     // Put her back as Branding's lead for the tests below.

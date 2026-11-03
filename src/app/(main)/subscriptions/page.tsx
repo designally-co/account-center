@@ -3,7 +3,7 @@ import { Avatar } from "@/components/avatar";
 import { Toast } from "@/components/toast";
 import { ACTIONS, canUser } from "@/lib/access";
 import { db } from "@/lib/db";
-import { requireAction } from "@/lib/session";
+import { requirePerson } from "@/lib/session";
 import { listSubscriptions } from "@/lib/subscriptions";
 import { createSubscriptionAction } from "./actions";
 import { SubscriptionFields, renewText } from "./fields";
@@ -16,10 +16,14 @@ export const dynamic = "force-dynamic";
 type Search = Record<string, string | string[] | undefined>;
 
 // Shared subscriptions (Buk, 2026-10-26): tools several people use with one shared company login.
+// Every company person may open it and see the tools and who uses them (Buk, 2026-11-03: "only admin can see
+// the settings for team and subscriptions, members can see the overall view"). Only an admin, who may manage
+// Account Center, opens a tool's settings, sees tools that are turned off and the people who left.
 export default async function SubscriptionsPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const { userId, me } = await requireAction(ACTIONS.view);
+  const { userId } = await requirePerson();
   const sql = db();
-  const [subs, canManage, search] = await Promise.all([listSubscriptions(sql), canUser(sql, userId, ACTIONS.manage), searchParams]);
+  const [all, canManage, search] = await Promise.all([listSubscriptions(sql), canUser(sql, userId, ACTIONS.manage), searchParams]);
+  const subs = canManage ? all : all.filter((s) => s.is_active).map((s) => ({ ...s, members: s.members.filter((m) => m.is_active) }));
   const key = typeof search.notice === "string" ? search.notice : "";
   const notice = Object.hasOwn(SUBSCRIPTION_NOTICES, key) ? SUBSCRIPTION_NOTICES[key] : null;
   // Errors about the new subscription's details are shown inside its dialog, which opens again by itself.
@@ -31,7 +35,9 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
         <div className="top">
           <div>
             <h1>Shared subscriptions</h1>
-            <p className="muted">Tools the company pays for, used by several people with one shared login. Who may use each one. Never the password.</p>
+            <p className="muted">{canManage
+              ? "Tools the company pays for, used by several people with one shared login. Who may use each one. Never the password."
+              : "Tools the company pays for, used by several people with one shared login, and who uses each one."}</p>
           </div>
           {canManage ? (
             <FormDialog trigger="Add subscription" title="Add subscription" open={formError}>
@@ -55,7 +61,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
               return (
                 <li key={s.id} className={`team-card${s.is_active ? "" : " faded"}`} style={{ "--i": i } as React.CSSProperties}>
                   <div className="team-card-head">
-                    <Link href={`/subscriptions/${s.id}`} className="team-card-name">{s.name}</Link>
+                    {canManage ? <Link href={`/subscriptions/${s.id}`} className="team-card-name">{s.name}</Link> : <strong className="team-card-title">{s.name}</strong>}
                     {s.is_active ? null : <span className="pill muted">Turned off</span>}
                   </div>
                   <p className="small-text">{s.shared_email}</p>
@@ -71,7 +77,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
                     {people.length > 8 ? <span className="more">+{people.length - 8}</span> : null}
                     {people.length === 0 ? <span className="muted small-text">Nobody yet</span> : null}
                   </div>
-                  {left ? <p><span className="pill warn">{left} {left === 1 ? "person" : "people"} left: change the password</span></p> : null}
+                  {left && canManage ? <p><span className="pill warn">{left} {left === 1 ? "person" : "people"} left: change the password</span></p> : null}
                 </li>
               );
             })}

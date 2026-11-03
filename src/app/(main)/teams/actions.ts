@@ -6,7 +6,7 @@ import { ACTIONS } from "@/lib/access";
 import { db } from "@/lib/db";
 import { isUuid } from "@/lib/ids";
 import { requireAction } from "@/lib/session";
-import { addToTeam, createTeam, setTeamActive, setTeamRole, takeOffTeam, updateTeam, type TeamResult } from "@/lib/teams";
+import { addToTeam, createTeam, setTeamRole, takeOffTeam, updateTeam, type TeamResult } from "@/lib/teams";
 
 // Every action checks "manage" again on the server; the change itself checks once more inside its transaction.
 
@@ -29,14 +29,6 @@ export async function updateTeamAction(form: FormData) {
   const teamId = String(form.get("team_id") ?? "");
   const result = await updateTeam(db(), me.person_id, teamId, { name: form.get("name"), description: form.get("description") });
   backToTeam(teamId, result === "saved" ? "details-saved" : result);
-}
-
-export async function setTeamActiveAction(form: FormData) {
-  const { me } = await requireAction(ACTIONS.manage);
-  const teamId = String(form.get("team_id") ?? "");
-  const on = form.get("active") === "1";
-  const result = await setTeamActive(db(), me.person_id, teamId, on);
-  backToTeam(teamId, result === "saved" ? (on ? "turned-on" : "turned-off") : result);
 }
 
 export async function setTeamRoleAction(form: FormData) {

@@ -16,8 +16,9 @@ export const dynamic = "force-dynamic";
 
 type Search = Record<string, string | string[] | undefined>;
 
+// A tool's settings: for an admin only (Buk, 2026-11-03); everyone else sees the list of tools.
 export default async function SubscriptionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
-  const { userId, me } = await requireAction(ACTIONS.view);
+  const { userId, me } = await requireAction(ACTIONS.manage);
   const sql = db();
   const [{ id }, search] = await Promise.all([params, searchParams]);
   const [sub, canManage, candidates] = await Promise.all([getSubscription(sql, id), canUser(sql, userId, ACTIONS.manage), candidatesFor(sql, id)]);

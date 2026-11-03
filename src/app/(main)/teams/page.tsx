@@ -1,7 +1,7 @@
 import { Toast } from "@/components/toast";
 import { ACTIONS, canUser } from "@/lib/access";
 import { db } from "@/lib/db";
-import { requireAction } from "@/lib/session";
+import { requirePerson } from "@/lib/session";
 import { getTeam, listTeams, type TeamDetail } from "@/lib/teams";
 import { listPeople } from "@/lib/people";
 import { TeamBoard } from "./team-board";
@@ -27,8 +27,6 @@ const TEAM_NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
   "team-added": { tone: "ok", text: "Team added. Add its members and choose its default access here." },
   "details-saved": { tone: "ok", text: "Saved." },
   "default-saved": { tone: "ok", text: "Default access saved. Every member gets it, unless they have their own access in that app." },
-  "turned-on": { tone: "ok", text: "Turned on. Its members get the team's default access again." },
-  "turned-off": { tone: "ok", text: "Turned off. Its members keep only the access set for them personally." },
   "invalid-name": { tone: "error", text: "Not saved: give the team a name of up to 60 characters." },
   taken: { tone: "error", text: "Not saved: another team already has that name." },
   "unknown-role": { tone: "error", text: "That role does not exist for this app. Reload the page and try again." },
@@ -37,16 +35,23 @@ const TEAM_NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
 };
 
 // Teams (Buk, 2026-10-19): one team per person; a team gives its members a default role in each app.
+// Every company person may open it and see the teams and who is in them (Buk, 2026-11-03: "only admin can see
+// the settings for team and subscriptions, members can see the overall view"). The settings (default access,
+// members to add or take off, the name) reach the page only for an admin, who may manage Account Center.
 export default async function TeamsPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const { userId, me } = await requireAction(ACTIONS.view);
+  const { userId } = await requirePerson();
   const sql = db();
-  const [teams, canManage, search, everyone] = await Promise.all([listTeams(sql), canUser(sql, userId, ACTIONS.manage), searchParams, listPeople(sql)]);
-  // Every team's popup is ready on the page, so opening one asks nothing of the server.
+  const [teams, canManage, canView, search] = await Promise.all([
+    listTeams(sql), canUser(sql, userId, ACTIONS.manage), canUser(sql, userId, ACTIONS.view), searchParams]);
+  // Every team's popup is ready on the page, so opening one asks nothing of the server. Emails never reach
+  // the browser here (nothing on the page shows them), and a member's page gets no settings at all.
   const details: Record<string, TeamDetail> = Object.fromEntries(
-    (await Promise.all(teams.map((t) => getTeam(sql, t.id)))).filter((d): d is TeamDetail => d !== null).map((d) => [d.id, d]));
-  // Who can be put in a team: everyone active, with their current team (one team per person).
-  const pickable: PickPerson[] = everyone.filter((p) => p.is_active)
-    .map((p) => ({ id: p.id, name: p.display_name, team: p.team, is_lead: p.is_lead, avatar: p.avatar }));
+    (await Promise.all(teams.map((t) => getTeam(sql, t.id)))).filter((d): d is TeamDetail => d !== null)
+      .map((d) => [d.id, { ...d, members: d.members.map((m) => ({ ...m, email: "" })), defaults: canManage ? d.defaults : [] }]));
+  const cards = teams.map((t) => ({ ...t, members: t.members.map((m) => ({ ...m, email: "" })), defaults: canManage ? t.defaults : [] }));
+  // Who can be put in a team: everyone active, with their current team (one team per person). Admins only.
+  const pickable: PickPerson[] = canManage ? (await listPeople(sql)).filter((p) => p.is_active)
+    .map((p) => ({ id: p.id, name: p.display_name, team: p.team, is_lead: p.is_lead, avatar: p.avatar })) : [];
   const key = typeof search.notice === "string" ? search.notice : "";
   const inTeam = typeof search.team === "string" && Object.hasOwn(details, search.team);
   const teamNotice = inTeam && Object.hasOwn(TEAM_NOTICES, key) ? TEAM_NOTICES[key] : null;
@@ -60,7 +65,9 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
         <div className="top">
           <div>
             <h1>Teams</h1>
-            <p className="muted">Each person is in one team. A team gives its members a default role in each app; you can still change it person by person.</p>
+            <p className="muted">{canManage
+              ? "Each person is in one team. A team gives its members a default role in each app; you can still change it person by person."
+              : "Who is in each team at Designally."}</p>
           </div>
           {canManage ? (
             <FormDialog trigger="New team" title="New team" open={formError}>
@@ -77,7 +84,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
         {notice && !formError ? (notice.tone === "ok" ? <Toast text={notice.text} /> : <p className="notice error" role="alert">{notice.text}</p>) : null}
 
         {teamNotice?.tone === "ok" ? <Toast text={teamNotice.text} /> : null}
-        <TeamBoard teams={teams} details={details} people={pickable} canManage={canManage}
+        <TeamBoard teams={cards} details={details} people={pickable} canManage={canManage} canView={canView}
           error={teamNotice?.tone === "error" ? teamNotice.text : null} />
       </main>
     </>
