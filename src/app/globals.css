@@ -5,10 +5,10 @@
    text and button. Values the reference does not show (field borders, green and red, dark mode) are ours. */
 
 :root {
-  --bg: #f8f8f8;                   /* the page */
+  --bg: #f4f5f7;                   /* the page, the undermost layer (Buk, 2026-11-03) */
   --surface: #ffffff;              /* cards on the page */
   --layer: #f3f3f3;                /* a soft fill inside a card: image tiles, pills, hover, the switch track */
-  --modal: #f8f8f8;                /* a dialog; cards inside it use --outline-strong */
+  --modal: #ffffff;                /* a dialog, white like every card (Buk, 2026-11-03); cards inside it use --outline-strong */
   --overlay: rgb(0 0 0 / 0.3);     /* behind a dialog */
   --outline: #f0f0f0;              /* a card's edge on the page */
   --outline-strong: #e9e9e9;       /* a card's edge inside a dialog, and lines between rows */
