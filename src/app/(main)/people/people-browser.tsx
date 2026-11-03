@@ -3,9 +3,8 @@
 import { Crown } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MotionConfig, motion } from "framer-motion";
 import { Avatar } from "@/components/avatar";
-import { GROW, Popup } from "@/components/popup";
+import { Popup } from "@/components/popup";
 import type { PersonRow } from "@/lib/people";
 
 type Show = "active" | "removed" | "all";
@@ -64,8 +63,6 @@ export function PeopleBrowser({ people, view, detail }: {
   const person = openId ? people.find((p) => p.id === openId) ?? null : null;
   const lastOpen = useRef<string | null>(null);
   if (openId) lastOpen.current = openId;
-  // The card the popup is shrinking back into: its words wait until it has landed.
-  const [returning, setReturning] = useState<string | null>(null);
   const titleId = useId();
   const base = view === "list" ? "/people?view=list" : "/people";
   const hrefOf = (id: string) => `${base}${view === "list" ? "&" : "?"}person=${id}`;
@@ -76,7 +73,6 @@ export function PeopleBrowser({ people, view, detail }: {
     router.push(hrefOf(id), { scroll: false });
   };
   const close = () => {
-    if (openId) setReturning(openId);
     setPending(null);
     window.history.replaceState(null, "", base);
   };
@@ -105,7 +101,7 @@ export function PeopleBrowser({ people, view, detail }: {
     (show === "all" || (show === "active") === p.is_active) && (!q || words(p).includes(q))), [people, show, q]);
 
   return (
-    <MotionConfig reducedMotion="user">
+    <>
     <div className="stack">
       <div className="people-tools">
         <label className="search">
@@ -152,18 +148,10 @@ export function PeopleBrowser({ people, view, detail }: {
             );
             return (
               <li key={p.id} style={{ "--i": Math.min(i, 12) } as React.CSSProperties}>
-                {p.id === openId ? (
-                  /* While the person is open their card is the popup; this keeps its place in the grid. */
-                  <div className="person-card placeholder" aria-hidden="true" inert>{inner}</div>
-                ) : (
-                  <motion.div layoutId={`person-${p.id}`} transition={GROW} className={`person-card${p.is_active ? "" : " faded"}`}
-                    style={{ borderRadius: 16 }} onLayoutAnimationComplete={() => { if (returning === p.id) setReturning(null); }}>
-                    <motion.div className="person-card-inner" initial={returning === p.id ? { opacity: 0 } : false}
-                      animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.16 } }}>
-                      {inner}
-                    </motion.div>
-                  </motion.div>
-                )}
+                {/* While the person is open, the popup hides this card and grows out of it (GSAP). */}
+                <div className={`person-card${p.is_active ? "" : " faded"}`} data-grow={`person-${p.id}`} inert={p.id === openId}>
+                  <div className="person-card-inner" data-grow-content>{inner}</div>
+                </div>
               </li>
             );
           })}
@@ -176,7 +164,7 @@ export function PeopleBrowser({ people, view, detail }: {
             </thead>
             <tbody>
               {shown.map((p) => (
-                <tr key={p.id} className={p.is_active ? undefined : "faded"}>
+                <tr key={p.id} className={p.is_active ? undefined : "faded"} data-grow={`person-${p.id}`}>
                   <td className="name"><a href={hrefOf(p.id)} data-person={p.id} aria-haspopup="dialog" onClick={(e) => open(e, p.id)}><Avatar avatar={p.avatar} seed={p.id} size={36} /><span>{p.display_name}</span></a></td>
                   <td>{p.email}</td>
                   <td>
@@ -199,7 +187,7 @@ export function PeopleBrowser({ people, view, detail }: {
       )}
     </div>
 
-      <Popup open={person !== null} layoutId={`person-${person?.id ?? lastOpen.current}`} labelledBy={titleId} onClose={close}
+      <Popup open={person !== null} growFrom={`person-${person?.id ?? lastOpen.current}`} labelledBy={titleId} onClose={close}
         afterClose={backToCard} className="person-modal">
         {person ? (
           <div className="stack person-popup">
@@ -218,6 +206,6 @@ export function PeopleBrowser({ people, view, detail }: {
           </div>
         ) : null}
       </Popup>
-    </MotionConfig>
+    </>
   );
 }

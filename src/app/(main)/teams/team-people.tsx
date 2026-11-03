@@ -1,5 +1,6 @@
 "use client";
 
+import { closeDialog } from "@/components/motion";
 import { forwardRef, useEffect, useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
@@ -59,7 +60,7 @@ export const TeamPeopleDialog = forwardRef<HTMLDialogElement, {
       <div className="stack">
         <div className="modal-head">
           <h2 id={titleId}>People in {teamName}</h2>
-          <button type="button" className="icon-button" aria-label="Close" onClick={(e) => (e.currentTarget.closest("dialog") as HTMLDialogElement | null)?.close()}>
+          <button type="button" className="icon-button" aria-label="Close" onClick={(e) => closeDialog(e.currentTarget.closest("dialog"))}>
             <X size={16} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>

@@ -1,23 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useLayoutEffect, useRef, useState } from "react";
+import { IN_OUT, OUT, boxOffset, gsap, reducedMotion } from "./motion";
 
-// A popup that grows out of the card it was opened from (Buk, 2026-11-03: a team, then a person: "the small card
-// going bigger into a big popup modal"). The card and the popup share one framer-motion layoutId, so pressing
-// the card grows that card into the popup, and closing shrinks it back into its place. Used by Teams and People.
+// A popup that grows out of the card it was opened from, and shrinks back into it when it closes (Buk, 2026-11-03:
+// a team, then a person: "the small card going bigger into a big popup modal"; "use that effect in all possible
+// way"; "use GSAP motion"). Used by Teams and People.
 //
-// While it is open: the page behind does not scroll, Escape closes it (unless a list or a confirmation inside
-// it is open, which Escape closes first), Tab stays inside, and afterFocus() says where focus goes after it.
-export const GROW = { type: "spring" as const, stiffness: 420, damping: 38, mass: 0.9 };
-
-//
-// `stack` (Buk, 2026-11-03, a team): no big box. The popup is a column of separate cards floating over the
-// page; the children draw the cards, the first of them carrying the layoutId of the card it grows out of, and
-// their own Close button (class "popup-close").
-export function Popup({ open, layoutId, labelledBy, onClose, afterClose, className, stack = false, children }: {
+// The card carries data-grow="<growFrom>". The box that grows is the popup's panel, or, in a `stack` popup (a
+// column of separate cards, Buk: "separated containers not inside one big container"), the child marked
+// data-grow-target. Its words (data-grow-content) fade in once it has grown; the popup's other cards
+// (data-grow-follow) rise in after it. While it is open, the page behind does not scroll, Escape closes it (unless
+// a list or a confirmation inside it is open, which Escape closes first), Tab stays inside, and afterClose() says
+// where focus goes after.
+export function Popup({ open, growFrom, labelledBy, onClose, afterClose, className, stack = false, children }: {
   open: boolean;
-  layoutId: string;              // the same id as the card it grows out of
+  growFrom: string | null;       // the data-grow value of the card it grows out of
   labelledBy: string;            // the id of the popup's title
   onClose: () => void;
   afterClose?: () => void;       // runs once it has closed, for example to put focus back on the card
@@ -25,26 +23,94 @@ export function Popup({ open, layoutId, labelledBy, onClose, afterClose, classNa
   stack?: boolean;
   children: React.ReactNode;
 }) {
+  const [shown, setShown] = useState(open);
+  // While it shrinks away, it keeps showing what it showed.
+  const kept = useRef<React.ReactNode>(children);
+  if (open) kept.current = children;
+  const growKey = useRef(growFrom);
+  if (open) growKey.current = growFrom;
   const panel = useRef<HTMLDivElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
+  const motion = useRef<gsap.core.Timeline | null>(null);
   const closeRef = useRef(onClose);
   const afterRef = useRef(afterClose);
   closeRef.current = onClose;
   afterRef.current = afterClose;
 
-  useEffect(() => {
-    if (!open) return;
+  const parts = () => {
+    const p = panel.current!;
+    const target = (stack ? p.querySelector<HTMLElement>("[data-grow-target]") : null) ?? p;
+    const source = growKey.current
+      ? [...document.querySelectorAll<HTMLElement>(`[data-grow="${CSS.escape(growKey.current)}"]`)].find((el) => !p.contains(el)) ?? null
+      : null;
+    return { target, source, content: target.querySelectorAll("[data-grow-content]"), follow: p.querySelectorAll("[data-grow-follow]") };
+  };
+
+  // Opening: the box starts as the card and grows into place; then its words, then the cards that follow.
+  useLayoutEffect(() => {
+    if (open && !shown) { setShown(true); return; }
+    if (!open || !shown || !panel.current) return;
+    motion.current?.kill();
+    const { target, source, content, follow } = parts();
+    const t = gsap.timeline();
+    motion.current = t;
+    if (backdrop.current) t.fromTo(backdrop.current, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 0);
+    const fromCard = source && !reducedMotion() && source.getBoundingClientRect().width > 0;
+    if (source) source.style.visibility = "hidden";
+    if (fromCard) {
+      t.fromTo(target, { ...boxOffset(source, target), transformOrigin: "0 0" },
+        { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: 0.62, ease: OUT, clearProps: "transform" }, 0);
+      if (content.length) t.fromTo(content, { opacity: 0 }, { opacity: 1, duration: 0.28, ease: "power1.out" }, 0.2);
+    } else {
+      t.fromTo(target, { opacity: 0, y: 10, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: OUT, clearProps: "transform,opacity" }, 0);
+    }
+    if (follow.length) t.fromTo(follow, { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.6, ease: OUT, stagger: 0.06, clearProps: "transform,opacity" }, 0.14);
+    t.call(() => panel.current?.querySelector<HTMLElement>(".popup-close")?.focus(), [], 0.05);
+    // only on opening
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, shown]);
+
+  // Closing: the words go first, the cards that follow sink away, and the box shrinks back into its card.
+  useLayoutEffect(() => {
+    if (open || !shown || !panel.current) return;
+    motion.current?.kill();
+    const { target, source, content, follow } = parts();
+    const t = gsap.timeline({
+      onComplete: () => {
+        if (source) {
+          source.style.visibility = "";
+          const words = source.querySelectorAll("[data-grow-content]");
+          if (words.length) gsap.fromTo(words, { opacity: 0 }, { opacity: 1, duration: 0.22, ease: "power1.out" });
+        }
+        setShown(false);
+        window.setTimeout(() => afterRef.current?.(), 20);
+      },
+    });
+    motion.current = t;
+    if (content.length) t.to(content, { opacity: 0, duration: 0.12, ease: "power1.in" }, 0);
+    if (follow.length) t.to(follow, { opacity: 0, y: 18, duration: 0.22, ease: "power2.in", stagger: 0.03 }, 0);
+    const toCard = source && !reducedMotion() && source.getBoundingClientRect().width > 0;
+    if (toCard) t.to(target, { ...boxOffset(source, target), transformOrigin: "0 0", duration: 0.48, ease: IN_OUT }, 0.06);
+    else t.to(target, { opacity: 0, y: 8, scale: 0.97, duration: 0.2, ease: "power2.in" }, 0);
+    if (backdrop.current) t.to(backdrop.current, { opacity: 0, duration: 0.32, ease: "power2.inOut" }, 0.1);
+    // only on closing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // While it is shown: no page scroll behind, Escape and Tab.
+  useLayoutEffect(() => {
+    if (!shown) return;
     const body = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const first = window.setTimeout(() => panel.current?.querySelector<HTMLElement>(".popup-close")?.focus(), 30);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (document.querySelector("dialog[open]") || panel.current?.querySelector('.pik-pill[aria-expanded="true"]')) return;
+        if (document.querySelector("dialog[open]") || document.querySelector(":popover-open")) return;
         e.preventDefault();
         closeRef.current();
       }
       if (e.key === "Tab" && panel.current) {
         const items = [...panel.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')]
-          .filter((el) => el.offsetParent !== null);
+          .filter((el) => el.offsetParent !== null && !el.closest("dialog:not([open])"));
         if (!items.length) return;
         const [a, z] = [items[0], items[items.length - 1]];
         if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
@@ -54,40 +120,30 @@ export function Popup({ open, layoutId, labelledBy, onClose, afterClose, classNa
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = body;
-      window.clearTimeout(first);
       document.removeEventListener("keydown", onKey);
-      window.setTimeout(() => afterRef.current?.(), 40);
     };
-  }, [open, layoutId]);
+  }, [shown]);
 
-  return (
-    <AnimatePresence initial={false}>
-      {open && stack ? (
-        <div className="popup-stack-layer" key="popup">
-          <motion.div className="popup-stack-backdrop" onClick={onClose}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }} />
-          <div ref={panel} className={`popup-stack${className ? ` ${className}` : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
-            {children}
-          </div>
+  if (!shown) return null;
+  const body = open ? children : kept.current;
+  return stack ? (
+    <div className="popup-stack-layer">
+      <div ref={backdrop} className="popup-stack-backdrop" onClick={onClose} />
+      <div ref={panel} className={`popup-stack${className ? ` ${className}` : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+        {body}
+      </div>
+    </div>
+  ) : (
+    <div className="team-modal-layer">
+      <div ref={backdrop} className="team-modal-backdrop" onClick={onClose} />
+      <div ref={panel} className={`team-modal${className ? ` ${className}` : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+        <div className="team-modal-body" data-grow-content>
+          <button type="button" className="icon-button team-modal-close popup-close" aria-label="Close" onClick={onClose}>
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+          </button>
+          {body}
         </div>
-      ) : open ? (
-        <div className="team-modal-layer" key="popup">
-          <motion.div className="team-modal-backdrop" onClick={onClose}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
-          <motion.div ref={panel} layoutId={layoutId} transition={GROW} className={`team-modal${className ? ` ${className}` : ""}`}
-            role="dialog" aria-modal="true" aria-labelledby={labelledBy} style={{ borderRadius: 16 }}>
-            {/* The words arrive once the box has grown, so they are never seen stretched. */}
-            <motion.div className="team-modal-body"
-              initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.2, delay: 0.14 } }}
-              exit={{ opacity: 0, transition: { duration: 0.08 } }}>
-              <button type="button" className="icon-button team-modal-close popup-close" aria-label="Close" onClick={onClose}>
-                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
-              </button>
-              {children}
-            </motion.div>
-          </motion.div>
-        </div>
-      ) : null}
-    </AnimatePresence>
+      </div>
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { closeDialog } from "@/components/motion";
 import { useRef } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -51,7 +52,7 @@ export function VisibilityToggle({ action, personId, personName, appKey, appName
               : `${personName} gets the ${roleName ?? "first"} role in ${appName}, and it shows on their Home. You can change the role on the app's page.`}
           </p>
           <div className="row modal-actions">
-            <button type="button" className="secondary" onClick={() => dialog.current?.close()}>Cancel</button>
+            <button type="button" className="secondary" onClick={() => closeDialog(dialog.current)}>Cancel</button>
             <Confirm danger={on}>{on ? `Hide ${appName}` : `Make visible`}</Confirm>
           </div>
         </form>

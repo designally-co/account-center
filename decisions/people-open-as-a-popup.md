@@ -20,7 +20,7 @@ A person's details were their own page, `/people/<id>`. Since earlier the same d
 
 ## Decision
 
-- **A person opens as a popup on the People page**, at `/people?person=<id>`. Their card and the popup share one framer-motion layoutId, so the card grows into the popup and shrinks back when it closes. The browser's Back closes it, a save inside it comes back to the same address, and old `/people/<id>` links open it.
+- **A person opens as a popup on the People page**, at `/people?person=<id>`. The card grows into the popup and shrinks back when it closes (framer-motion at first; GSAP since later the same day, `decisions/motion-with-gsap.md`). The browser's Back closes it, a save inside it comes back to the same address, and old `/people/<id>` links open it.
 - **The popup appears at once.** It draws the face, the name, the email, the status and the app count from the People list straight away. The rest (`PersonView`, the old page's body) is read from the server for that one person only, with soft grey shapes until it arrives.
 - **One popup for both pages:** `src/components/popup.tsx` (the grow, Escape, Tab kept inside, no page scroll behind, focus back on the card) is used by Teams and People.
 - **A person's app page** (`/people/<id>/apps/<app>`) stays a page of its own; its back link opens the person's popup again.

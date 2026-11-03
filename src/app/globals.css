@@ -614,14 +614,14 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 
 
 /* Teams: a team opens as a popup that grows out of its card (Buk, 2026-11-03). The card and the popup are one
-   framer-motion layoutId, so only their box moves; the popup's words fade in once it has grown. */
+   box, so only the box moves (GSAP, src/components/popup.tsx); the popup's words fade in once it has grown. */
 .team-cards > li { display: grid; }
 .team-card { height: 100%; }
 .team-card-inner { display: grid; gap: 10px; align-content: start; }
-.team-card.placeholder { visibility: hidden; }
 .team-modal-layer { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; }
 .team-modal-backdrop { position: absolute; inset: 0; background: var(--overlay); }
 .team-modal {
+  border-radius: 16px;
   position: relative; width: min(760px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain;
   background: var(--surface); border: 1px solid var(--outline-strong); box-shadow: var(--shadow-modal);
 }
@@ -654,7 +654,7 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 .team-stack { display: grid; gap: 12px; }
 /* No shadows and no outlines (Buk, 2026-11-03: "do not use shadow"; "remove all container outlines"): a card is
    its surface on the soft veil, and what sits inside a card gets a soft fill instead of a line. */
-.stack-card { background: var(--surface); border: none; }
+.stack-card { background: var(--surface); border: none; border-radius: 20px; }
 .team-head-card { padding: 22px 24px 22px; }
 p.stack-card.notice { margin: 0; border-radius: 16px; }
 @media (max-width: 560px) {
@@ -680,11 +680,15 @@ dialog.people-dialog, .team-sheet dialog.modal { box-shadow: none; border: none;
 .team-people-label span { margin-left: 4px; font-weight: 500; }
 .team-people-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
 .team-faces { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
-.team-face { position: relative; background: color-mix(in oklab, var(--fg) 4%, var(--surface)); border: none; overflow: hidden; transition: background 0.18s; }
+.team-face { position: relative; border-radius: 14px; background: color-mix(in oklab, var(--fg) 4%, var(--surface)); border: none; overflow: hidden; transition: background 0.18s; }
 .team-face:has(a.team-face-link:hover) { background: color-mix(in oklab, var(--fg) 7%, var(--surface)); }
 .team-face-link { display: grid; justify-items: center; gap: 8px; padding: 14px 10px 12px; text-align: center; color: var(--fg); text-decoration: none; }
 a.team-face-link:hover strong { text-decoration: underline; }
-.team-face-avatar { display: inline-flex; border-radius: 50%; }
+/* The face's size is set here, not on the picture, so it can shrink smoothly into the row of faces. */
+.team-face-avatar { display: inline-flex; width: 48px; height: 48px; border-radius: 50%; }
+.team-face-avatar img { width: 100%; height: 100%; }
+.team-faces.compact .team-face-avatar { width: 30px; height: 30px; }
+.team-faces.compact .team-face { border-radius: 999px; }
 .team-face-text { display: grid; gap: 2px; min-width: 0; max-width: 100%; }
 .team-face-text strong { font-size: 13.5px; font-weight: 600; }
 .team-face-email { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -712,7 +716,8 @@ button.liquid-head:focus-visible { outline: 2px solid var(--fg); outline-offset:
 .liquid-name { display: grid; gap: 1px; flex: 1; min-width: 0; }
 .liquid-name strong { font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; }
 .liquid-summary { font-size: 12.5px; color: var(--muted); }
-.liquid-chevron { display: inline-flex; color: var(--muted); }
+.liquid-chevron { display: inline-flex; color: var(--muted); transition: transform 0.45s cubic-bezier(0.65, 0, 0.35, 1); }
+.liquid-chevron.up { transform: rotate(180deg); }
 .liquid-body { overflow: hidden; }
 .liquid-inner { display: grid; gap: 4px; padding: 0 16px 14px 58px; }
 .liquid-role { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0 8px; font-weight: 500; font-size: 13.5px; }
@@ -759,7 +764,6 @@ dialog.people-dialog { width: min(480px, calc(100vw - 32px)); }
 .person-card, .person-card-inner { justify-items: center; text-align: center; }
 .person-card-text { justify-items: center; max-width: 100%; }
 .person-card-meta { justify-content: center; }
-.person-card.placeholder { visibility: hidden; }
 .team-modal.person-modal { width: min(920px, 100%); }
 .person-popup { gap: 22px; }
 .person-popup .person-head { padding-right: 40px; margin: 0; }
