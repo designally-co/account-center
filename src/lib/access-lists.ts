@@ -83,12 +83,22 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
     select app_key, role_key from account.grants
     where person_id = ${personId}::uuid and (${onlyApp}::text is null or app_key = ${onlyApp})
     order by app_key, role_key`;
-  const teamRoles = await sql<{ app_key: string; role_key: string; team_name: string }[]>`
-    select tr.app_key, tr.role_key, t.name as team_name
+  // What each of the person's teams gives, action by action (its role plus its single changes, the database's
+  // own account.team_allows), with the team's role and whether it has single changes in that app.
+  const teamActs = await sql<{ team_name: string; app_key: string; action_key: string }[]>`
+    select t.name as team_name, a.app_key, a.key as action_key
     from account.team_members m
     join account.teams t on t.id = m.team_id and t.is_active
-    join account.team_roles tr on tr.team_id = m.team_id
-    where m.person_id = ${personId}::uuid and (${onlyApp}::text is null or tr.app_key = ${onlyApp})`;
+    join account.actions a on a.app_key <> 'account_center' and (${onlyApp}::text is null or a.app_key = ${onlyApp})
+    where m.person_id = ${personId}::uuid and account.team_allows(t.id, a.key)`;
+  const teamRoles = await sql<{ app_key: string; role_key: string | null; team_name: string; changed: boolean }[]>`
+    select x.app_key, tr.role_key, t.name as team_name,
+           exists (select 1 from account.team_actions c where c.team_id = t.id and c.app_key = x.app_key) as changed
+    from account.team_members m
+    join account.teams t on t.id = m.team_id and t.is_active
+    join (select team_id, app_key from account.team_roles union select team_id, app_key from account.team_actions) x on x.team_id = t.id
+    left join account.team_roles tr on tr.team_id = t.id and tr.app_key = x.app_key
+    where m.person_id = ${personId}::uuid and (${onlyApp}::text is null or x.app_key = ${onlyApp})`;
   const [{ is_admin: isAdmin }] = await sql<{ is_admin: boolean }[]>`
     select exists (select 1 from account.grants where person_id = ${personId}::uuid and app_key = 'account_center' and role_key = 'admin') as is_admin`;
   const optOuts = await sql<{ app_key: string }[]>`
@@ -103,19 +113,23 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
 
   return apps.map((app) => {
     // Where access starts (the same rule as account.base_allows): the person's own role in this app; else,
-    // unless an admin chose "no access" here, their teams' default roles. A person can be in several teams
-    // (Buk, 2026-11-03): then they get the actions of every team's role, as the database does, and the
-    // biggest of those roles names it.
+    // unless an admin chose "no access" here, what their teams give. A person can be in several teams (Buk,
+    // 2026-11-03), and a team can have single changes on its role (Buk, 2026-11-03): the person gets every
+    // action any of their teams gives, as the database does, and the team that gives the most names it.
     const appRoles = roles.filter((r) => r.app_key === app.key).map(({ key, name, description, actions }) => ({ key, name, description, actions }));
     const roleKeys = grants.filter((g) => g.app_key === app.key).map((g) => g.role_key);
-    const fromTeams = teamRoles.filter((t) => t.app_key === app.key)
-      .map((t) => ({ team: t.team_name, role: appRoles.find((r) => r.key === t.role_key) }))
-      .filter((t): t is { team: string; role: (typeof appRoles)[number] } => t.role !== undefined)
-      .sort((a, b) => b.role.actions.length - a.role.actions.length || a.team.localeCompare(b.team));
-    const teamRole = fromTeams.length
-      ? { ...fromTeams[0].role, actions: [...new Set(fromTeams.flatMap((t) => t.role.actions))].sort() }
-      : undefined;
-    const team = teamRole ? { name: fromTeams[0].team, roleName: teamRole.name } : null;
+    const acts = teamActs.filter((t) => t.app_key === app.key);
+    const byTeam = [...new Set(acts.map((t) => t.team_name))]
+      .map((name) => ({ name, count: acts.filter((t) => t.team_name === name).length }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const lead = byTeam[0] ? teamRoles.find((t) => t.app_key === app.key && t.team_name === byTeam[0].name) : undefined;
+    const leadRole = lead?.role_key ? appRoles.find((r) => r.key === lead.role_key) : undefined;
+    const teamRole = byTeam.length ? {
+      name: leadRole ? `${leadRole.name}${lead?.changed ? " + changes" : ""}` : "Single actions",
+      description: leadRole?.description ?? "",
+      actions: [...new Set(acts.map((t) => t.action_key))].sort(),
+    } : undefined;
+    const team = teamRole ? { name: byTeam[0].name, roleName: teamRole.name } : null;
     const optedOut = optOuts.some((o) => o.app_key === app.key);
     const baseKey = roleKeys.length ? roleKeys[0] : !optedOut && team ? TEAM_ROLE : "";
     const allByAdmin = isAdmin && app.key !== "account_center";

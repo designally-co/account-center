@@ -516,4 +516,37 @@ delete from account.team_members m using account.people p where m.person_id = p.
 commit;
 select pg_temp.ok(not account.can_user('00000000-0000-0000-0000-0000000000f3', 'brand.tview'), 'a person in no team gets no team access');
 
+-- Single changes on a team's default access (20261103120000).
+begin;
+select set_config('account.actor', 'test-admin', true);
+insert into account.team_members (person_id, team_id, is_primary) select p.id, t.id, true from account.people p, account.teams t where p.email = 'uma@example.com' and t.name = 'Branding';
+commit;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f3', 'brand.tedit'), 'a team''s role gives its actions');
+begin;
+select set_config('account.actor', 'test-admin', true);
+insert into account.team_actions (team_id, app_key, action_key, allowed) select id, 'brand', 'brand.tedit', false from account.teams where name = 'Branding';
+commit;
+select pg_temp.ok(not account.can_user('00000000-0000-0000-0000-0000000000f3', 'brand.tedit') and account.can_user('00000000-0000-0000-0000-0000000000f3', 'brand.tview'),
+                  'a team''s single change blocks one action of its role');
+begin;
+select set_config('account.actor', 'test-admin', true);
+insert into account.team_members (person_id, team_id, is_primary) select p.id, t.id, false from account.people p, account.teams t where p.email = 'uma@example.com' and t.name = 'Digital';
+insert into account.team_actions (team_id, app_key, action_key, allowed) select id, 'brand', 'brand.tedit', true from account.teams where name = 'Digital';
+commit;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f3', 'brand.tedit'), 'another of the person''s teams that allows the action gives it');
+select pg_temp.ok(not account.team_allows((select id from account.teams where name = 'Branding'), 'brand.tedit')
+                  and account.team_allows((select id from account.teams where name = 'Digital'), 'brand.tedit'), 'each team answers for itself');
+do $$ begin
+  insert into account.team_actions (team_id, app_key, action_key, allowed) select id, 'account_center', 'account_center.view', true from account.teams where name = 'Digital';
+  raise exception 'FAILED: a team was given an Account Center action';
+exception when check_violation then raise notice 'ok: a team can never give an Account Center action';
+end $$;
+select pg_temp.ok((select count(*) from account.log where table_name = 'team_actions' and actor = 'test-admin') = 2, 'a team''s single changes are logged');
+select pg_temp.ok(not has_function_privilege('portal_check', 'account.team_allows(uuid, text)', 'execute'), 'no app can ask a team''s access directly');
+begin;
+select set_config('account.actor', 'test-admin', true);
+delete from account.team_actions;
+delete from account.team_members m using account.people p where m.person_id = p.id and p.email = 'uma@example.com';
+commit;
+
 select 'ALL CHECKS PASSED' as result;

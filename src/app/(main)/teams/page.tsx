@@ -43,12 +43,13 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   const sql = db();
   const [teams, canManage, canView, search] = await Promise.all([
     listTeams(sql), canUser(sql, userId, ACTIONS.manage), canUser(sql, userId, ACTIONS.view), searchParams]);
-  // Every team's popup is ready on the page, so opening one asks nothing of the server. Emails never reach
-  // the browser here (nothing on the page shows them), and a member's page gets no settings at all.
+  // Every team's popup is ready on the page, so opening one asks nothing of the server. A person's email reaches
+  // the page only for someone who may view Account Center (the popup's tiles show it), and a member's page gets
+  // no settings at all.
   const details: Record<string, TeamDetail> = Object.fromEntries(
     (await Promise.all(teams.map((t) => getTeam(sql, t.id)))).filter((d): d is TeamDetail => d !== null)
-      .map((d) => [d.id, { ...d, members: d.members.map((m) => ({ ...m, email: "" })), defaults: canManage ? d.defaults : [] }]));
-  const cards = teams.map((t) => ({ ...t, members: t.members.map((m) => ({ ...m, email: "" })), defaults: canManage ? t.defaults : [] }));
+      .map((d) => [d.id, { ...d, members: d.members.map((m) => ({ ...m, email: canView ? m.email : "" })), defaults: canManage ? d.defaults : [] }]));
+  const cards = teams.map((t) => ({ ...t, members: t.members.map((m) => ({ ...m, email: "" })), defaults: [] }));
   // Who can be put in a team: everyone active, with their primary and extra teams. Admins only.
   const pickable: PickPerson[] = canManage ? (await listPeople(sql)).filter((p) => p.is_active)
     .map((p) => ({ id: p.id, name: p.display_name, team: p.team, extra_teams: p.extra_teams, avatar: p.avatar })) : [];
@@ -66,7 +67,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           <div>
             <h1>Teams</h1>
             <p className="muted">{canManage
-              ? "Each person is in one team. A team gives its members a default role in each app; you can still change it person by person."
+              ? "Each person has a primary team and can be in more. A team gives its people a default access in each app; you can still change it person by person."
               : "Who is in each team at Designally."}</p>
           </div>
           {canManage ? (

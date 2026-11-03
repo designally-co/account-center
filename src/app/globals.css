@@ -879,7 +879,7 @@ button.copy:hover { opacity: 1; background: var(--layer); }
   background: var(--surface); border: 1px solid var(--outline-strong); box-shadow: var(--shadow-modal);
 }
 .team-modal-body { position: relative; padding: 28px 28px 32px; }
-.team-modal-close { position: absolute; top: 18px; right: 18px; }
+.team-modal-close { position: absolute; top: 18px; right: 18px; z-index: 2; }
 .team-detail { gap: 22px; }
 .team-detail-head { display: grid; gap: 4px; padding-right: 40px; }
 .team-detail-title { font-size: 28px; line-height: 1.15; letter-spacing: -0.025em; }
@@ -887,6 +887,81 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 /* Cards inside the popup take the dialog's stronger edge and no fill of their own. */
 .team-modal .panel { background: transparent; border-color: var(--outline-strong); }
 .team-modal .team-members li { border-color: var(--outline-strong); }
+/* Teams (Buk, 2026-11-03, his layout): the card is the team's name large, its description and a row of faces. */
+.teams-grid .team-card { gap: 8px; padding: 26px 28px 24px; border-radius: 20px; }
+.teams-grid .team-card-name { font-size: 26px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.15; }
+.teams-grid .team-card-name::after { border-radius: 20px; }
+.team-card-desc { margin: 0; color: var(--fg-2); font-size: 15px; line-height: 1.45; max-width: 36ch; }
+.teams-grid .team-card-avatars { margin-top: 18px; }
+.teams-grid .team-card-avatars > span { margin-right: -10px; position: relative; }
+.teams-grid .team-card-avatars .more { margin-left: 16px; font-size: 13px; color: var(--muted); }
+
+/* A team's popup: the name and description, its people as tiles that shrink into a row of faces while an app is
+   open, and its default access as a stacked "liquid" accordion. */
+.team-sheet { gap: 20px; }
+.team-sheet-head { position: relative; display: grid; gap: 6px; padding-right: 96px; }
+.team-sheet-title { margin: 0; font-size: 30px; line-height: 1.12; letter-spacing: -0.028em; }
+.team-sheet-desc { margin: 0; color: var(--fg-2); font-size: 15px; line-height: 1.45; max-width: 46ch; }
+.team-sheet-more { position: absolute; top: -10px; right: 44px; }
+.team-sheet-menu { transform-origin: top right; }
+.team-sheet-menu:not(:popover-open) { transform: translateY(-4px) scale(0.97); }
+.team-people { display: grid; gap: 12px; }
+.team-people-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
+.team-faces { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.team-face { position: relative; background: var(--surface); border: 1px solid var(--outline-strong); overflow: hidden; }
+.team-face-link { display: grid; justify-items: center; gap: 10px; padding: 18px 12px 16px; text-align: center; color: var(--fg); text-decoration: none; }
+a.team-face-link:hover strong { text-decoration: underline; }
+.team-face-avatar { display: inline-flex; border-radius: 50%; }
+.team-face-text { display: grid; gap: 2px; min-width: 0; max-width: 100%; }
+.team-face-text strong { font-size: 15px; font-weight: 600; }
+.team-face-email { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-face-lead { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px;
+  border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--fg); color: var(--surface); }
+/* While an app is open the tiles become a row of overlapping faces. */
+.team-faces.compact { display: flex; gap: 0; padding-left: 4px; }
+.team-faces.compact .team-face { margin-left: -10px; border: none; background: transparent; overflow: visible; }
+.team-faces.compact .team-face:first-child { margin-left: 0; }
+.team-faces.compact .team-face-link { padding: 0; }
+.team-faces.compact .team-face-avatar { box-shadow: 0 0 0 2px var(--surface); }
+
+.team-apps { display: grid; gap: 12px; }
+.team-apps-title { margin: 4px 0 0; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.team-apps-title .small-text { font-weight: 400; }
+.liquid-card { background: var(--surface); border: 1px solid var(--outline-strong); overflow: hidden; }
+.liquid-card.open { box-shadow: var(--shadow-hover); }
+.liquid-item + .liquid-item { border-top: 1px solid var(--outline); }
+button.liquid-head { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: none; border-radius: 0;
+  background: transparent; color: var(--fg); text-align: left; font-weight: 400; }
+button.liquid-head:hover { opacity: 1; background: var(--layer); }
+button.liquid-head:active { transform: none; }
+button.liquid-head:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; }
+.liquid-name { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.liquid-name strong { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.liquid-summary { font-size: 13px; color: var(--muted); }
+.liquid-chevron { display: inline-flex; color: var(--muted); }
+.liquid-body { overflow: hidden; }
+.liquid-inner { display: grid; gap: 6px; padding: 2px 18px 16px 68px; }
+.liquid-role { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 10px; font-weight: 500; font-size: 14px; }
+.liquid-role select { max-width: 60%; }
+.liquid-actions { list-style: none; margin: 0; padding: 0; }
+.liquid-actions li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 0; border-top: 1px solid var(--outline); }
+.liquid-action-text { font-size: 14px; line-height: 1.4; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.liquid-changed { font-size: 11px; padding: 1px 8px; }
+/* Allow or block one action: a soft pair of round buttons; the chosen one fills (green) or rings (red). */
+.allow-switch { display: inline-flex; flex: none; gap: 2px; padding: 3px; border-radius: 999px; background: var(--layer); }
+.allow-switch button { width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 50%; border: 1.5px solid transparent;
+  background: transparent; color: var(--muted); transition: background 0.18s, color 0.18s, border-color 0.18s, transform 0.15s var(--ease); }
+.allow-switch button:hover { opacity: 1; color: var(--fg); }
+.allow-switch button:active { transform: scale(0.88); }
+.allow-switch .allow-yes.on { background: var(--ok); border-color: var(--ok); color: var(--on-ok, #ffffff); }
+.allow-switch .allow-no.on { background: var(--surface); border-color: var(--error); color: var(--error); }
+.allow-switch button:focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
+@media (max-width: 560px) {
+  .liquid-inner { padding-left: 18px; }
+  .team-sheet-head { padding-right: 84px; }
+  .team-faces { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
+
 /* People: a person opens as a popup that grows out of their card (Buk, 2026-11-03), like a team. */
 .people-cards > li { display: grid; }
 .person-card { height: 100%; }
