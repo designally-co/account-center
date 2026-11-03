@@ -111,50 +111,77 @@ select {
 select:disabled { cursor: default; opacity: 0.7; }
 .field { display: grid; gap: 6px; font-size: 14px; font-weight: 500; }
 
-/* Navigation: one row on every screen. The mark, the page links (they scroll sideways when a phone is
-   too narrow) and your avatar, which opens the account menu. */
-.nav {
-  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px 16px;
-  padding: 10px max(16px, env(safe-area-inset-left));
-  background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--outline);
+/* Navigation: a slim rail of icons on the left (Buk, 2026-11-03, after an icons-only sidebar with a dark label
+   and a shortcut on hover). The mark at the top, the pages and your avatar in the middle. On a phone the same
+   icons are a bar along the bottom, where a thumb reaches them. */
+body:has(.rail) { padding-left: 76px; }
+.rail {
+  position: fixed; z-index: 20; top: 0; bottom: 0; left: 0; width: 76px; display: flex; flex-direction: column; align-items: center;
+  padding: 18px 0; background: var(--bg); border-right: 1px solid var(--outline);
 }
-.nav .brand { display: inline-flex; align-items: center; gap: 10px; flex: none; font-weight: 600; letter-spacing: -0.02em; color: var(--fg); text-decoration: none; }
-.nav .brand .mark { transition: transform 0.4s var(--ease-out); }
-.nav .brand:hover .mark { transform: rotate(-8deg) scale(1.05); }
-.nav-links { position: relative; display: flex; gap: 2px; align-items: center; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.nav-links::-webkit-scrollbar { display: none; }
-.nav-links a { position: relative; z-index: 1; flex: none; color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500;
-  padding: 6px 12px; border-radius: var(--radius-control); transition: color 0.2s; }
-.nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--fg); }
-/* The soft highlight under the current page slides to the next one. */
-.nav-pill { position: absolute; left: 0; top: 50%; height: 32px; margin-top: -16px; border-radius: var(--radius-control); background: var(--layer);
-  transition: transform 0.35s var(--ease-out), width 0.35s var(--ease-out); }
-.who { flex: none; }
-.who-button { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid transparent;
-  background: transparent; color: var(--fg); font-size: 14px; font-weight: 500; }
-.who-button:hover { opacity: 1; background: var(--layer); }
-.who-button .avatar { transition: transform 0.3s var(--ease-out); }
-.who-button:hover .avatar { transform: rotate(-6deg); }
-.who-chevron { color: var(--muted); transition: transform 0.25s var(--ease-out); }
-.who:has(.menu:popover-open) .who-chevron { transform: rotate(180deg); }
-.who:has(.menu:popover-open) .who-button { background: var(--layer); }
+.rail-mark { display: grid; place-items: center; border-radius: 10px; }
+.rail-mark .mark { transition: transform 0.4s var(--ease-out); }
+.rail-mark:hover .mark { transform: rotate(-8deg) scale(1.05); }
+.rail-items { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; margin: auto 0; }
+.rail-item {
+  position: relative; z-index: 1; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: none; border-radius: 12px;
+  background: transparent; color: var(--muted); text-decoration: none; transition: color 0.2s, background 0.2s;
+}
+.rail-item svg { transition: transform 0.3s var(--ease-out); }
+.rail-item:hover { opacity: 1; color: var(--fg); background: color-mix(in srgb, var(--layer) 60%, transparent); }
+.rail-item:hover svg { transform: scale(1.08); }
+.rail-item[aria-current="page"] { color: var(--fg); }
+.rail-item[aria-current="page"]:hover { background: transparent; }
+.rail-item:active { transform: scale(0.94); }
+.rail-item:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+/* The soft square behind the current page slides to the next one. */
+.rail-pill { position: absolute; left: 0; top: 0; border-radius: 12px; background: var(--layer);
+  transition: transform 0.35s var(--ease-out), width 0.35s var(--ease-out), height 0.35s var(--ease-out); }
+.rail-avatar { margin-top: 6px; }
+.rail-avatar .avatar { transition: transform 0.3s var(--ease-out); }
+.rail-avatar:hover .avatar { transform: rotate(-6deg); }
+.rail:has(.menu:popover-open) .rail-avatar { background: var(--layer); }
+/* The label that comes out of an icon: a dark pill with the page's name and its key. */
+.rail-tip {
+  position: absolute; left: calc(100% + 12px); top: 50%; display: flex; align-items: center; gap: 10px; white-space: nowrap;
+  padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--fg); color: var(--bg); font-size: 13px; font-weight: 600;
+  letter-spacing: -0.01em; pointer-events: none; opacity: 0; transform: translate(-6px, -50%) scale(0.96); transform-origin: left center;
+  transition: opacity 0.14s, transform 0.22s var(--ease-out); box-shadow: 0 8px 24px -10px rgb(0 0 0 / 0.35);
+}
+.rail-avatar .rail-tip { padding-right: 12px; }
+.rail-tip kbd { font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1; color: color-mix(in srgb, var(--bg) 60%, var(--fg)); font-variant-numeric: tabular-nums; }
+.rail-item:hover .rail-tip, .rail-item:focus-visible .rail-tip { opacity: 1; transform: translate(0, -50%); transition-delay: 0.08s; }
+.rail:has(.menu:popover-open) .rail-tip { display: none; }
 
-/* The progress line under the bar: it runs while the next page loads, then fills and fades. */
-.nav-progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background: var(--fg); opacity: 0; pointer-events: none; }
+/* The progress line at the top of the window: it runs while the next page loads, then fills and fades. */
+.nav-progress { position: fixed; z-index: 60; left: 0; top: 0; height: 2px; width: 0; background: var(--fg); opacity: 0; pointer-events: none; }
 .nav-progress.busy { opacity: 1; width: 82%; transition: width 6s cubic-bezier(0.05, 0.7, 0.1, 1), opacity 0.1s; }
 .nav-progress.done { opacity: 0; width: 100%; transition: width 0.2s ease-out, opacity 0.3s 0.15s; }
 
-/* The account menu: a popover in the top layer (Escape and a click outside close it). It grows from the
-   avatar's corner. */
+@media (max-width: 720px) {
+  body:has(.rail) { padding-left: 0; padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+  .rail {
+    top: auto; right: 0; width: auto; height: calc(64px + env(safe-area-inset-bottom)); flex-direction: row; justify-content: center;
+    padding: 0 8px env(safe-area-inset-bottom); border-right: none; border-top: 1px solid var(--outline);
+    background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(14px);
+  }
+  .rail-mark { display: none; }
+  .rail-items { flex-direction: row; gap: 14px; margin: 0; }
+  .rail-avatar { margin: 0 0 0 4px; }
+  .rail-tip { display: none; }
+}
+
+/* The account menu: a popover in the top layer (Escape and a click outside close it). It opens beside your
+   avatar in the rail (above it on a phone); the rail sets where. */
 .menu {
-  position: fixed; inset: auto; top: 58px; right: max(12px, env(safe-area-inset-right)); margin: 0; z-index: 30;
+  position: fixed; inset: auto; top: 58px; left: 88px; margin: 0; z-index: 30;
   width: 240px; padding: 6px; border: 1px solid var(--outline-strong); border-radius: 14px; background: var(--surface); color: var(--fg);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 16px 40px -16px rgb(0 0 0 / 0.22);
-  transform-origin: top right; opacity: 1; transform: none;
+  transform-origin: left center; opacity: 1; transform: none;
   transition: opacity 0.16s, transform 0.22s var(--ease-out), overlay 0.22s allow-discrete, display 0.22s allow-discrete;
 }
-.menu:not(:popover-open) { opacity: 0; transform: translateY(-4px) scale(0.97); }
-@starting-style { .menu:popover-open { opacity: 0; transform: translateY(-4px) scale(0.97); } }
+.menu:not(:popover-open) { opacity: 0; transform: translateX(-6px) scale(0.97); }
+@starting-style { .menu:popover-open { opacity: 0; transform: translateX(-6px) scale(0.97); } }
 .menu-head { display: flex; align-items: center; gap: 10px; padding: 8px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--outline); }
 .menu form { margin: 0; }
 .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: none; border-radius: var(--radius-control);
@@ -195,7 +222,7 @@ button.menu-item:active { transform: none; }
 .maker-body { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
 .maker-preview {
   display: grid; justify-items: center; gap: 16px; padding: 24px; background: var(--surface); border: 1px solid var(--outline);
-  border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 84px;
+  border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 24px;
 }
 .maker-preview img { width: 100%; max-width: 232px; height: auto; border-radius: 50%; box-shadow: 0 0 0 1px var(--outline); animation: pop 0.3s var(--ease); }
 @keyframes pop { from { transform: scale(0.96); } }
@@ -360,12 +387,6 @@ form.inline input { padding: 6px 12px; font-size: 14px; width: 200px; }
 @media (max-width: 560px) {
   h1 { font-size: 28px; }
   .app-body { padding-left: 16px; padding-right: 16px; }
-  .nav .brand-text, .who-name, .who-chevron { display: none; }
-  /* On a phone the mark is the way Home, so the four page links fit on one row. */
-  .nav-links a:first-of-type:not(:only-of-type) { display: none; }
-  .nav-links a { padding: 6px 10px; }
-  .who-button { padding: 2px; }
-  .nav { gap: 8px; }
   .app-head { display: grid; grid-template-columns: 1fr auto; padding: 12px 16px 12px 8px; }
   .app-head > select, .app-head > .head-note { grid-column: 1 / -1; justify-self: start; margin-left: 8px; }
   .app-head > .pill { grid-column: 2; grid-row: 1; }
@@ -531,7 +552,7 @@ button.icon-button:hover { opacity: 1; background: var(--layer); color: var(--fg
 .search input { width: 100%; padding: 9px 40px 9px 38px; font-size: 14px; border-radius: 999px; }
 .search input::-webkit-search-cancel-button { cursor: pointer; }
 .search kbd { position: absolute; right: 10px; display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 6px;
-  border: 1px solid var(--input-outline); background: var(--layer); color: var(--muted); font: 500 12px/1 inherit; pointer-events: none; }
+  border: 1px solid var(--input-outline); background: var(--layer); color: var(--muted); font-family: inherit; font-size: 12px; font-weight: 500; line-height: 1; pointer-events: none; }
 .seg-tabs { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--layer); }
 .seg-tabs label { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 14px; font-weight: 500;
   color: var(--muted); cursor: pointer; transition: background 0.2s, color 0.2s, box-shadow 0.2s; }
@@ -570,7 +591,7 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 
 /* The reduced-motion rule above stops every animation and transition; these keep their meaning without it. */
 @media (prefers-reduced-motion: reduce) {
-  .nav-pill { transition: none; }
+  .rail-pill { transition: none; }
   .copy.done .copy-sheets { display: none; }
 }
 

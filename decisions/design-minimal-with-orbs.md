@@ -24,6 +24,7 @@ sources:
   - "Buk, 2026-11-02 (find the best UX for the whole site; think about how the user will use it while making the app look interesting with microinteractions)"
   - "Buk, 2026-11-02 (I don't want to use the orb)"
   - "Buk, 2026-11-02 (I clicked a button and I need to wait too long)"
+  - "Buk, 2026-11-03 (I don't want the header bar, use a minimal side bar like this, with a screenshot of an icons-only sidebar)"
   - src/components/mark.tsx
   - src/components/app-icon.tsx
   - src/components/nav.tsx
@@ -46,7 +47,7 @@ sources:
 - **Toasts for success:** a success message (Avatar saved, Saved, Invitation sent, Password saved, Removed) is a small light toast at the bottom of the screen that goes away after about 4 seconds (`src/components/toast.tsx`). Errors stay next to what they are about, because people need time to read them and act. A message that came in the address is taken out of it, so a reload does not show it again.
 - **People as cards by default:** the People page shows a grid of person cards (avatar, name, email, status, employment type, number of apps); a Grid / List switch keeps the table one click away (`?view=list`). Neither view can remove anyone: **Remove** is only at the bottom of each person's page, behind a confirm step, and never on your own page.
 - **Built around how people use it** (Buk, 2026-11-02, after a review of every page as an admin and as a team member):
-  - The bar stays on every signed-in page (it lives in the shared layout `src/app/(main)/layout.tsx`, not in each page), in one row on a phone (the mark stands for Home there). Your avatar opens a menu: Your avatar, Change password, Sign out.
+  - The navigation stays on every signed-in page (it lives in the shared layout `src/app/(main)/layout.tsx`, not in each page). Since 2026-11-03 it is a slim rail of icons on the left instead of a bar on top (Buk: "I don't want the header bar, use a minimal side bar", with a reference of an icons-only sidebar whose icons show a dark label and a shortcut on hover): the mark at the top; Home, People, Teams, Subscriptions and your avatar in the middle; a soft square behind the current page that slides to the next; a dark label with the name and key (Alt or ⌥ with 1 to 4) on hover; on a phone the same icons along the bottom. Your avatar opens a menu: Your avatar, Change password, Sign out (`src/components/nav.tsx`).
   - People: a search box (name, email, work email, team; "/" jumps to it) and Active / Removed / All, Active first, because an admin comes to find one person.
   - A person's page shows Apps before shared subscriptions, because access is what the admin came for.
   - Home: each shared tool has Copy (the shared email) and Open, because that is what a person does with it.

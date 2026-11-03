@@ -3,9 +3,9 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-// A thin line under the bar that starts the moment a link is clicked and finishes when the next page is on
-// screen, so a click never looks ignored, even when the server is slow (Buk, 2026-11-02: "I clicked a button
-// and I need to wait too long").
+// A thin line along the top of the window that starts the moment a link is clicked and finishes when the next
+// page is on screen, so a click never looks ignored, even when the server is slow (Buk, 2026-11-02: "I clicked
+// a button and I need to wait too long").
 export function NavProgress() {
   const path = usePathname();
   const search = useSearchParams();
