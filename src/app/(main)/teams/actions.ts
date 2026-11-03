@@ -47,6 +47,6 @@ export async function setTeamMemberAction(teamId: string, personId: string, on: 
   const { me } = await requireAction(ACTIONS.manage);
   const result = on ? await addToTeam(db(), me.person_id, personId, teamId) : await takeOffTeam(db(), me.person_id, personId, teamId);
   revalidatePath("/teams");
-  if (isUuid(personId)) revalidatePath(`/people/${personId}`);
+  revalidatePath("/people");
   return result;
 }

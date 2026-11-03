@@ -24,7 +24,7 @@ export function NewPersonForm({ kinds }: { kinds: { key: string; name: string }[
         <h2>{state.name} was added</h2>
         {message ? <p className={`notice ${message.tone}`} role="alert">{message.text}</p> : null}
         <InviteLink link={state.link} />
-        <p><Link href={`/people/${state.personId}`} className="button">Open their page</Link></p>
+        <p><Link href={`/people?person=${state.personId}`} className="button">Open their page</Link></p>
       </section>
     );
   }
@@ -48,9 +48,9 @@ export function NewPersonForm({ kinds }: { kinds: { key: string; name: string }[
         </select>
       </label>
       {state.error === "taken" && state.existingId ? (
-        <p className="error" role="alert">This email is already in Account Center. <Link href={`/people/${state.existingId}`}>Open their page</Link></p>
+        <p className="error" role="alert">This email is already in Account Center. <Link href={`/people?person=${state.existingId}`}>Open their page</Link></p>
       ) : state.error === "removed" && state.existingId ? (
-        <p className="error" role="alert">This person was removed from Account Center earlier. Bringing someone back is not built yet: ask the Account Center owner. <Link href={`/people/${state.existingId}`}>Open their page</Link></p>
+        <p className="error" role="alert">This person was removed from Account Center earlier. Bringing someone back is not built yet: ask the Account Center owner. <Link href={`/people?person=${state.existingId}`}>Open their page</Link></p>
       ) : error ? <p className="error" role="alert">{error}</p> : null}
       <div className="row">
         <button type="submit" disabled={pending}>{pending ? "Adding..." : "Add and send invitation"}</button>

@@ -32,7 +32,7 @@ export default async function PersonAppPage({ params, searchParams }: { params: 
   return (
     <>
       <main className="wide">
-        <p><Link href={`/people/${person.id}`} className="back">← {person.display_name}</Link></p>
+        <p><Link href={`/people?person=${person.id}`} className="back">← {person.display_name}</Link></p>
         <div className="app-page-head">
           <span className="access-card-icon"><AppIcon appKey={app.key} name={app.name} icon={app.icon} hue={app.hue} size={32} /></span>
           <h1>{app.name}</h1>

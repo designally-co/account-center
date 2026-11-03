@@ -52,7 +52,7 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId }:
               );
               return (
                 <li key={m.id}>
-                  {canView ? <Link href={`/people/${m.id}`}>{face}</Link> : <span className="team-member">{face}</span>}
+                  {canView ? <Link href={`/people?person=${m.id}`}>{face}</Link> : <span className="team-member">{face}</span>}
                   {m.is_lead ? <span className="pill plain">Lead</span> : null}
                 </li>
               );

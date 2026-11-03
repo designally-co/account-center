@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import type { TeamNotice } from "./actions";
 import { SaveNotice, SubmitButton } from "./access-form";
+import { sendKept } from "@/components/send-kept";
 
 const MESSAGES: Record<string, { tone: "ok" | "error"; text: string }> = {
   "extra-teams-saved": { tone: "ok", text: "Extra teams saved. The apps below include their default access." },
@@ -24,12 +25,12 @@ export function ExtraTeamsForm({ save, personId, teams, primary, current, locked
   locked: boolean;
 }) {
   const [picked, setPicked] = useState<string[]>(current.map((t) => t.id));
-  const [state, action] = useActionState(save, {});
+  const [state, action, pending] = useActionState(save, {});
   const message = state.notice && Object.hasOwn(MESSAGES, state.notice) ? MESSAGES[state.notice] : null;
   const changed = picked.length !== current.length || picked.some((id) => !current.some((t) => t.id === id));
   const choices = teams.filter((t) => t.id !== primary);
   return (
-    <form action={action} className="detail-row">
+    <form onSubmit={sendKept(action)} className="detail-row">
       <input type="hidden" name="person_id" value={personId} />
       <span className="detail-label" id="extra-teams-label">Extra teams</span>
       {locked ? (
@@ -38,19 +39,21 @@ export function ExtraTeamsForm({ save, personId, teams, primary, current, locked
         <span className="muted">Choose a primary team first</span>
       ) : (
         <span className="row">
+          {/* Toggle buttons plus hidden fields, not checkboxes: React resets a form's fields after it is sent, and
+              checkboxes would then send the old ticks with the next save. */}
+          {picked.map((id) => <input key={id} type="hidden" name="team" value={id} />)}
           <span className="team-toggles" role="group" aria-labelledby="extra-teams-label">
             {choices.map((t) => {
               const on = picked.includes(t.id);
               return (
-                <label key={t.id} className={`team-toggle${on ? " on" : ""}`}>
-                  <input type="checkbox" name="team" value={t.id} className="sr-only" checked={on}
-                    onChange={(e) => setPicked((p) => e.target.checked ? [...p, t.id] : p.filter((id) => id !== t.id))} />
+                <button key={t.id} type="button" className={`team-toggle${on ? " on" : ""}`} aria-pressed={on}
+                  onClick={() => setPicked((p) => p.includes(t.id) ? p.filter((id) => id !== t.id) : [...p, t.id])}>
                   {t.name}
-                </label>
+                </button>
               );
             })}
           </span>
-          {changed ? <SubmitButton className="small" pendingText="Saving…">Save</SubmitButton> : null}
+          {changed ? <SubmitButton className="small" pendingText="Saving…" pending={pending}>Save</SubmitButton> : null}
         </span>
       )}
       {message ? <div className="detail-notice"><SaveNotice key={state.n} tone={message.tone} text={message.text} /></div> : null}

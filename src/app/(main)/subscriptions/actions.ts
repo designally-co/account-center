@@ -58,6 +58,6 @@ export async function removeMemberAction(form: FormData) {
   const id = String(form.get("subscription_id") ?? "");
   const personId = String(form.get("person_id") ?? "");
   const result = await removeSubscriptionMember(db(), me.person_id, id, personId);
-  if (isUuid(personId)) revalidatePath(`/people/${personId}`);
+  if (isUuid(personId)) revalidatePath("/people");
   back(id, result === "saved" ? "member-removed" : result, "#members-title");
 }
