@@ -827,3 +827,30 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 /* A team's page: the members pill sits next to the "Members" heading, so its list opens down from there. */
 .members-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .team-members-pick { display: grid; gap: 6px; }
+
+/* Teams: a team opens as a popup that grows out of its card (Buk, 2026-11-03). The card and the popup are one
+   framer-motion layoutId, so only their box moves; the popup's words fade in once it has grown. */
+.team-cards > li { display: grid; }
+.team-card { height: 100%; }
+.team-card-inner { display: grid; gap: 10px; align-content: start; }
+.team-card.placeholder { visibility: hidden; }
+.team-modal-layer { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; }
+.team-modal-backdrop { position: absolute; inset: 0; background: var(--overlay); }
+.team-modal {
+  position: relative; width: min(760px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--surface); border: 1px solid var(--outline-strong); box-shadow: var(--shadow-modal);
+}
+.team-modal-body { position: relative; padding: 28px 28px 32px; }
+.team-modal-close { position: absolute; top: 18px; right: 18px; }
+.team-detail { gap: 22px; }
+.team-detail-head { display: grid; gap: 4px; padding-right: 40px; }
+.team-detail-title { font-size: 28px; line-height: 1.15; letter-spacing: -0.025em; }
+.team-detail h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
+/* Cards inside the popup take the dialog's stronger edge and no fill of their own. */
+.team-modal .panel { background: transparent; border-color: var(--outline-strong); }
+.team-modal .team-members li { border-color: var(--outline-strong); }
+@media (max-width: 560px) {
+  .team-modal-layer { padding: 8px; }
+  .team-modal { max-height: calc(100dvh - 16px); }
+  .team-modal-body { padding: 22px 16px 24px; }
+}
