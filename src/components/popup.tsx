@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
-import { IN_OUT, OUT, boxOffset, gsap, reducedMotion } from "./motion";
+import { IN_OUT, OUT, boxOffset, gsap, lastInputWasKeyboard, reducedMotion } from "./motion";
 
 // A popup that grows out of the card it was opened from, and shrinks back into it when it closes (Buk, 2026-11-03:
 // a team, then a person: "the small card going bigger into a big popup modal"; "use that effect in all possible
@@ -65,7 +65,13 @@ export function Popup({ open, growFrom, labelledBy, onClose, afterClose, classNa
       t.fromTo(target, { opacity: 0, y: 10, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: OUT, clearProps: "transform,opacity" }, 0);
     }
     if (follow.length) t.fromTo(follow, { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.6, ease: OUT, stagger: 0.06, clearProps: "transform,opacity" }, 0.14);
-    t.call(() => panel.current?.querySelector<HTMLElement>(".popup-close")?.focus(), [], 0.05);
+    // Focus moves into the popup. Opened from the keyboard, it lands on Close (with its ring); opened with a mouse
+    // or a finger, it lands on the popup itself, which shows no ring, and the next Tab reaches Close.
+    t.call(() => {
+      const close = panel.current?.querySelector<HTMLElement>(".popup-close");
+      if (lastInputWasKeyboard() && close) close.focus({ preventScroll: true });
+      else panel.current?.focus({ preventScroll: true });
+    }, [], 0.05);
     // only on opening
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, shown]);
@@ -129,14 +135,14 @@ export function Popup({ open, growFrom, labelledBy, onClose, afterClose, classNa
   return stack ? (
     <div className="popup-stack-layer">
       <div ref={backdrop} className="popup-stack-backdrop" onClick={onClose} />
-      <div ref={panel} className={`popup-stack${className ? ` ${className}` : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div ref={panel} className={`popup-stack${className ? ` ${className}` : ""}`} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
         {body}
       </div>
     </div>
   ) : (
     <div className="team-modal-layer">
       <div ref={backdrop} className="team-modal-backdrop" onClick={onClose} />
-      <div ref={panel} className={`team-modal${className ? ` ${className}` : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div ref={panel} className={`team-modal${className ? ` ${className}` : ""}`} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
         <div className="team-modal-body" data-grow-content>
           <button type="button" className="icon-button team-modal-close popup-close" aria-label="Close" onClick={onClose}>
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>

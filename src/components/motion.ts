@@ -34,3 +34,12 @@ export function closeDialog(dialog: HTMLDialogElement | null | undefined) {
     onComplete: () => { dialog.close(); gsap.set(dialog, { clearProps: "opacity,transform" }); },
   });
 }
+
+// Whether the last thing the person did was a key press (not a click or a tap), so a popup knows whether to show
+// a focus ring on what it focuses.
+let keyboard = false;
+if (typeof window !== "undefined") {
+  window.addEventListener("keydown", (e) => { if (!e.metaKey && !e.ctrlKey) keyboard = true; }, true);
+  window.addEventListener("pointerdown", () => { keyboard = false; }, true);
+}
+export function lastInputWasKeyboard() { return keyboard; }

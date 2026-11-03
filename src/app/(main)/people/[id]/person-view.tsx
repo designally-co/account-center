@@ -34,11 +34,17 @@ export async function PersonView({ id, userId, meId, notice }: { id: string; use
   const isMe = person.id === meId;
 
   return (
-    <div className="stack person-detail">
-      {topNotice ? <SaveNotice tone={topNotice.tone} text={topNotice.text} /> : null}
-      {!canManage ? <p className="notice">View only</p> : null}
+    // Each part is its own card under the person's card (Buk, 2026-11-03: separate containers, no outlines);
+    // the cards rise in after the person's card has grown (data-grow-follow).
+    <div className="person-detail">
+      {topNotice || !canManage ? (
+        <div className="person-notices" data-grow-follow>
+          {topNotice ? <SaveNotice tone={topNotice.tone} text={topNotice.text} /> : null}
+          {!canManage ? <p className="notice">View only</p> : null}
+        </div>
+      ) : null}
 
-      <section className="panel details" aria-label="Details">
+      <section className="stack-card person-section details" aria-label="Details" data-grow-follow>
         <KindForm save={setKindAction} personId={person.id} personName={person.display_name}
           kinds={kinds.map(({ key, name }) => ({ key, name }))} appNames={Object.fromEntries(person.apps.map((a) => [a.key, a.name]))}
           current={person.kind} locked={!canManage || !person.is_active || isMe} />
@@ -54,8 +60,8 @@ export async function PersonView({ id, userId, meId, notice }: { id: string; use
           canAdd={canManage && person.is_active} />
       </section>
 
-      <section className="stack" aria-labelledby="apps-title">
-        <h3 id="apps-title">Apps</h3>
+      <section className="stack-card person-section" aria-labelledby="apps-title" data-grow-follow>
+        <h3 id="apps-title" className="person-section-title">Apps <span>{person.apps.length}</span></h3>
         {/* One card per app, two to a row (Buk, 2026-10-26); each opens the app's own access page. */}
         <ul className="access-grid">
           {person.apps.map((app, i) => {
@@ -86,12 +92,12 @@ export async function PersonView({ id, userId, meId, notice }: { id: string; use
         </ul>
       </section>
       {subs.length ? (
-        <section className="stack" aria-labelledby="subs-title">
-          <h3 id="subs-title">Shared subscriptions</h3>
+        <section className="stack-card person-section" aria-labelledby="subs-title" data-grow-follow>
+          <h3 id="subs-title" className="person-section-title">Shared subscriptions <span>{subs.length}</span></h3>
           {!person.is_active ? (
             <p className="notice warn" role="status">{person.display_name} left and knew these shared logins. Change each password, then take them off on the subscription&apos;s page.</p>
           ) : null}
-          <ul className="team-members">
+          <ul className="person-subs">
             {subs.map((s) => (
               <li key={s.id}>
                 <Link href={`/subscriptions/${s.id}`}><span>{s.name}</span></Link>
@@ -103,10 +109,12 @@ export async function PersonView({ id, userId, meId, notice }: { id: string; use
       ) : null}
 
       {canManage && person.is_active && !isMe ? (
-        <section className="stack remove-zone" aria-labelledby="remove-title">
-          <h3 id="remove-title">Remove from Account Center</h3>
-          <div className="row">
-            <p className="muted">For someone who left. They lose all access in every app; their record and history stay.</p>
+        <section className="stack-card person-section remove-zone" aria-labelledby="remove-title" data-grow-follow>
+          <div className="remove-words">
+            <h3 id="remove-title" className="person-section-title">Remove from Account Center</h3>
+            <p className="muted small-text">For someone who left. They lose all access in every app; their record and history stay.</p>
+          </div>
+          <div>
             <ConfirmAction action={removePersonAction} fields={{ person_id: person.id }} trigger={`Remove ${person.display_name}`}
               title={`Remove ${person.display_name}?`} confirm={`Remove ${person.display_name}`} pending="Removing…"
               body={`They lose all access in every app at once. Their record and history stay.${subs.length ? ` They knew ${subs.length} shared ${subs.length === 1 ? "login" : "logins"}: change ${subs.length === 1 ? "that password" : "those passwords"} next.` : ""}`} />

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Crown, Ellipsis, PencilLine, Trash2, UserPlus, X } from "lucide-react";
+import { Ellipsis, PencilLine, Trash2, UserPlus, X } from "lucide-react";
 import { Flip, IN_OUT, closeDialog, gsap, reducedMotion } from "@/components/motion";
 import { Avatar } from "@/components/avatar";
 import { SubmitButton } from "@/components/submit-button";
@@ -27,18 +27,42 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
   // (data-flip-id) is just before the change and slides each one from there to its new place, all in one ease.
   const stackRef = useRef<HTMLDivElement>(null);
   const before = useRef<Flip.FlipState | null>(null);
-  const toggleApp = (key: string | null) => {
+  // Going straight from one open app to another first joins the cards, then splits them around the new app, so
+  // the two moves never cross over each other.
+  const next = useRef<string | null>(null);
+  const quick = useRef(false);
+  const capture = () => {
     if (stackRef.current && !reducedMotion()) before.current = Flip.getState(stackRef.current.querySelectorAll("[data-flip-id]"));
+  };
+  const toggleApp = (key: string | null) => {
+    if (openApp && key && key !== openApp && !reducedMotion()) {
+      next.current = key;
+      quick.current = true;
+      capture();
+      setOpenApp(null);
+      return;
+    }
+    next.current = null;
+    capture();
     setOpenApp(key);
   };
   useLayoutEffect(() => {
     const state = before.current;
     before.current = null;
     if (!state || !stackRef.current) return;
+    const joining = quick.current;
+    quick.current = false;
     Flip.from(state, {
       targets: stackRef.current.querySelectorAll("[data-flip-id]"),
-      duration: 0.6, ease: IN_OUT, nested: true, prune: true,
+      duration: joining ? 0.32 : 0.6, ease: IN_OUT, nested: true, prune: true,
       onEnter: (els) => gsap.fromTo(els, { opacity: 0 }, { opacity: 1, duration: 0.35, delay: 0.2, ease: "power1.out" }),
+      onComplete: () => {
+        if (!joining || !next.current) return;
+        const key = next.current;
+        next.current = null;
+        capture();
+        setOpenApp(key);
+      },
     });
   }, [openApp]);
   const edit = useRef<HTMLDialogElement>(null);
@@ -146,7 +170,7 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
                         {canView && m.email ? <span className="team-face-email">{m.email}</span> : null}
                       </span>
                     )}
-                    {!compact && m.is_lead ? <span className="team-face-lead" data-flip-id={`lead-${m.id}`}><Crown size={10} strokeWidth={2.2} aria-hidden="true" />Lead</span> : null}
+                    {!compact && m.is_lead ? <span className="team-face-lead" data-flip-id={`lead-${m.id}`}>Lead</span> : null}
                   </>
                 );
                 return (
