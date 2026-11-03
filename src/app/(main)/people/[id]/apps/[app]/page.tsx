@@ -13,8 +13,8 @@ export const dynamic = "force-dynamic";
 
 type Search = Record<string, string | string[] | undefined>;
 
-// One app of a person's access list, on its own page (Buk, 2026-10-26): the ready role and every action,
-// allowed or blocked. The person's page shows all apps as cards that open here.
+// One app of a person's access list, on its own page (Buk, 2026-10-26): every action, on or off (no ready
+// roles since 2026-11-03). The person's page shows all apps as cards that open here.
 export default async function PersonAppPage({ params, searchParams }: { params: Promise<{ id: string; app: string }>; searchParams: Promise<Search> }) {
   const { userId, me } = await requireAction(ACTIONS.view);
   const sql = db();
@@ -43,7 +43,7 @@ export default async function PersonAppPage({ params, searchParams }: { params: 
           </span>
         </div>
         <p className="muted app-page-desc">
-          {app.description ? `${app.description} ` : ""}Choose {person.display_name}&apos;s role, then allow or block single actions for {person.display_name} only.
+          {app.description ? `${app.description} ` : ""}Turn each action on or off for {person.display_name} only.
         </p>
         {!canManage ? <p className="notice">View only</p> : null}
         <div className="apps">

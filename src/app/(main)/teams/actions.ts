@@ -6,7 +6,7 @@ import { ACTIONS } from "@/lib/access";
 import { db } from "@/lib/db";
 import { isUuid } from "@/lib/ids";
 import { requireAction } from "@/lib/session";
-import { addToTeam, createTeam, deleteTeam, setTeamAction, setTeamRole, takeOffTeam, updateTeam, type TeamResult } from "@/lib/teams";
+import { addTeamApp, addToTeam, createTeam, deleteTeam, removeTeamApp, setTeamAction, takeOffTeam, updateTeam, type TeamResult } from "@/lib/teams";
 
 // Every action checks "manage" again on the server; the change itself checks once more inside its transaction.
 
@@ -42,19 +42,20 @@ export async function setTeamMemberAction(teamId: string, personId: string, on: 
   return result;
 }
 
-// The open app in a team's popup (Buk, 2026-11-03): its ready role, and one action at a time. Called straight
-// from the switches, not from a form, so they answer with the result and the popup stays as it is.
-export async function setTeamRoleNow(teamId: string, appKey: string, roleKey: string | null): Promise<TeamResult> {
+// The open app in a team's popup: one action at a time, on or off (Buk, 2026-11-03: no ready roles). Called
+// straight from the switches, not from a form, so they answer with the result and the popup stays as it is.
+export async function setTeamActionNow(teamId: string, appKey: string, actionKey: string, allowed: boolean): Promise<TeamResult> {
   const { me } = await requireAction(ACTIONS.manage);
-  const result = await setTeamRole(db(), me.person_id, teamId, appKey, roleKey);
+  const result = await setTeamAction(db(), me.person_id, teamId, appKey, actionKey, allowed);
   revalidatePath("/teams");
   revalidatePath("/people");
   return result;
 }
 
-export async function setTeamActionNow(teamId: string, appKey: string, actionKey: string, allowed: boolean): Promise<TeamResult> {
+// "Add app" in the team's "…" menu (Buk, 2026-11-03): put an app on the team's list, or take it off.
+export async function setTeamAppNow(teamId: string, appKey: string, on: boolean): Promise<TeamResult> {
   const { me } = await requireAction(ACTIONS.manage);
-  const result = await setTeamAction(db(), me.person_id, teamId, appKey, actionKey, allowed);
+  const result = on ? await addTeamApp(db(), me.person_id, teamId, appKey) : await removeTeamApp(db(), me.person_id, teamId, appKey);
   revalidatePath("/teams");
   revalidatePath("/people");
   return result;

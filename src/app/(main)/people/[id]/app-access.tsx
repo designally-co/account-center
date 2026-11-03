@@ -13,12 +13,12 @@ export const APP_NOTICES: Record<string, Notice> = {
   "app-on": { tone: "ok", text: "Turned on. The app is visible to them now." },
   "app-off": { tone: "ok", text: "Turned off. The app is hidden from them, and they have no access in it." },
   saved: { tone: "ok", text: "Saved." },
-  "role-only": { tone: "ok", text: "Role saved. Check the actions below and save again if needed." },
+  "role-only": { tone: "ok", text: "Saved. Check the actions below and save again if needed." },
   "kept-out": { tone: "error", text: "Not saved: this person's employment type can never use this app." },
   "manage-needs-view": { tone: "error", text: "Not saved: someone who can manage Account Center must also be able to see it." },
   changed: { tone: "error", text: "Not saved: someone changed this access after you opened the page. Check it again below, then save." },
   yourself: { tone: "error", text: "You cannot change your own Account Center access. Ask another admin." },
-  "unknown-role": { tone: "error", text: "That role does not exist for this app. Reload the page and try again." },
+  "unknown-role": { tone: "error", text: "That access no longer exists for this app. Reload the page and try again." },
   "unknown-app": { tone: "error", text: "That app was not found. Reload the page and try again." },
 };
 
@@ -61,7 +61,7 @@ export function AppSection({ person, app, kindLabel, canManage, isMe, open, noti
       locked={!canManage || !person.is_active || own || app.allByAdmin || hidden}
       lockedNote={app.allByAdmin ? "Account Center admins have every action in every app."
         : own && canManage ? "Ask another admin to change your own access."
-        : hidden && canPress ? `Hidden from ${person.display_name}, so there is no access. Make it visible above to choose a role.`
+        : hidden && canPress ? `Hidden from ${person.display_name}, so there is no access. Make it visible above to turn actions on.`
         : null}
       fixedNote={app.allByAdmin ? "Admin: all access" : null}
       keptOut={app.keptOut ? `Never for ${kindLabel}` : null}

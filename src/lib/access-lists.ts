@@ -188,10 +188,10 @@ export function accessSummary(app: AppAccess, kindName: string): { text: string;
   if (app.keptOut) return { text: `Never for ${kindName}`, tone: "warn", on };
   if (on === 0) return { text: "No access", tone: "muted", on };
   if (app.allByAdmin) return { text: `Admin · every action`, tone: "ok", on };
-  const role = app.baseKey === TEAM_ROLE && app.team ? `${app.team.roleName} (team)` : app.roles.filter((r) => app.roleKeys.includes(r.key)).map((r) => r.name).join(", ");
-  const changed = app.actions.some((a) => a.exception !== null);
-  const label = role ? `${role}${changed ? " + changes" : ""}` : "Single actions";
-  return { text: `${label} · ${on} of ${app.actions.length}`, tone: "ok", on };
+  // No ready role is named any more (Buk, 2026-11-03): only how many actions are on, and whether they come from
+  // the person's team as it gives them.
+  const fromTeam = app.baseKey === TEAM_ROLE && !app.actions.some((a) => a.exception !== null);
+  return { text: `${on} of ${app.actions.length} on${fromTeam && app.team ? ` · from ${app.team.name}` : ""}`, tone: "ok", on };
 }
 
 export type SaveResult =
@@ -349,5 +349,5 @@ export function visibilityOf(app: AppAccess, person: { is_active: boolean }, opt
     : opts.isMe && app.key === "account_center" ? "Ask another admin"
     : !on && !role ? "No actions yet"
     : null;
-  return { on, canTurnOn: role !== null, roleName: role?.name ?? null, locked };
+  return { on, canTurnOn: role !== null, roleName: role ? (role.key === TEAM_ROLE ? "team" : "basic") : null, locked };
 }

@@ -33,3 +33,11 @@ A team's popup listed its members, then a ready role per app in a menu, then a n
 ## Why
 
 Buk asked for this layout and motion, and chose a ready role plus single changes (sources). The words, icons (lucide), spring values and the place of the member picker are AI's choices while building (2026-11-03), as Buk asked.
+
+## Changed later the same day
+
+- **Ready roles are gone from the popup** (`decisions/no-ready-roles-on-off-switches.md`): the open app shows one plain on/off switch per action.
+- **The accordion is now one list moved by CSS** (Buk: "the animation looks broken and not seamless"): the apps no longer re-group into separate cards; the open app gets a gap above and below and rounded corners, its neighbours round off too, and its height opens with a grid-row transition. Opening, closing and going straight to another app are one smooth move with nothing to overlap. GSAP's Flip now only moves the team's card and the faces when the first app opens or the last closes, and the popup stops re-centring once an app is opened, so nothing above the open app jumps.
+- **Roomier people tiles** ("the employee card in the team modal is too tight"), the page colour as their fill, a darker "…" menu with no shadow ("the more dropdown looks dirty"), and "Add app" in the menu (`decisions/team-app-list.md`).
+- **Cards lift a little under the pointer** instead of turning grey ("the hover stage looks dirty"); **scroll bars are thin and round** ("the scroll bar need simplicity with round ends"); **the veil behind a popup is darker** with a light blur ("too blur and white, make it darker so that the white container pop up").
+- **Add people uses checkboxes** (Buk: "adding people must be checkbox"): the whole row is the checkbox's label; ticking adds, unticking takes off, each saved at once. The "People N" label above the tiles is gone (Buk: "remove People 4").
