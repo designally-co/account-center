@@ -61,3 +61,10 @@ sources:
 ## Why
 
 Buk asked for a minimal, modern and intentional design like ElevenLabs, and for simple access rows without extra explaining (Buk, 2026-10-19). On 2026-11-02 Buk asked for the best UX for the whole site, thought through from how people use it, with microinteractions, and for no orb.
+
+## Changed 2026-11-03 (later)
+
+- **Every button is a square or a rectangle** with small rounded corners (8px; 6px inside a group), never a circle or a pill, in every state; search boxes too, and the on/off switch is a rectangle with a square knob (Buk: "I want all buttons to be square and rectangles not circle and pills. for all stages"; "search bar must be rectangle too"). Avatars and small labels such as "Lead" keep their own shapes.
+- **No mark at the top of the rail** (Buk: "remove the top icon (no need)"): Home is the rail's first icon. The keyhole stays as Account Center's app icon and on the sign-in pages.
+- **Home's app cards are wider**, two to a row (at least 440px), so an app's name and line fit (Buk: "too narrow").
+

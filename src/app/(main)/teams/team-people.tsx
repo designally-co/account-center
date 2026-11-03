@@ -17,7 +17,7 @@ const ERRORS: Record<string, string> = {
 };
 
 // "Add people" from the team's "…" menu (Buk, 2026-11-03: "add people must be in the more action"). A window with
-// everyone active: find someone, then Add or Remove. Someone already in another team keeps it and gets this one
+// everyone active: find someone, then tick or untick them (Buk, 2026-11-03: checkboxes, not Add and Remove). Someone already in another team keeps it and gets this one
 // as an extra team; someone in no team gets it as their primary team. Each press saves at once.
 export const TeamPeopleDialog = forwardRef<HTMLDialogElement, {
   teamId: string; teamName: string; people: PickPerson[]; members: string[]; leads: string[];
@@ -75,15 +75,16 @@ export const TeamPeopleDialog = forwardRef<HTMLDialogElement, {
             const on = inTeam.includes(p.id);
             return (
               <li key={p.id} className={on ? "on" : undefined}>
-                <Avatar avatar={p.avatar} seed={p.id} size={32} />
-                <span className="people-pick-text">
-                  <strong>{p.name}</strong>
-                  <span>{on ? where({ ...p, team: p.team ?? teamName }) : where(p)}</span>
-                </span>
-                <button type="button" className={on ? "secondary small" : "small"} aria-pressed={on}
-                  aria-label={`${on ? "Remove" : "Add"} ${p.name}`} onClick={() => toggle(p.id, !on)}>
-                  {on ? "Remove" : "Add"}
-                </button>
+                {/* The whole row is the checkbox's label: tick to add, untick to take off (Buk, 2026-11-03:
+                    "adding people must be checkbox"). */}
+                <label className="pick-row">
+                  <Avatar avatar={p.avatar} seed={p.id} size={32} />
+                  <span className="people-pick-text">
+                    <strong>{p.name}</strong>
+                    <span>{on ? where({ ...p, team: p.team ?? teamName }) : where(p)}</span>
+                  </span>
+                  <input type="checkbox" className="pick-check" checked={on} onChange={(e) => toggle(p.id, e.target.checked)} />
+                </label>
               </li>
             );
           })}

@@ -119,9 +119,6 @@ body:has(.rail) { padding-left: 76px; }
   position: fixed; z-index: 20; top: 0; bottom: 0; left: 0; width: 76px; display: flex; flex-direction: column; align-items: center;
   padding: 18px 0; background: var(--bg); border-right: 1px solid var(--outline);
 }
-.rail-mark { display: grid; place-items: center; border-radius: 10px; }
-.rail-mark .mark { transition: transform 0.4s var(--ease-out); }
-.rail-mark:hover .mark { transform: rotate(-8deg) scale(1.05); }
 .rail-items { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; margin: auto 0; }
 .rail-item {
   position: relative; z-index: 1; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: none; border-radius: 12px;
@@ -165,7 +162,6 @@ body:has(.rail) { padding-left: 76px; }
     padding: 0 8px env(safe-area-inset-bottom); border-right: none; border-top: 1px solid var(--outline);
     background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(14px);
   }
-  .rail-mark { display: none; }
   .rail-items { flex-direction: row; gap: 14px; margin: 0; }
   .rail-avatar { margin: 0 0 0 4px; }
   .rail-tip { display: none; }
@@ -979,3 +975,41 @@ dialog.modal::backdrop { background: rgb(16 18 22 / 0.42); -webkit-backdrop-filt
 @media (prefers-color-scheme: dark) {
   .popup-stack-backdrop, .team-modal-backdrop, dialog.modal::backdrop { background: rgb(0 0 0 / 0.62); }
 }
+
+/* "Add people": a checkbox per person, the whole row is its label (Buk, 2026-11-03: "adding people must be
+   checkbox"). A rounded square that fills dark with a white tick. */
+.people-pick li:has(.pick-row) { padding: 0; }
+.pick-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px 8px 6px; border-radius: 10px; cursor: pointer; }
+input.pick-check { appearance: none; -webkit-appearance: none; flex: none; display: grid; place-content: center; width: 20px; height: 20px; margin: 0; padding: 0;
+  border: 1.5px solid #c4c8ce; border-radius: 6px; background: var(--surface); cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+input.pick-check::after { content: ""; width: 10px; height: 5px; margin-top: -2px; border-left: 2px solid #ffffff; border-bottom: 2px solid #ffffff;
+  transform: rotate(-45deg) scale(0); transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
+input.pick-check:checked { background: var(--fg); border-color: var(--fg); }
+input.pick-check:checked::after { transform: rotate(-45deg) scale(1); }
+.pick-row:hover input.pick-check:not(:checked) { border-color: #9ea3ab; }
+input.pick-check:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+@media (prefers-color-scheme: dark) { input.pick-check { border-color: #4a4d53; } input.pick-check::after { border-color: #111111; } }
+
+/* Every button is a square or a rectangle with small rounded corners, never a circle or a pill, in every state
+   (Buk, 2026-11-03: "I want all buttons to be square and rectangles not circle and pills. for all stages"); search
+   boxes too ("search bar must be rectangle too"). Pictures (avatars) and small labels such as "Lead" keep their
+   own shapes. */
+button, a.button, input[type="submit"] { border-radius: var(--radius-control); }
+button.icon-button, button.icon-button:hover, button.icon-button:active, button.icon-button[aria-expanded="true"] { border-radius: var(--radius-control); }
+.search input, .search input:focus-visible { border-radius: var(--radius-control); }
+.seg-tabs { border-radius: var(--radius-control); }
+.seg-tabs label, .seg-tabs label.on { border-radius: 6px; }
+.view-switch a { border-radius: 6px; }
+.team-toggle, button.team-toggle, .team-toggle.on { border-radius: var(--radius-control); }
+button.chip-x { border-radius: 4px; }
+td.num a { border-radius: var(--radius-control); }
+.avatar-edit-label { border-radius: 6px; }
+.swatch, .swatch:hover { border-radius: 10px; }
+.rail-pill { border-radius: 10px; }
+/* The on/off switch: a rectangle with a square knob. */
+button.switch, button.switch:hover, button.switch:active { border-radius: 6px; }
+.switch-knob { border-radius: 4px; }
+
+/* The rail has no mark at the top any more (Buk, 2026-11-03: "remove the top icon (no need)"); Home is its first icon. */
+/* Home's app cards are wider, two to a row, so an app's name and line fit without breaking (Buk: "too narrow"). */
+.app-cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); }

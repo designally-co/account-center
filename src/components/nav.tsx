@@ -7,7 +7,6 @@ import { House, KeyRound, LogOut, Lock, Network, UserRound, Users, type LucideIc
 import { signOut } from "@/app/actions";
 import type { Me } from "@/lib/access";
 import { Avatar } from "./avatar";
-import { Mark } from "./mark";
 import { NavProgress } from "./nav-progress";
 
 type Item = { href: string; label: string; icon: LucideIcon; admin: boolean };
@@ -83,7 +82,6 @@ export function Nav({ me, canView }: { me: Me; canView: boolean }) {
     <>
       <Suspense fallback={null}><NavProgress /></Suspense>
       <nav className="rail" aria-label="Account Center">
-        <Link href="/" className="rail-mark" aria-label="Account Center, Home"><Mark size={30} /></Link>
         <div className="rail-items" ref={list}>
           {pill ? <span className="rail-pill" aria-hidden="true" style={{ transform: `translate(${pill.x}px, ${pill.y}px)`, width: pill.w, height: pill.h }} /> : null}
           {items.map((item, n) => {

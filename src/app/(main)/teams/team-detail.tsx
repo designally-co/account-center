@@ -147,9 +147,6 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
       {error ? <p className="notice error" role="alert">{error}</p> : null}
 
       <section className="team-people" aria-label={`People in ${team.name}`}>
-        <p className="team-people-label">
-          People <span>{team.members.length}</span>
-        </p>
         {team.members.length === 0 ? <p className="muted small-text">Nobody in this team yet.{canManage ? " Add people from the … menu." : ""}</p> : (
           <ul className={`team-faces${compact ? " compact" : ""}`}>
               {team.members.map((m, i) => {
