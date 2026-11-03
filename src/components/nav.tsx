@@ -14,8 +14,8 @@ type Item = { href: string; label: string; icon: LucideIcon; admin: boolean };
 const ITEMS: Item[] = [
   { href: "/", label: "Home", icon: House, admin: false },
   { href: "/people", label: "People", icon: Users, admin: true },
-  { href: "/teams", label: "Teams", icon: Network, admin: true },
-  { href: "/subscriptions", label: "Subscriptions", icon: KeyRound, admin: true },
+  { href: "/teams", label: "Teams", icon: Network, admin: false },
+  { href: "/subscriptions", label: "Subscriptions", icon: KeyRound, admin: false },
 ];
 
 function isCurrent(href: string, path: string) {
@@ -26,8 +26,9 @@ function isCurrent(href: string, path: string) {
 // after an app whose sidebar is icons only, with a dark label and a shortcut on hover). The mark is at the top;
 // the pages and your avatar sit in the middle. The soft square behind the current page slides to the next
 // one. Pointing at an icon shows its name and its key (Alt or ⌥ with 1 to 4). Your avatar opens your menu.
-// On a phone the same icons are a bar along the bottom, where a thumb reaches them. People, Teams and
-// Subscriptions are shown only to those who may see them; the pages check again on the server.
+// On a phone the same icons are a bar along the bottom, where a thumb reaches them. People is shown only to
+// those who may see it; Teams and Subscriptions to everyone, with their settings for admins only (Buk,
+// 2026-11-03). The pages check again on the server.
 export function Nav({ me, canView }: { me: Me; canView: boolean }) {
   const path = usePathname();
   const router = useRouter();
@@ -52,7 +53,7 @@ export function Nav({ me, canView }: { me: Me; canView: boolean }) {
     return () => watch.disconnect();
   }, [path, canView]);
 
-  // Alt (⌥) with 1 to 4 opens a page, unless the person is typing.
+  // Alt (⌥) with a number opens a page, unless the person is typing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.altKey || e.metaKey || e.ctrlKey || !/^Digit[1-9]$/.test(e.code)) return;

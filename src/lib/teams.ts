@@ -112,14 +112,8 @@ export async function updateTeam(sql: postgres.Sql, actorId: string, teamId: str
   }));
 }
 
-// A team that is turned off gives no access and leads nobody; its members stay, so it can be turned on again.
-export async function setTeamActive(sql: postgres.Sql, actorId: string, teamId: string, active: boolean): Promise<TeamResult> {
-  if (!isUuid(teamId)) return "not-found";
-  return guarded(() => withActor(sql, actorId, async (tx) => {
-    const rows = await tx`update account.teams set is_active = ${active} where id = ${teamId}::uuid returning id`;
-    return rows.length ? "saved" as const : "not-found" as const;
-  }));
-}
+// Teams are never turned off from the app (Buk, 2026-11-03: "team must not be turned off"), so there is no
+// action for it. The database still knows a team that is off (it gives nothing), for safety.
 
 // The team's default role in one app, or none. Account Center itself is refused (the database too).
 export async function setTeamRole(sql: postgres.Sql, actorId: string, teamId: string, appKey: string, roleKey: string | null): Promise<TeamResult> {

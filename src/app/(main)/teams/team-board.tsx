@@ -16,11 +16,12 @@ import type { PickPerson } from "./team-members";
 // The open team is in the address (/teams?team=<id>): the browser's Back closes it, a link opens it, and a save
 // inside it (a server action) comes back with the same address, so it stays open. Opening and closing change
 // the address with the browser's own history calls, which Next.js follows, so nothing is asked of the server.
-export function TeamBoard({ teams, details, people, canManage, error }: {
+export function TeamBoard({ teams, details, people, canManage, canView, error }: {
   teams: TeamSummary[];
   details: Record<string, TeamDetail>;
   people: PickPerson[];
-  canManage: boolean;
+  canManage: boolean;     // an admin: sees and changes the settings
+  canView: boolean;       // may open people's pages
   error: string | null;    // an error from the last save, about the team that is open
 }) {
   const search = useSearchParams();
@@ -93,7 +94,6 @@ export function TeamBoard({ teams, details, people, canManage, error }: {
                     onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); open(t.id); }}>
                     {t.name}
                   </a>
-                  {t.is_active ? null : <span className="pill muted">Turned off</span>}
                 </div>
                 {t.description ? <p className="muted small-text">{t.description}</p> : null}
                 <div className="team-card-avatars" aria-label={`${t.members.length} ${t.members.length === 1 ? "member" : "members"}`}>
@@ -105,11 +105,13 @@ export function TeamBoard({ teams, details, people, canManage, error }: {
                   {t.members.length > 8 ? <span className="more">+{t.members.length - 8}</span> : null}
                   {t.members.length === 0 ? <span className="muted small-text">No active members</span> : null}
                 </div>
-                <p className="small-text">
-                  {t.defaults.length
-                    ? t.defaults.map((d) => `${d.app_name}: ${d.role_name}`).join(" · ")
-                    : <span className="muted">No default access yet</span>}
-                </p>
+                {canManage ? (
+                  <p className="small-text">
+                    {t.defaults.length
+                      ? t.defaults.map((d) => `${d.app_name}: ${d.role_name}`).join(" · ")
+                      : <span className="muted">No default access yet</span>}
+                  </p>
+                ) : null}
               </>
             );
             return (
@@ -118,7 +120,7 @@ export function TeamBoard({ teams, details, people, canManage, error }: {
                   /* While the team is open its card is the popup; this keeps its place in the grid. */
                   <div className="team-card placeholder" aria-hidden="true" inert>{inner}</div>
                 ) : (
-                  <motion.div layoutId={`team-${t.id}`} transition={grow} className={`team-card${t.is_active ? "" : " faded"}`}
+                  <motion.div layoutId={`team-${t.id}`} transition={grow} className="team-card"
                     style={{ borderRadius: 16 }} onLayoutAnimationComplete={() => { if (returning === t.id) setReturning(null); }}>
                     <motion.div className="team-card-inner" initial={returning === t.id ? { opacity: 0 } : false}
                       animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.16 } }}>
@@ -146,7 +148,7 @@ export function TeamBoard({ teams, details, people, canManage, error }: {
                 <button type="button" className="icon-button team-modal-close" aria-label="Close" onClick={close}>
                   <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
                 </button>
-                <Detail team={team} people={people} canManage={canManage} error={error} titleId={titleId} />
+                <Detail team={team} people={people} canManage={canManage} canView={canView} error={error} titleId={titleId} />
               </motion.div>
             </motion.div>
           </div>
