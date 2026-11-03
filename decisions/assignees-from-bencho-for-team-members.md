@@ -11,6 +11,7 @@ sources:
   - src/lib/teams.ts
   - src/app/globals.css
   - "Buk, 2026-11-03 (user must go inside first to add the team member)"
+  - "Buk, 2026-11-03 (\"add people must be in the more action\")"
 ---
 
 ## Context
@@ -18,6 +19,9 @@ sources:
 Before, a team's members could only be changed one person at a time, from each person's page ("Team"). A team's card on the Teams page showed its members' faces but could not change them.
 
 ## Decision
+
+**Replaced 2026-11-03:** Buk moved adding people into the team's "…" menu ("Add people"), which opens a window with everyone and an Add or Remove button each (`src/app/(main)/teams/team-people.tsx`, `decisions/team-popup-liquid-accordion-and-single-changes.md`). The Assignees component and its styles were removed, so its licence notice no longer travels with the code; `framer-motion` and `lucide-react` stay for the rest of the app. What follows is how it was until then.
+
 
 - **The component:** Bencho's "Assignees" (bencho.dev), given by Buk with its source and CSS under the MIT licence (bencho.dev/licence), is `src/components/assignees.tsx`, exported as `Assignees`. Bencho's comments are kept; each change for Account Center has an "In Account Center:" note beside Bencho's.
 - **The licence notice:** the licence's copyright line could not be read in the build session (bencho.dev was not reachable from it), so the file names the licence and asks for the line to be added from bencho.dev/licence. The MIT licence asks for its notice to travel with the code.

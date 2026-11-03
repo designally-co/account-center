@@ -154,6 +154,24 @@ export async function setTeamRole(sql: postgres.Sql, actorId: string, teamId: st
   }));
 }
 
+// Delete a team (Buk, 2026-11-03: "delete team" in the team's "…" menu). Its members, default roles and single
+// changes go with it; the change log keeps what it was. Anyone for whom it was the primary team gets their oldest
+// other team as primary first, so nobody is left with only extra teams.
+export async function deleteTeam(sql: postgres.Sql, actorId: string, teamId: string): Promise<TeamResult> {
+  if (!isUuid(teamId)) return "not-found";
+  return guarded(() => withActor(sql, actorId, async (tx) => {
+    const [team] = await tx`select 1 from account.teams where id = ${teamId}::uuid for update`;
+    if (!team) return "not-found" as const;
+    const primaries = await tx<{ person_id: string }[]>`
+      delete from account.team_members where team_id = ${teamId}::uuid returning person_id::text, is_primary`;
+    for (const p of primaries as unknown as { person_id: string; is_primary: boolean }[]) {
+      if (p.is_primary) await promoteOldest(tx, p.person_id);
+    }
+    await tx`delete from account.teams where id = ${teamId}::uuid`;
+    return "saved" as const;
+  }));
+}
+
 // One action for the whole team (Buk, 2026-11-03): allowed or blocked. When that is what the team's role gives
 // anyway, the single change goes, so the row shows the role again.
 export async function setTeamAction(sql: postgres.Sql, actorId: string, teamId: string, appKey: string, actionKey: string, allowed: boolean): Promise<TeamResult> {

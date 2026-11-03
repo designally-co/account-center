@@ -9,6 +9,7 @@ sources:
   - "Buk, 2026-11-03 (\"the icons the text and so on are just draft, I show you the interaction and layout, use the best icons and text\")"
   - "Buk, 2026-11-03 (answer to Claude's question: a team's access is a ready role plus single changes, the same as a person's)"
   - "Buk, 2026-11-03 (\"I want the view to be separated containers not inside one big container\")"
+  - "Buk, 2026-11-03 (\"you need to fix the typography and hirearchy and so on as it looks too big and popup must be in the center middle. and add people must be in the more action. in more there are edit info (to change team name and desc), add people, delete team\"; \"do not use shadow\")"
   - supabase/migrations/20261103120000_team_actions.sql
   - src/app/(main)/teams/team-detail.tsx
   - src/app/(main)/teams/team-apps.tsx
@@ -25,6 +26,7 @@ A team's popup listed its members, then a ready role per app in a menu, then a n
 - **Separate cards, no big box** (Buk, 2026-11-03): the popup is a column of separate cards floating over a soft, blurred veil of the page. The team's card on top is the Teams page's card grown bigger (they share one layoutId); the apps' cards follow under it. Shared code: `Popup` with `stack` (`src/components/popup.tsx`).
 - **The popup:** the name and description, a "…" menu (Edit name and description, in a small window), the people as tiles (face, name, email for those who may view Account Center, a Lead badge), the member picker for an admin, and, for an admin only, **Default access** as a stacked "liquid" accordion.
 - **The motion:** closed, the apps sit in one card. Opening one splits the card into separate cards (the apps above, the open app, the apps below) that slide apart in one spring (framer-motion layout animations in one LayoutGroup for the whole popup), and the people's tiles shrink into a row of overlapping faces. Closing melts them back. The open app shows a ready-role menu and one round allow/block pair per action; every switch saves at once (no Save button), shows "Changed" when it differs from the role, and the app's line says "+ changes".
+- **Polish** (Buk, 2026-11-03): smaller type with a clear order (the team's name 20px, its description and labels muted and small, tiles with 48px faces), the column of cards in the middle of the window (at the top when taller, then it scrolls), and **no shadows** on the team's cards, menu or windows (a surface and a hairline). The "…" menu holds **Edit info** (name and description), **Add people** (a window with everyone and Add or Remove; someone in another team joins as an extra team) and **Delete team** (after a question; anyone for whom it was the primary team gets their oldest other team as primary, then the team, its members, default roles and single changes go; the change log keeps them). The member picker pill left the popup.
 - **The Teams page card** is the team's name large, its description and a row of faces; the default access line left the card.
 - **Fixed on the way:** the popup's title area covered its Close button, so it could not be pressed; Close now sits above it. The edit window closes once a save comes back.
 

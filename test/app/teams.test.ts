@@ -3,7 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPersonAccess } from "../../src/lib/access-lists";
 import { listPeople } from "../../src/lib/people";
-import { activeTeams, addToTeam, createTeam, getTeam, listTeams, setExtraTeams, setPersonTeam, setTeamAction, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
+import { activeTeams, addToTeam, createTeam, deleteTeam, getTeam, listTeams, setExtraTeams, setPersonTeam, setTeamAction, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
 import { ANN, createTestDb } from "./setup";
 
 let db: Awaited<ReturnType<typeof createTestDb>>;
@@ -208,6 +208,28 @@ describe("Teams", () => {
     expect(await updateTeam(app, deeId, digital, { name: "Branding", description: "" })).toBe("taken");
     expect(await setTeamRole(app, annId, branding, "brand", "owner")).toBe("not-allowed");
     expect(await setPersonTeam(app, annId, annId, digital)).toBe("not-allowed");
+  });
+
+  it("deletes a team: its people keep their other teams, the next one becomes primary", async () => {
+    const made = await createTeam(app, deeId, { name: "Short lived", description: "" });
+    const temp = (made as { id: string }).id;
+    // Ann leads Branding; Short lived becomes her primary team, Branding an extra one.
+    expect(await addToTeam(app, deeId, annId, temp)).toBe("saved");
+    expect(await setPersonTeam(app, deeId, annId, temp, false)).toBe("saved");
+    expect(await addToTeam(app, deeId, annId, branding)).toBe("saved");
+    expect((await getPersonAccess(app, annId))!.team).toMatchObject({ id: temp });
+    expect(await setTeamRole(app, deeId, temp, "brand", "viewer")).toBe("saved");
+    expect(await deleteTeam(app, annId, temp)).toBe("not-allowed");
+    expect(await deleteTeam(app, deeId, temp)).toBe("saved");
+    expect((await listTeams(app)).some((t) => t.id === temp)).toBe(false);
+    const ann = await getPersonAccess(app, annId);
+    expect(ann!.team).toMatchObject({ id: branding });
+    expect(ann!.extra_teams).toEqual([]);
+    expect(await deleteTeam(app, deeId, temp)).toBe("not-found");
+    const [log] = await db.setup<{ n: number }[]>`select count(*)::int as n from account.log where actor = ${deeId} and table_name = 'teams' and event = 'delete'`;
+    expect(log.n).toBe(1);
+    // Back as before: Ann leads Branding.
+    expect(await setPersonTeam(app, deeId, annId, branding, true)).toBe("saved");
   });
 
   it("adds a team, renames it, and logs who did it", async () => {

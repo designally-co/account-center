@@ -85,7 +85,7 @@ export function TeamApps({ teamId, teamName, apps: fromServer, open, onOpen }: {
             const single = group.length === 1 && group[0].app_key === open;
             return (
               <motion.div key={group[0].app_key} layout transition={LIQUID} className={`stack-card liquid-card${single ? " open" : ""}`}
-                style={{ borderRadius: 24 }} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0, transition: { ...LIQUID, delay: 0.1 } }}
+                style={{ borderRadius: 20 }} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0, transition: { ...LIQUID, delay: 0.1 } }}
                 exit={{ opacity: 0, y: 12, transition: { duration: 0.12 } }}>
                 {group.map((app) => {
                   const isOpen = app.app_key === open;
@@ -94,13 +94,13 @@ export function TeamApps({ teamId, teamName, apps: fromServer, open, onOpen }: {
                     <motion.div key={app.app_key} layoutId={`app-${teamId}-${app.app_key}`} layout="position" transition={LIQUID} className="liquid-item">
                       <button type="button" className="liquid-head" aria-expanded={isOpen} aria-controls={panel}
                         onClick={() => onOpen(isOpen ? null : app.app_key)}>
-                        <AppIcon appKey={app.app_key} name={app.app_name} icon={app.icon} hue={app.hue} size={36} />
+                        <AppIcon appKey={app.app_key} name={app.app_name} icon={app.icon} hue={app.hue} size={30} />
                         <span className="liquid-name">
                           <strong>{app.app_name}</strong>
                           <span className="liquid-summary">{summary(app)}</span>
                         </span>
                         <motion.span className="liquid-chevron" animate={{ rotate: isOpen ? 180 : 0 }} transition={LIQUID} aria-hidden="true">
-                          <ChevronDown size={18} strokeWidth={1.8} />
+                          <ChevronDown size={16} strokeWidth={1.8} />
                         </motion.span>
                       </button>
                       <AnimatePresence initial={false}>
@@ -130,11 +130,11 @@ export function TeamApps({ teamId, teamName, apps: fromServer, open, onOpen }: {
                                       <span className="allow-switch" role="group" aria-label={a.description || a.key}>
                                         <button type="button" className={`allow-yes${on ? " on" : ""}`} aria-pressed={on} aria-label="Allow"
                                           onClick={() => { if (!on) setAction(app, a.key, true); }}>
-                                          <Check size={15} strokeWidth={2.2} aria-hidden="true" />
+                                          <Check size={14} strokeWidth={2.2} aria-hidden="true" />
                                         </button>
                                         <button type="button" className={`allow-no${on ? "" : " on"}`} aria-pressed={!on} aria-label="Block"
                                           onClick={() => { if (on) setAction(app, a.key, false); }}>
-                                          <Ban size={15} strokeWidth={2} aria-hidden="true" />
+                                          <Ban size={14} strokeWidth={2} aria-hidden="true" />
                                         </button>
                                       </span>
                                     </motion.li>

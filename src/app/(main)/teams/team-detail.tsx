@@ -3,19 +3,20 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { LayoutGroup, motion } from "framer-motion";
-import { Crown, Ellipsis, PencilLine, X } from "lucide-react";
+import { Crown, Ellipsis, PencilLine, Trash2, UserPlus, X } from "lucide-react";
 import { GROW } from "@/components/popup";
 import { Avatar } from "@/components/avatar";
 import { SubmitButton } from "@/components/submit-button";
 import type { TeamDetail as Team } from "@/lib/teams";
-import { updateTeamAction } from "./actions";
+import { deleteTeamAction, updateTeamAction } from "./actions";
 import { TeamApps, LIQUID } from "./team-apps";
-import { TeamMembers, type PickPerson } from "./team-members";
+import { TeamPeopleDialog, type PickPerson } from "./team-people";
 
 // What a team's popup holds (Buk, 2026-11-03, from his layout: the team's name and description with a "…" menu,
 // its people as tiles, and its apps as an accordion). Opening an app shrinks the people into a row of faces, so
 // the app's switches have the room; closing it brings the tiles back. Every company person sees the team and its
-// people; only an admin sees the apps (the team's default access), the member picker and the "…" menu.
+// people; only an admin sees the apps (the team's default access) and the "…" menu: Edit info, Add people and
+// Delete team (Buk, 2026-11-03).
 // A team is never turned off (Buk, 2026-11-03).
 export function TeamDetail({ team, people, canManage, canView, error, titleId, onClose }: {
   team: Team; people: PickPerson[]; canManage: boolean; canView: boolean; error: string | null; titleId: string; onClose: () => void;
@@ -23,6 +24,9 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
   const [openApp, setOpenApp] = useState<string | null>(null);
   const compact = openApp !== null;
   const edit = useRef<HTMLDialogElement>(null);
+  const add = useRef<HTMLDialogElement>(null);
+  const remove = useRef<HTMLDialogElement>(null);
+  const removeTitle = useId();
   const menu = useRef<HTMLDivElement>(null);
   const menuId = useId();
   const editTitle = useId();
@@ -36,7 +40,7 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
   return (
     <LayoutGroup id={`sheet-${team.id}`}>
     <div className="team-stack">
-      <motion.div layoutId={`team-${team.id}`} transition={GROW} className="stack-card team-head-card" style={{ borderRadius: 24 }}>
+      <motion.div layoutId={`team-${team.id}`} transition={GROW} className="stack-card team-head-card" style={{ borderRadius: 20 }}>
       {/* The words arrive once the card has grown, so they are never seen stretched. */}
       <motion.div className="stack team-sheet" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.2, delay: 0.14 } }}
         exit={{ opacity: 0, transition: { duration: 0.08 } }}>
@@ -56,13 +60,38 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
             <div id={menuId} popover="auto" className="menu team-sheet-menu" ref={menu}>
               <button type="button" className="menu-item" onClick={() => { menu.current?.hidePopover?.(); edit.current?.showModal(); }}>
                 <PencilLine size={16} strokeWidth={1.6} aria-hidden="true" />
-                Edit name and description
+                Edit info
+              </button>
+              <button type="button" className="menu-item" onClick={() => { menu.current?.hidePopover?.(); add.current?.showModal(); }}>
+                <UserPlus size={16} strokeWidth={1.6} aria-hidden="true" />
+                Add people
+              </button>
+              <button type="button" className="menu-item menu-danger" onClick={() => { menu.current?.hidePopover?.(); remove.current?.showModal(); }}>
+                <Trash2 size={16} strokeWidth={1.6} aria-hidden="true" />
+                Delete team
               </button>
             </div>
+            <TeamPeopleDialog ref={add} teamId={team.id} teamName={team.name} people={people}
+              members={team.members.map((m) => m.id)} leads={team.members.filter((m) => m.is_lead).map((m) => m.id)} />
+            <dialog ref={remove} className="modal" aria-labelledby={removeTitle}>
+              <form action={deleteTeamAction} className="stack">
+                <input type="hidden" name="team_id" value={team.id} />
+                <h2 id={removeTitle}>Delete {team.name}?</h2>
+                <p className="muted">
+                  {team.members.length
+                    ? `Its ${team.members.length} ${team.members.length === 1 ? "person loses" : "people lose"} this team's default access. Anyone for whom it is the primary team gets their next team as primary. Access set for each person stays.`
+                    : "Nobody is in it."} This cannot be undone.
+                </p>
+                <div className="row modal-actions">
+                  <button type="button" className="secondary" onClick={() => remove.current?.close()}>Cancel</button>
+                  <SubmitButton className="danger" pendingText="Deleting…">Delete team</SubmitButton>
+                </div>
+              </form>
+            </dialog>
             <dialog ref={edit} className="modal wide" aria-labelledby={editTitle}>
               <div className="stack">
                 <div className="modal-head">
-                  <h2 id={editTitle}>Edit {team.name}</h2>
+                  <h2 id={editTitle}>Edit team info</h2>
                   <button type="button" className="icon-button" aria-label="Close" onClick={() => edit.current?.close()}>
                     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
                   </button>
@@ -85,22 +114,16 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
       {error ? <p className="notice error" role="alert">{error}</p> : null}
 
       <motion.section layout="position" transition={LIQUID} className="team-people" aria-label={`People in ${team.name}`}>
-        <div className="team-people-bar">
-          <span className="muted small-text">
-            {team.members.length} {team.members.length === 1 ? "person" : "people"}
-          </span>
-          {canManage ? (
-            <TeamMembers teamId={team.id} teamName={team.name} people={people} members={team.members.map((m) => m.id)}
-              leads={team.members.filter((m) => m.is_lead).map((m) => m.id)} />
-          ) : null}
-        </div>
-        {team.members.length === 0 ? <p className="empty">Nobody in this team yet.</p> : (
+        <p className="team-people-label">
+          People <span>{team.members.length}</span>
+        </p>
+        {team.members.length === 0 ? <p className="muted small-text">Nobody in this team yet.{canManage ? " Add people from the … menu." : ""}</p> : (
           <motion.ul layout transition={LIQUID} className={`team-faces${compact ? " compact" : ""}`}>
               {team.members.map((m, i) => {
                 const face = (
                   <>
                     <motion.span layout className="team-face-avatar" transition={LIQUID}>
-                      <Avatar avatar={m.avatar} seed={m.id} size={compact ? 36 : 64} />
+                      <Avatar avatar={m.avatar} seed={m.id} size={compact ? 30 : 48} />
                     </motion.span>
                     {compact ? null : (
                       <motion.span className="team-face-text" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.12 } }}>
@@ -108,12 +131,12 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
                         {canView && m.email ? <span className="team-face-email">{m.email}</span> : null}
                       </motion.span>
                     )}
-                    {!compact && m.is_lead ? <span className="team-face-lead"><Crown size={11} strokeWidth={2} aria-hidden="true" />Lead</span> : null}
+                    {!compact && m.is_lead ? <span className="team-face-lead"><Crown size={10} strokeWidth={2.2} aria-hidden="true" />Lead</span> : null}
                   </>
                 );
                 return (
                   <motion.li key={m.id} layout transition={LIQUID} className="team-face" title={compact ? `${m.display_name}${m.is_lead ? " (lead)" : ""}` : undefined}
-                    style={{ borderRadius: compact ? 999 : 16, zIndex: compact ? team.members.length - i : undefined }}>
+                    style={{ borderRadius: compact ? 999 : 14, zIndex: compact ? team.members.length - i : undefined }}>
                     {canView ? <Link href={`/people?person=${m.id}`} className="team-face-link">{face}</Link> : <span className="team-face-link">{face}</span>}
                   </motion.li>
                 );
