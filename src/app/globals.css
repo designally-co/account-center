@@ -635,8 +635,8 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 .team-modal .panel { background: transparent; border-color: var(--outline-strong); }
 .team-modal .team-members li { border-color: var(--outline-strong); }
 /* Teams (Buk, 2026-11-03, his layout): the card is the team's name large, its description and a row of faces. */
-.teams-grid .team-card { gap: 6px; padding: 22px 24px 20px; border-radius: 20px; box-shadow: none; }
-.teams-grid .team-card:has(.team-card-name):hover { box-shadow: none; border-color: var(--outline-strong); }
+.teams-grid .team-card { gap: 6px; padding: 22px 24px 20px; border-radius: 20px; box-shadow: none; border: none; transition: background 0.18s; }
+.teams-grid .team-card:has(.team-card-name):hover { box-shadow: none; background: color-mix(in oklab, var(--fg) 3%, var(--surface)); }
 .teams-grid .team-card-name { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
 .teams-grid .team-card-name::after { border-radius: 20px; }
 .team-card-desc { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; max-width: 40ch; }
@@ -652,8 +652,9 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 /* margin: auto puts the column in the middle of the window, and at the top when it is taller (then it scrolls). */
 .popup-stack { position: relative; width: min(720px, 100%); margin: auto; }
 .team-stack { display: grid; gap: 12px; }
-/* No shadows (Buk, 2026-11-03): a card is its surface and a hairline. */
-.stack-card { background: var(--surface); border: 1px solid var(--outline); }
+/* No shadows and no outlines (Buk, 2026-11-03: "do not use shadow"; "remove all container outlines"): a card is
+   its surface on the soft veil, and what sits inside a card gets a soft fill instead of a line. */
+.stack-card { background: var(--surface); border: none; }
 .team-head-card { padding: 22px 24px 22px; }
 p.stack-card.notice { margin: 0; border-radius: 16px; }
 @media (max-width: 560px) {
@@ -669,16 +670,18 @@ p.stack-card.notice { margin: 0; border-radius: 16px; }
 .team-sheet-desc { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; max-width: 52ch; }
 .team-sheet-more { position: absolute; top: -4px; right: 36px; }
 .team-sheet-close { position: absolute; top: -4px; right: -4px; }
-.team-sheet-menu { transform-origin: top right; box-shadow: none; }
+.team-sheet-menu { transform-origin: top right; box-shadow: none; border: none; background: color-mix(in oklab, var(--fg) 5%, var(--surface)); }
+.team-sheet-menu .menu-item:hover { background: color-mix(in oklab, var(--fg) 9%, var(--surface)); }
 /* No shadows in a team (Buk, 2026-11-03): its windows are a surface and a hairline too. */
-dialog.people-dialog, .team-sheet dialog.modal { box-shadow: none; border: 1px solid var(--outline-strong); }
+dialog.people-dialog, .team-sheet dialog.modal { box-shadow: none; border: none; }
 .team-sheet-menu:not(:popover-open) { transform: translateY(-4px) scale(0.97); }
 .team-people { display: grid; gap: 10px; }
 .team-people-label { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .team-people-label span { margin-left: 4px; font-weight: 500; }
 .team-people-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
 .team-faces { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
-.team-face { position: relative; background: var(--surface); border: 1px solid var(--outline); overflow: hidden; }
+.team-face { position: relative; background: color-mix(in oklab, var(--fg) 4%, var(--surface)); border: none; overflow: hidden; transition: background 0.18s; }
+.team-face:has(a.team-face-link:hover) { background: color-mix(in oklab, var(--fg) 7%, var(--surface)); }
 .team-face-link { display: grid; justify-items: center; gap: 8px; padding: 14px 10px 12px; text-align: center; color: var(--fg); text-decoration: none; }
 a.team-face-link:hover strong { text-decoration: underline; }
 .team-face-avatar { display: inline-flex; border-radius: 50%; }
@@ -689,7 +692,7 @@ a.team-face-link:hover strong { text-decoration: underline; }
   border-radius: 999px; font-size: 10.5px; font-weight: 600; background: var(--fg); color: var(--surface); }
 /* While an app is open the tiles become a row of overlapping faces. */
 .team-faces.compact { display: flex; gap: 0; padding-left: 4px; }
-.team-faces.compact .team-face { margin-left: -10px; border: none; background: transparent; overflow: visible; }
+.team-faces.compact .team-face, .team-faces.compact .team-face:has(a.team-face-link:hover) { margin-left: -10px; border: none; background: transparent; overflow: visible; }
 .team-faces.compact .team-face:first-child { margin-left: 0; }
 .team-faces.compact .team-face-link { padding: 0; }
 .team-faces.compact .team-face-avatar { box-shadow: 0 0 0 2px var(--surface); }
@@ -699,7 +702,7 @@ a.team-face-link:hover strong { text-decoration: underline; }
 .team-apps-title .small-text { font-weight: 400; }
 .liquid-card { overflow: hidden; }
 .liquid-hint { margin: 0 0 2px; font-size: 12.5px; color: var(--muted); }
-.liquid-card.open { border-color: var(--outline-strong); }
+.liquid-card.open { border: none; }
 .liquid-item + .liquid-item { border-top: 1px solid var(--outline); }
 button.liquid-head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: none; border-radius: 0;
   background: transparent; color: var(--fg); text-align: left; font-weight: 400; }
