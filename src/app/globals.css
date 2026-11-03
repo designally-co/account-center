@@ -823,3 +823,7 @@ button.copy:hover { opacity: 1; background: var(--layer); }
   color: color-mix(in srgb, var(--fill-on, #17181a) 52%, var(--fill-slab, #ffffff)); }
 .pik[data-fit] .pik-card { right: auto; width: max(100%, 264px); max-height: min(360px, 60vh); overflow-y: auto;
   box-shadow: 0 0 0 1px var(--pane-edge), 0 12px 28px -14px rgb(0 0 0 / 0.22); }
+
+/* A team's page: the members pill sits next to the "Members" heading, so its list opens down from there. */
+.members-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.team-members-pick { display: grid; gap: 6px; }

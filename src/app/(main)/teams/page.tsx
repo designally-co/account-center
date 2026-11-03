@@ -6,8 +6,6 @@ import { db } from "@/lib/db";
 import { requireAction } from "@/lib/session";
 import { listTeams } from "@/lib/teams";
 import { createTeamAction } from "./actions";
-import { TeamMembers, type PickPerson } from "./team-members";
-import { listPeople } from "@/lib/people";
 import { FormDialog } from "@/components/form-dialog";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -27,10 +25,7 @@ const NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
 export default async function TeamsPage({ searchParams }: { searchParams: Promise<Search> }) {
   const { userId, me } = await requireAction(ACTIONS.view);
   const sql = db();
-  const [teams, canManage, search, everyone] = await Promise.all([listTeams(sql), canUser(sql, userId, ACTIONS.manage), searchParams, listPeople(sql)]);
-  // Who can be put in a team from its card: everyone active, with their current team (one team per person).
-  const pickable: PickPerson[] = everyone.filter((p) => p.is_active)
-    .map((p) => ({ id: p.id, name: p.display_name, team: p.team, is_lead: p.is_lead, avatar: p.avatar }));
+  const [teams, canManage, search] = await Promise.all([listTeams(sql), canUser(sql, userId, ACTIONS.manage), searchParams]);
   const key = typeof search.notice === "string" ? search.notice : "";
   const notice = Object.hasOwn(NOTICES, key) ? NOTICES[key] : null;
   // Errors about the new team's name are shown inside its dialog, which opens again by itself.
@@ -67,10 +62,6 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                   {t.is_active ? null : <span className="pill muted">Turned off</span>}
                 </div>
                 {t.description ? <p className="muted small-text">{t.description}</p> : null}
-                {/* Admins add and take off members right here, on an active team's card (Buk, 2026-11-02). */}
-                {canManage && t.is_active ? (
-                  <TeamMembers teamId={t.id} teamName={t.name} people={pickable} members={t.members.map((m) => m.id)} />
-                ) : (
                 <div className="team-card-avatars" aria-label={`${t.members.length} ${t.members.length === 1 ? "member" : "members"}`}>
                   {t.members.slice(0, 8).map((m) => (
                     <span key={m.id} title={`${m.display_name}${m.is_lead ? " (lead)" : ""}`} className={m.is_lead ? "lead" : undefined}>
@@ -80,7 +71,6 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                   {t.members.length > 8 ? <span className="more">+{t.members.length - 8}</span> : null}
                   {t.members.length === 0 ? <span className="muted small-text">No active members</span> : null}
                 </div>
-                )}
                 <p className="small-text">
                   {t.defaults.length
                     ? t.defaults.map((d) => `${d.app_name}: ${d.role_name}`).join(" · ")
