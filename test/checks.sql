@@ -329,7 +329,7 @@ do $$ begin
 exception when check_violation then raise notice 'ok: an app description stays short';
 end $$;
 
--- Teams: copied once from HR, one team per person, leads, and each team's default access.
+-- Teams: copied once from HR, one primary team per person, leads, and each team's default access.
 select pg_temp.ok((select string_agg(name, ',' order by name) from account.teams) = 'Branding,Digital', 'HR''s teams are copied');
 select pg_temp.ok((select t.name from account.team_members m join account.teams t on t.id = m.team_id join account.people p on p.id = m.person_id
                    where p.hr_employee_id = '10000000-0000-0000-0000-00000000000b') = 'Digital', 'someone in two HR teams keeps their primary one');
@@ -340,8 +340,8 @@ select pg_temp.ok((select count(*) from account.team_members m join account.team
 do $$ begin
   insert into account.team_members (person_id, team_id)
   select p.id, t.id from account.people p, account.teams t where p.hr_employee_id = '10000000-0000-0000-0000-00000000000a' and t.name = 'Digital';
-  raise exception 'FAILED: a person was put in a second team';
-exception when unique_violation then raise notice 'ok: one team per person';
+  raise exception 'FAILED: a person got a second primary team';
+exception when unique_violation then raise notice 'ok: one primary team per person';
 end $$;
 
 begin;
@@ -475,5 +475,45 @@ do $$ begin
   raise exception 'FAILED: two subscriptions with the same name';
 exception when unique_violation then raise notice 'ok: one subscription per tool name';
 end $$;
+
+-- Extra teams (20261103100000): a primary team and extra teams; every team gives its default access.
+select pg_temp.ok((select count(*) from account.team_members where not is_primary) = 0, 'everyone already in a team keeps it as their primary team');
+begin;
+select set_config('account.actor', 'test-admin', true);
+insert into account.team_roles (team_id, app_key, role_key) select id, 'brand', 'tviewer' from account.teams where name = 'Digital';
+insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000f3', 'uma@example.com', now());
+insert into account.people (auth_user_id, source, display_name, email) values ('00000000-0000-0000-0000-0000000000f3', 'account_center', 'Uma', 'uma@example.com');
+insert into account.team_members (person_id, team_id, is_primary) select p.id, t.id, true from account.people p, account.teams t where p.email = 'uma@example.com' and t.name = 'Digital';
+insert into account.team_members (person_id, team_id, is_primary, is_lead) select p.id, t.id, false, true from account.people p, account.teams t where p.email = 'uma@example.com' and t.name = 'Branding';
+commit;
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f3', 'hr.tleave'), 'an extra team gives its default access too');
+select pg_temp.ok(account.can_user('00000000-0000-0000-0000-0000000000f3', 'brand.tedit'), 'two teams with different roles in one app: the bigger role wins');
+select pg_temp.ok(account.is_lead_of('00000000-0000-0000-0000-0000000000f3', '00000000-0000-0000-0000-0000000000f2'), 'a lead of an extra team leads its members');
+do $$ begin
+  insert into account.team_members (person_id, team_id, is_primary)
+  select p.id, t.id, true from account.people p, account.teams t where p.email = 'tom@example.com' and t.name = 'Digital';
+  raise exception 'FAILED: a person got two primary teams';
+exception when unique_violation then raise notice 'ok: never two primary teams';
+end $$;
+do $$ begin
+  delete from account.team_members m using account.people p, account.teams t
+  where m.person_id = p.id and m.team_id = t.id and p.email = 'uma@example.com' and t.name = 'Digital';
+  set constraints account.check_primary_team immediate;
+  raise exception 'FAILED: a person was left with extra teams and no primary team';
+exception when check_violation then raise notice 'ok: a person in a team always has a primary team';
+end $$;
+begin;
+select set_config('account.actor', 'test-admin', true);
+update account.team_members m set is_primary = false from account.people p where m.person_id = p.id and p.email = 'uma@example.com' and m.is_primary;
+update account.team_members m set is_primary = true from account.people p, account.teams t
+where m.person_id = p.id and m.team_id = t.id and p.email = 'uma@example.com' and t.name = 'Branding';
+commit;
+select pg_temp.ok((select t.name from account.team_members m join account.teams t on t.id = m.team_id join account.people p on p.id = m.person_id
+                   where p.email = 'uma@example.com' and m.is_primary) = 'Branding', 'one change can move the primary team to another of the person''s teams');
+begin;
+select set_config('account.actor', 'test-admin', true);
+delete from account.team_members m using account.people p where m.person_id = p.id and p.email = 'uma@example.com';
+commit;
+select pg_temp.ok(not account.can_user('00000000-0000-0000-0000-0000000000f3', 'brand.tview'), 'a person in no team gets no team access');
 
 select 'ALL CHECKS PASSED' as result;

@@ -33,12 +33,12 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId }:
         <div className="members-head">
           <h3 id={`${titleId}-members`}>Members</h3>
           {canManage ? (
-            <TeamMembers teamId={team.id} teamName={team.name} people={people} members={team.members.map((m) => m.id)} />
+            <TeamMembers teamId={team.id} teamName={team.name} people={people} members={team.members.map((m) => m.id)} leads={leads.map((l) => l.id)} />
           ) : null}
         </div>
         {canManage ? (
           <p className="muted small-text">
-            Press the faces to add someone or take them off. Adding someone from another team moves them here. A lead is set on the person&apos;s own page.
+            Press the faces to add someone or take them off. Someone already in another team keeps it and gets this one as an extra team. A primary team and a lead are set on the person&apos;s own page.
           </p>
         ) : null}
         {team.members.length === 0 ? <p className="empty">No active members.</p> : (

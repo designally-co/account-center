@@ -3,7 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPersonAccess } from "../../src/lib/access-lists";
 import { listPeople } from "../../src/lib/people";
-import { activeTeams, addToTeam, createTeam, getTeam, listTeams, setPersonTeam, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
+import { activeTeams, addToTeam, createTeam, getTeam, listTeams, setExtraTeams, setPersonTeam, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
 import { ANN, createTestDb } from "./setup";
 
 let db: Awaited<ReturnType<typeof createTestDb>>;
@@ -86,28 +86,74 @@ describe("Teams", () => {
     expect(await setPersonTeam(app, deeId, annId, branding, true)).toBe("saved");
   });
 
-  it("a team card's ticks: adding keeps a lead a lead, taking off only removes from that team", async () => {
-    // Ann leads Branding. Ticking her again on Branding's card changes nothing.
+  it("a team popup's ticks: someone in another team gets it as an extra team; taking off only removes that team", async () => {
+    // Ann leads Branding, her primary team. Ticking her again on Branding changes nothing.
     expect(await addToTeam(app, deeId, annId, branding)).toBe("saved");
     expect((await getPersonAccess(app, annId))!.team).toMatchObject({ id: branding, is_lead: true });
-    // Ticking her on Digital's card moves her there, not as lead.
+    // Ticking her on Digital adds Digital as an extra team; Branding stays her primary team, and she still leads it.
     expect(await addToTeam(app, deeId, annId, digital)).toBe("saved");
-    expect((await getPersonAccess(app, annId))!.team).toMatchObject({ id: digital, is_lead: false });
-    // An untick on Branding's card (an older page) does not pull her out of Digital.
+    let ann = await getPersonAccess(app, annId);
+    expect(ann!.team).toMatchObject({ id: branding, is_lead: true });
+    expect(ann!.extra_teams).toEqual([{ id: digital, name: "Digital" }]);
+    const row = (await listPeople(app)).find((p) => p.id === annId)!;
+    expect(row).toMatchObject({ team: "Branding", is_lead: true, extra_teams: ["Digital"] });
+    // Unticking her on Branding, her primary team: Digital becomes her primary team.
     expect(await takeOffTeam(app, deeId, annId, branding)).toBe("saved");
-    expect((await getPersonAccess(app, annId))!.team).toMatchObject({ id: digital });
-    // An untick on Digital's card takes her off.
+    ann = await getPersonAccess(app, annId);
+    expect(ann!.team).toMatchObject({ id: digital, is_lead: false });
+    expect(ann!.extra_teams).toEqual([]);
+    // Unticking her on Digital: no team. Ticking someone with no team makes it their primary team.
     expect(await takeOffTeam(app, deeId, annId, digital)).toBe("saved");
     expect((await getPersonAccess(app, annId))!.team).toBeNull();
+    expect(await addToTeam(app, deeId, annId, digital)).toBe("saved");
+    expect((await getPersonAccess(app, annId))!.team).toMatchObject({ id: digital });
     // Refused: a removed person, a team that is off, and someone who is not an admin.
     expect(await addToTeam(app, deeId, catId, digital)).toBe("inactive");
     await setActive(branding, false);
     expect(await addToTeam(app, deeId, annId, branding)).toBe("unknown-team");
     await setActive(branding, true);
-    expect(await addToTeam(app, annId, annId, digital)).toBe("not-allowed");
+    expect(await addToTeam(app, annId, annId, branding)).toBe("not-allowed");
     expect(await takeOffTeam(app, annId, annId, digital)).toBe("not-allowed");
-    // Put her back as Branding's lead for the tests below.
+    // Put her back as Branding's lead, in no other team, for the tests below.
     expect(await setPersonTeam(app, deeId, annId, branding, true)).toBe("saved");
+    expect((await getPersonAccess(app, annId))!.extra_teams).toEqual([]);
+  });
+
+  it("extra teams on a person's page: every team gives its default access, the bigger role wins", async () => {
+    // Branding gives Brand Portal editor (set above); Digital gives viewer.
+    expect(await setTeamRole(app, deeId, digital, "brand", "viewer")).toBe("saved");
+    expect(await setPersonTeam(app, deeId, annId, digital, false)).toBe("saved");
+    expect(await canAnn("brand.guideline.edit")).toBe(false);
+    expect(await setExtraTeams(app, deeId, annId, [branding, digital])).toBe("saved");  // her primary team is left out
+    let ann = await getPersonAccess(app, annId);
+    expect(ann!.team).toMatchObject({ id: digital });
+    expect(ann!.extra_teams).toEqual([{ id: branding, name: "Branding" }]);
+    expect(await canAnn("brand.guideline.edit")).toBe(true);
+    // The person's page names the biggest team role, with every action the database gives.
+    const brand = ann!.apps.find((a) => a.key === "brand")!;
+    expect(brand.roles[0].name).toBe("Editor (Branding default)");
+    expect(brand.actions.find((a) => a.key === "brand.guideline.edit")!.on).toBe(true);
+    // Choosing an extra team as the primary team: it becomes the primary one, and the old primary team is left.
+    expect(await setPersonTeam(app, deeId, annId, branding, true)).toBe("saved");
+    ann = await getPersonAccess(app, annId);
+    expect(ann!.team).toMatchObject({ id: branding, is_lead: true });
+    expect(ann!.extra_teams).toEqual([]);
+    // Unticking every extra team, and "No team", which leaves every team.
+    expect(await setExtraTeams(app, deeId, annId, [digital])).toBe("saved");
+    expect(await setExtraTeams(app, deeId, annId, [])).toBe("saved");
+    expect((await getPersonAccess(app, annId))!.extra_teams).toEqual([]);
+    expect(await setExtraTeams(app, deeId, annId, [digital])).toBe("saved");
+    expect(await setPersonTeam(app, deeId, annId, null)).toBe("saved");
+    ann = await getPersonAccess(app, annId);
+    expect(ann!.team).toBeNull();
+    expect(ann!.extra_teams).toEqual([]);
+    // Refused: extra teams without a primary team, an unknown team, a removed person, someone who is not an admin.
+    expect(await setExtraTeams(app, deeId, annId, [digital])).toBe("no-primary");
+    expect(await setPersonTeam(app, deeId, annId, branding, true)).toBe("saved");
+    expect(await setExtraTeams(app, deeId, annId, ["00000000-0000-0000-0000-000000000000"])).toBe("unknown-team");
+    expect(await setExtraTeams(app, deeId, catId, [digital])).toBe("inactive");
+    expect(await setExtraTeams(app, annId, annId, [digital])).toBe("not-allowed");
+    expect(await setTeamRole(app, deeId, digital, "brand", null)).toBe("saved");
   });
 
   it("refuses a removed person, bad names, a taken name and someone who is not an admin", async () => {

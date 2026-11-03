@@ -11,6 +11,7 @@ import { SaveNotice } from "./access-form";
 import { APP_NOTICES, SHARED_NOTICES, pick } from "./app-access";
 import { KindForm } from "./kind-form";
 import { TeamForm } from "./team-form";
+import { ExtraTeamsForm } from "./extra-teams-form";
 import { activeTeams } from "@/lib/teams";
 import { subscriptionsOf } from "@/lib/subscriptions";
 import { WorkEmails } from "./work-emails";
@@ -18,7 +19,7 @@ import { removePersonAction, sendInviteAction, workEmailAction } from "../action
 import { inviteMessage } from "../invite-messages";
 import { InviteRow } from "./invite-row";
 import { ConfirmAction } from "@/components/confirm-action";
-import { setAppVisibleAction, setKindAction, setTeamAction } from "./actions";
+import { setAppVisibleAction, setExtraTeamsAction, setKindAction, setTeamAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,10 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
           <KindForm save={setKindAction} personId={person.id} personName={person.display_name}
             kinds={kinds.map(({ key, name }) => ({ key, name }))} appNames={Object.fromEntries(person.apps.map((a) => [a.key, a.name]))}
             current={person.kind} locked={!canManage || !person.is_active || isMe} />
-          <TeamForm save={setTeamAction} personId={person.id} teams={teams} current={person.team}
+          <TeamForm save={setTeamAction} personId={person.id} teams={teams} current={person.team} hasExtras={person.extra_teams.length > 0}
+            locked={!canManage || !person.is_active} />
+          <ExtraTeamsForm key={person.team?.id ?? ""} save={setExtraTeamsAction}
+            personId={person.id} teams={teams} primary={person.team?.id ?? null} current={person.extra_teams}
             locked={!canManage || !person.is_active} />
           {canManage && person.is_active && (person.login === "missing" || person.login === "invited") ? (
             <InviteRow action={sendInviteAction} personId={person.id} invited={person.login === "invited"} offerLink={noticeKey === "invite-account-exists"} />

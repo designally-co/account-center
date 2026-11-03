@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Crown } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import type { PersonRow } from "@/lib/people";
@@ -15,9 +16,15 @@ function Status({ p }: { p: PersonRow }) {
   return <span className="pill ok">Active</span>;
 }
 
-// Words a person can be found by: name, sign-in email, work emails and team.
+// On a card only what needs a look is shown: "Active" is what almost everyone is, so it is left out
+// (Buk, 2026-11-03: "remove active badge as it will be noise").
+function needsLook(p: PersonRow) {
+  return !p.is_active || p.login !== "ok";
+}
+
+// Words a person can be found by: name, sign-in email, work emails and every team.
 function words(p: PersonRow) {
-  return [p.display_name, p.email, p.team ?? "", ...p.work_emails].join(" ").toLowerCase();
+  return [p.display_name, p.email, p.team ?? "", ...p.extra_teams, ...p.work_emails].join(" ").toLowerCase();
 }
 
 // Find someone fast (Buk, 2026-11-02: think about how the admin uses it): type to filter, "/" jumps to the
@@ -77,16 +84,15 @@ export function PeopleBrowser({ people, view }: { people: PersonRow[]; view: "gr
         <ul className="people-cards" aria-label="People">
           {shown.map((p, i) => (
             <li key={p.id} className={`person-card${p.is_active ? "" : " faded"}`} style={{ "--i": Math.min(i, 12) } as React.CSSProperties}>
+              {/* A card (Buk, 2026-11-03): the face, the name and the primary team under it, "Lead" at the top
+                  right when they lead that team. No email and no app count; those are on the person's page. */}
+              {p.is_lead && p.team ? <span className="person-card-lead"><Crown size={12} strokeWidth={2} aria-hidden="true" />Lead</span> : null}
               <Avatar avatar={p.avatar} seed={p.id} size={56} />
               <div className="person-card-text">
                 <Link href={`/people/${p.id}`} className="person-card-name">{p.display_name}</Link>
-                <span className="person-card-email">{p.email}</span>
+                <span className={`person-card-team${p.team ? "" : " none"}`}>{p.team ?? "No team"}</span>
               </div>
-              <div className="person-card-meta">
-                <Status p={p} />
-                <span>{p.team ? `${p.team}${p.is_lead ? " · lead" : ""}` : "No team"}</span>
-                <span>{p.app_count} {p.app_count === 1 ? "app" : "apps"}</span>
-              </div>
+              {needsLook(p) ? <div className="person-card-meta"><Status p={p} /></div> : null}
             </li>
           ))}
         </ul>
@@ -101,7 +107,10 @@ export function PeopleBrowser({ people, view }: { people: PersonRow[]; view: "gr
                 <tr key={p.id} className={p.is_active ? undefined : "faded"}>
                   <td className="name"><Link href={`/people/${p.id}`}><Avatar avatar={p.avatar} seed={p.id} size={36} /><span>{p.display_name}</span></Link></td>
                   <td>{p.email}</td>
-                  <td>{p.team ? <>{p.team}{p.is_lead ? <span className="pill plain">Lead</span> : null}</> : <span className="muted">No team</span>}</td>
+                  <td>
+                    {p.team ? <>{p.team}{p.is_lead ? <span className="pill plain">Lead</span> : null}</> : <span className="muted">No team</span>}
+                    {p.extra_teams.length ? <div className="muted small-text">Also {p.extra_teams.join(", ")}</div> : null}
+                  </td>
                   <td>
                     {p.work_emails.length ? (
                       <div className="chips">{p.work_emails.map((e) => <span key={e} className="chip">{e}</span>)}</div>

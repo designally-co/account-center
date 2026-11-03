@@ -428,6 +428,11 @@ main.home { max-width: 1160px; }
 .person-card-name:focus-visible { outline: none; }
 .person-card:has(.person-card-name:focus-visible) { outline: 2px solid var(--fg); outline-offset: 2px; }
 .person-card-email { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-card-team { font-size: 13px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-card-team.none { color: var(--muted); }
+/* "Lead" sits in the card's top right corner (Buk, 2026-11-03). */
+.person-card-lead { position: absolute; top: 16px; right: 16px; display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--fg); color: var(--surface); }
 .person-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; color: var(--fg-2); }
 
 /* Removing someone: at the bottom of their page, behind a confirm step */
@@ -440,6 +445,15 @@ a.button.danger-outline:hover { background: var(--error-soft); }
 label.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
 label.check input[type="checkbox"] { width: 18px; height: 18px; padding: 0; margin: 0; accent-color: var(--primary); cursor: pointer; }
 label.check:has(input:disabled) { cursor: default; color: var(--muted); }
+/* Extra teams on a person's page: one soft pill per team, filled when ticked. */
+.team-toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+.team-toggle { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--outline-strong); color: var(--fg-2); cursor: pointer; user-select: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s var(--ease); }
+.team-toggle:hover { border-color: var(--fg-2); color: var(--fg); }
+.team-toggle:active { transform: scale(0.96); }
+.team-toggle.on { background: var(--fg); border-color: var(--fg); color: var(--surface); }
+.team-toggle:has(input:focus-visible) { outline: 2px solid var(--fg); outline-offset: 2px; }
 
 /* Teams: cards on the list, members on a team's page. */
 .team-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }

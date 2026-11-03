@@ -49,9 +49,9 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     (await Promise.all(teams.map((t) => getTeam(sql, t.id)))).filter((d): d is TeamDetail => d !== null)
       .map((d) => [d.id, { ...d, members: d.members.map((m) => ({ ...m, email: "" })), defaults: canManage ? d.defaults : [] }]));
   const cards = teams.map((t) => ({ ...t, members: t.members.map((m) => ({ ...m, email: "" })), defaults: canManage ? t.defaults : [] }));
-  // Who can be put in a team: everyone active, with their current team (one team per person). Admins only.
+  // Who can be put in a team: everyone active, with their primary and extra teams. Admins only.
   const pickable: PickPerson[] = canManage ? (await listPeople(sql)).filter((p) => p.is_active)
-    .map((p) => ({ id: p.id, name: p.display_name, team: p.team, is_lead: p.is_lead, avatar: p.avatar })) : [];
+    .map((p) => ({ id: p.id, name: p.display_name, team: p.team, extra_teams: p.extra_teams, avatar: p.avatar })) : [];
   const key = typeof search.notice === "string" ? search.notice : "";
   const inTeam = typeof search.team === "string" && Object.hasOwn(details, search.team);
   const teamNotice = inTeam && Object.hasOwn(TEAM_NOTICES, key) ? TEAM_NOTICES[key] : null;
