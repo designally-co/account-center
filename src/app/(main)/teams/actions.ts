@@ -6,7 +6,7 @@ import { ACTIONS } from "@/lib/access";
 import { db } from "@/lib/db";
 import { isUuid } from "@/lib/ids";
 import { requireAction } from "@/lib/session";
-import { addToTeam, createTeam, setTeamAction, setTeamRole, takeOffTeam, updateTeam, type TeamResult } from "@/lib/teams";
+import { addToTeam, createTeam, deleteTeam, setTeamAction, setTeamRole, takeOffTeam, updateTeam, type TeamResult } from "@/lib/teams";
 
 // Every action checks "manage" again on the server; the change itself checks once more inside its transaction.
 
@@ -31,7 +31,7 @@ export async function updateTeamAction(form: FormData) {
   backToTeam(teamId, result === "saved" ? "details-saved" : result);
 }
 
-// A tick or an untick in a team card's Assignees list (Buk, 2026-11-02). Called straight from the card, not
+// Add or Remove in a team's "Add people" window (Buk, 2026-11-03). Called straight from the window, not
 // from a form, so it answers with the result instead of moving the page; the card shows the change at once
 // and the Teams page is refreshed for everyone else's view.
 export async function setTeamMemberAction(teamId: string, personId: string, on: boolean): Promise<TeamResult> {
@@ -58,4 +58,15 @@ export async function setTeamActionNow(teamId: string, appKey: string, actionKey
   revalidatePath("/teams");
   revalidatePath("/people");
   return result;
+}
+
+// The team's "…" menu: delete it, after the admin confirmed (Buk, 2026-11-03).
+export async function deleteTeamAction(form: FormData) {
+  const { me } = await requireAction(ACTIONS.manage);
+  const teamId = String(form.get("team_id") ?? "");
+  const result = await deleteTeam(db(), me.person_id, teamId);
+  revalidatePath("/teams");
+  revalidatePath("/people");
+  if (result !== "saved") backToTeam(teamId, result);
+  redirect("/teams?notice=team-deleted");
 }

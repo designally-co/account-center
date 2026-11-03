@@ -5,7 +5,7 @@ import { requirePerson } from "@/lib/session";
 import { getTeam, listTeams, type TeamDetail } from "@/lib/teams";
 import { listPeople } from "@/lib/people";
 import { TeamBoard } from "./team-board";
-import type { PickPerson } from "./team-members";
+import type { PickPerson } from "./team-people";
 import { createTeamAction } from "./actions";
 import { FormDialog } from "@/components/form-dialog";
 import { SubmitButton } from "@/components/submit-button";
@@ -17,6 +17,7 @@ type Search = Record<string, string | string[] | undefined>;
 // Messages come from this fixed list only; nothing from the address bar is shown as typed.
 // Adding a team: its errors show inside the "New team" dialog.
 const NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
+  "team-deleted": { tone: "ok", text: "Team deleted. Its people keep their other teams and their own access." },
   "invalid-name": { tone: "error", text: "Not added: give the team a name of up to 60 characters." },
   taken: { tone: "error", text: "Not added: a team with that name already exists." },
   "not-found": { tone: "error", text: "That team was not found. Reload the page and try again." },

@@ -7,7 +7,7 @@ import { GROW, Popup } from "@/components/popup";
 import { Avatar } from "@/components/avatar";
 import type { TeamDetail, TeamSummary } from "@/lib/teams";
 import { TeamDetail as Detail } from "./team-detail";
-import type { PickPerson } from "./team-members";
+import type { PickPerson } from "./team-people";
 
 // The Teams page's cards, and each team as a popup over them (Buk, 2026-11-03: "each team page must be popup
 // modal, not a page. and when user click the team in the teams page, show the small team card going bigger
@@ -80,7 +80,7 @@ export function TeamBoard({ teams, details, people, canManage, canView, error }:
                   <div className="team-card placeholder" aria-hidden="true" inert>{inner}</div>
                 ) : (
                   <motion.div layoutId={`team-${t.id}`} transition={grow} className="team-card"
-                    style={{ borderRadius: 24 }} onLayoutAnimationComplete={() => { if (returning === t.id) setReturning(null); }}>
+                    style={{ borderRadius: 20 }} onLayoutAnimationComplete={() => { if (returning === t.id) setReturning(null); }}>
                     <motion.div className="team-card-inner" initial={returning === t.id ? { opacity: 0 } : false}
                       animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.16 } }}>
                       {inner}

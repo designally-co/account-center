@@ -5,10 +5,10 @@
    text and button. Values the reference does not show (field borders, green and red, dark mode) are ours. */
 
 :root {
-  --bg: #f8f8f8;                   /* the page */
+  --bg: #f4f5f7;                   /* the page, the undermost layer (Buk, 2026-11-03) */
   --surface: #ffffff;              /* cards on the page */
   --layer: #f3f3f3;                /* a soft fill inside a card: image tiles, pills, hover, the switch track */
-  --modal: #f8f8f8;                /* a dialog; cards inside it use --outline-strong */
+  --modal: #ffffff;                /* a dialog, white like every card (Buk, 2026-11-03); cards inside it use --outline-strong */
   --overlay: rgb(0 0 0 / 0.3);     /* behind a dialog */
   --outline: #f0f0f0;              /* a card's edge on the page */
   --outline-strong: #e9e9e9;       /* a card's edge inside a dialog, and lines between rows */
@@ -612,259 +612,6 @@ button.copy:hover { opacity: 1; background: var(--layer); }
   .copy.done .copy-sheets { display: none; }
 }
 
-/* ══ Assignees (src/components/assignees.tsx), from Bencho (bencho.dev), MIT licence ═════════════════════
-   Bencho's rules below are as Bencho wrote them, comments included. Its block also carried `.rst-at`, which
-   styles a handle in Bencho's reorder list; nothing here uses it, so it is not copied.
-
-   In Account Center: Bencho's design tokens, mapped on the component's own root so nothing leaks out.
-   - --card, --fill-slab  → --surface: the pill and the list are a card's white (a dark card in dark mode).
-   - --fill-on, --ink     → --fg: the text colour.
-   - --pane-edge          → --outline-strong: the hairline used when the stroke is on.
-   - --fill-on-rgb, --ink-rgb: the project has no "-rgb" tokens, so they are --fg's numbers, set here for
-     light and dark. They are written with commas because Bencho's CSS builds rgba(var(...), 0.45), the
-     comma form, which three space-separated numbers would break.
-   - --font-ui: the project sets its font on :root without a variable, so the same Inter stack is named
-     here. */
-.pik {
-  --card: var(--surface);
-  --fill-slab: var(--surface);
-  --fill-on: var(--fg);
-  --ink: var(--fg);
-  --fill-on-rgb: 17, 17, 17;
-  --ink-rgb: 17, 17, 17;
-  --pane-edge: var(--outline-strong);
-  --font-ui: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  .pik { --fill-on-rgb: 245, 245, 245; --ink-rgb: 245, 245, 245; }
-}
-
-/* ══ People picker ══════════════════════════════════════════
-   A pill that fills with faces, and the list it fills from.
-   See Picker.tsx — in particular why the rail's width is an
-   inline number rather than anything measured. */
-.pik {
-  position: relative;
-  box-sizing: border-box;
-  font-family: var(--font-ui);
-  color: var(--fill-on, var(--ink));}
-
-.pik-pill {
-  position: relative;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  height: 44px;
-  /* tighter on the left, because a face is a filled circle and
-     a word is not: 16 of air beside "Add people" is the same
-     amount of air as 8 beside a picture */
-  padding: 0 12px 0 8px;
-  border: 0;
-  background: var(--fill-slab, var(--card));
-  /* ── NO SHADOW, AND NO HAIRLINE EITHER ────────────────────
-     Both are gone. The ring came back only when Stroke asks
-     for it — it carried a permanent one, which made that
-     switch a control reporting a state it was not producing,
-     the fault the tilt card and the wheel both had.
-
-     The drop shadow went with it. Nothing here needs lifting:
-     the pill and the card are the fill's own slab and they sit
-     on the block's grey ground, which separates them on its
-     own. A shadow under a shape that already reads is the
-     component insisting it is floating. */
-  color: inherit;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  letter-spacing: -0.01em;}
-
-[data-stroke="on"] .pik-pill { box-shadow: 0 0 0 1px var(--pane-edge); }
-
-.pik-pill:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.45);}
-
-/* ── the rail the faces sit in ──────────────────────────────
-   Its width is the whole animation. The faces are absolute
-   inside it, so none of them moves when another arrives — the
-   rail simply has more room, and the pill is sized by it.
-   Nothing here measures anything. */
-.pik-rail {
-  position: relative;
-  flex: none;
-  height: 28px;
-  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1);}
-
-.pik-face {
-  position: absolute;
-  /* both corners pinned: the face is placed by its transform,
-     in the row and in the quad alike, so `left` is an origin
-     rather than a position */
-  top: 0;
-  left: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  overflow: hidden;
-  /* the ring is the CARD's colour, not white: it is the gap
-     between two overlapping faces, so it has to be whatever is
-     behind them or the stack grows a halo in dark mode */
-  box-shadow: 0 0 0 2px var(--fill-slab, var(--card));}
-
-.pik-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-/* with no faces the rail collapses to nothing but the pill's gap
-   still sits in front of the word; pull it back so the text is
-   inset 12 from the edge, matching the pill's own right padding */
-.pik-say { margin-left: -6px; color: var(--fill-on, var(--ink)); }
-
-/* ── the chevron IS the hover state ─────────────────────────
-   With the shadow gone the pill had nothing left to answer the
-   cursor with, and a fill appearing behind it would be a second
-   shape arriving on a control whose whole subject is shapes —
-   the palette's refresh button makes the same call. The glyph
-   goes to a stronger ink instead: same thing said, nothing new
-   on screen. */
-.pik-chev {
-  flex: none;
-  margin-left: -2px;
-  color: color-mix(in srgb, var(--fill-on, #17181a) 32%, var(--fill-slab, #ffffff));
-  transition: rotate 220ms cubic-bezier(0.22, 1, 0.36, 1), color 160ms ease;}
-
-.pik-pill:hover .pik-chev { color: color-mix(in srgb, var(--fill-on, #17181a) 72%, var(--fill-slab, #ffffff)); }
-
-.pik-pill[aria-expanded="true"] .pik-chev { rotate: 180deg; }
-
-/* ── the list ───────────────────────────────────────────────
-   Absolute, so opening it moves nothing. The block reserves
-   the room for it either way — see the note in Picker.tsx. */
-.pik-card {
-  position: absolute;
-  top: 54px;
-  left: 0;
-  right: 0;
-  z-index: 1;
-  box-sizing: border-box;
-  padding: 8px;
-  background: var(--fill-slab, var(--card));
-  /* ── it unfolds from the PILL'S corner ────────────────────
-     Top left, not the middle: the pill starts at this same
-     left edge, so the card opens down and out from under it
-     rather than growing symmetrically out of its own centre,
-     which is what a box appearing does. */
-  transform-origin: 0 0;}
-
-[data-stroke="on"] .pik-card { box-shadow: 0 0 0 1px var(--pane-edge); }
-
-.pik-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  height: 48px;
-  padding: 0 8px;
-  border: 0;
-  /* the card's corner less its 6px padding — set in Picker.tsx
-     so it tracks the Corner knob; 16 is the value at the
-     default 22 */
-  border-radius: var(--pik-row-r, 14px);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background 160ms ease;}
-
-.pik-row:hover { background: color-mix(in srgb, var(--fill-on, #17181a) 6%, transparent); }
-
-.pik-row:focus-visible {
-  outline: none;
-  background: color-mix(in srgb, var(--fill-on, #17181a) 6%, transparent);}
-
-.pik-av {
-  flex: none;
-  width: 32px; height: 32px;
-  border-radius: 999px;
-  object-fit: cover;
-  display: block;}
-
-.pik-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-
-/* ── the same type as the other two lists ────────────────
-   It was 13.5 at 500 with a touch of negative tracking, which
-   is a LABEL's setting — right for a word that names a control
-   and wrong for a row of people. The selection list and the
-   reorder list both set their names at the regular weight, and
-   they are the same object: a face, a name, a thing to press.
-   Three lists on one bench reading as three different type
-   systems is the fault; matching `.rst-name` is the fix. */
-.pik-name {
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0em;}
-
-.pik-role {
-  font-size: 11px;
-  color: color-mix(in srgb, var(--fill-on, #17181a) 52%, var(--fill-slab, #ffffff));
-  letter-spacing: 0em;}
-
-/* ── the mark ───────────────────────────────────────────────
-   Drawn at rest as an empty ring and filled when it is on, so
-   the row always shows that it CAN be chosen. A control that
-   only appears once used is one you have to guess at first. */
-.pik-mark {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 18px; height: 18px;
-  /* ── a rounded square, not a disc ────────────────────────
-     One radius for both states, because it is one box: the
-     empty mark and the ticked one are the same square with the
-     fill switched, so the shape cannot disagree with itself
-     between rows. The radius is 0.3 of the side — round enough
-     to belong to the pill and the card above it, square enough
-     that a row of four reads as a column of checkboxes rather
-     than as a second set of avatars beside the real ones.
-
-     18, down from 20. The mark answers the row; it is not the
-     subject of it, and at 20 against a 28px face it was close
-     enough in size to read as the second circle in a pair. Two
-     pixels is enough to put it back behind the name. */
-  border-radius: 6px;
-  box-shadow: inset 0 0 0 1.5px rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.22);
-  transition: background 160ms ease, box-shadow 160ms ease;}
-
-.pik-row[data-on] .pik-mark {
-  background: var(--fill-on, var(--ink));
-  box-shadow: inset 0 0 0 1.5px var(--fill-on, var(--ink));}
-
-.pik-tick {
-  display: grid;
-  place-items: center;
-  color: var(--fill-slab, var(--card));}
-
-@media (prefers-reduced-motion: reduce) {
-  .pik-rail, .pik-chev { transition-duration: 160ms; }
-}
-
-/* In Account Center: the parts Bencho's wall did not need.
-   - The app's own button look (filled, fading on hover) must not reach the pill and the rows.
-   - "+N" after six faces (see the component's top note), in the role line's quieter ink.
-   - In a page (`fit`), the list floats over what is below it, so it gets a soft shadow under its hairline,
-     keeps Bencho's 264px width when the card holding it is narrower, and scrolls past about seven people. */
-.pik button:hover { opacity: 1; }
-.pik-more { margin-left: -4px; font-size: 13px; font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--fill-on, #17181a) 52%, var(--fill-slab, #ffffff)); }
-.pik[data-fit] .pik-card { right: auto; width: max(100%, 264px); max-height: min(360px, 60vh); overflow-y: auto;
-  box-shadow: 0 0 0 1px var(--pane-edge), 0 12px 28px -14px rgb(0 0 0 / 0.22); }
-
-/* A team's page: the members pill sits next to the "Members" heading, so its list opens down from there. */
-.members-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.team-members-pick { display: grid; gap: 6px; }
 
 /* Teams: a team opens as a popup that grows out of its card (Buk, 2026-11-03). The card and the popup are one
    framer-motion layoutId, so only their box moves; the popup's words fade in once it has grown. */
@@ -888,86 +635,96 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 .team-modal .panel { background: transparent; border-color: var(--outline-strong); }
 .team-modal .team-members li { border-color: var(--outline-strong); }
 /* Teams (Buk, 2026-11-03, his layout): the card is the team's name large, its description and a row of faces. */
-.teams-grid .team-card { gap: 8px; padding: 26px 28px 24px; border-radius: 24px; }
-.teams-grid .team-card-name { font-size: 26px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.15; }
-.teams-grid .team-card-name::after { border-radius: 24px; }
-.team-card-desc { margin: 0; color: var(--fg-2); font-size: 15px; line-height: 1.45; max-width: 36ch; }
-.teams-grid .team-card-avatars { margin-top: 18px; }
+.teams-grid .team-card { gap: 6px; padding: 22px 24px 20px; border-radius: 20px; box-shadow: none; border: none; transition: background 0.18s; }
+.teams-grid .team-card:has(.team-card-name):hover { box-shadow: none; background: color-mix(in oklab, var(--fg) 3%, var(--surface)); }
+.teams-grid .team-card-name { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.teams-grid .team-card-name::after { border-radius: 20px; }
+.team-card-desc { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; max-width: 40ch; }
+.teams-grid .team-card-avatars { margin-top: 14px; }
 .teams-grid .team-card-avatars > span { margin-right: -10px; position: relative; }
 .teams-grid .team-card-avatars .more { margin-left: 16px; font-size: 13px; color: var(--muted); }
 
 /* A popup made of separate cards (Buk, 2026-11-03, a team: "separated containers not inside one big
    container"): the page fades behind a soft veil and the cards float in a column over it. */
-.popup-stack-layer { position: fixed; inset: 0; z-index: 40; overflow-y: auto; overscroll-behavior: contain; padding: 40px 16px 56px; }
+.popup-stack-layer { position: fixed; inset: 0; z-index: 40; display: flex; overflow-y: auto; overscroll-behavior: contain; padding: 32px 16px; }
 .popup-stack-backdrop { position: fixed; inset: 0; background: color-mix(in oklab, var(--bg) 78%, transparent);
   -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1); }
-.popup-stack { position: relative; width: min(880px, 100%); margin: 0 auto; }
-.team-stack { display: grid; gap: 16px; }
-.stack-card { background: var(--surface); border: 1px solid var(--outline);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 22px 48px -28px rgb(0 0 0 / 0.22); }
-.team-head-card { padding: 34px 38px 30px; }
+/* margin: auto puts the column in the middle of the window, and at the top when it is taller (then it scrolls). */
+.popup-stack { position: relative; width: min(720px, 100%); margin: auto; }
+.team-stack { display: grid; gap: 12px; }
+/* No shadows and no outlines (Buk, 2026-11-03: "do not use shadow"; "remove all container outlines"): a card is
+   its surface on the soft veil, and what sits inside a card gets a soft fill instead of a line. */
+.stack-card { background: var(--surface); border: none; }
+.team-head-card { padding: 22px 24px 22px; }
 p.stack-card.notice { margin: 0; border-radius: 16px; }
 @media (max-width: 560px) {
   .popup-stack-layer { padding: 12px 8px 32px; }
-  .team-head-card { padding: 24px 20px 22px; }
+  .team-head-card { padding: 18px 16px 18px; }
 }
 
 /* A team's popup: the name and description, its people as tiles that shrink into a row of faces while an app is
    open, and its default access as a stacked "liquid" accordion. */
-.team-sheet { gap: 20px; }
-.team-sheet-head { position: relative; display: grid; gap: 6px; padding-right: 96px; }
-.team-sheet-title { margin: 0; font-size: 30px; line-height: 1.12; letter-spacing: -0.028em; }
-.team-sheet-desc { margin: 0; color: var(--fg-2); font-size: 15px; line-height: 1.45; max-width: 46ch; }
-.team-sheet-more { position: absolute; top: -8px; right: 40px; }
-.team-sheet-close { position: absolute; top: -8px; right: -4px; }
-.team-sheet-menu { transform-origin: top right; }
+.team-sheet { gap: 18px; }
+.team-sheet-head { position: relative; display: grid; gap: 4px; padding-right: 84px; }
+.team-sheet-title { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; }
+.team-sheet-desc { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; max-width: 52ch; }
+.team-sheet-more { position: absolute; top: -4px; right: 36px; }
+.team-sheet-close { position: absolute; top: -4px; right: -4px; }
+.team-sheet-menu { transform-origin: top right; box-shadow: none; border: none; background: color-mix(in oklab, var(--fg) 5%, var(--surface)); }
+.team-sheet-menu .menu-item:hover { background: color-mix(in oklab, var(--fg) 9%, var(--surface)); }
+/* No shadows in a team (Buk, 2026-11-03): its windows are a surface and a hairline too. */
+dialog.people-dialog, .team-sheet dialog.modal { box-shadow: none; border: none; }
 .team-sheet-menu:not(:popover-open) { transform: translateY(-4px) scale(0.97); }
-.team-people { display: grid; gap: 12px; }
+.team-people { display: grid; gap: 10px; }
+.team-people-label { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.team-people-label span { margin-left: 4px; font-weight: 500; }
 .team-people-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
-.team-faces { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-.team-face { position: relative; background: var(--surface); border: 1px solid var(--outline); overflow: hidden; }
-.team-face-link { display: grid; justify-items: center; gap: 10px; padding: 18px 12px 16px; text-align: center; color: var(--fg); text-decoration: none; }
+.team-faces { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
+.team-face { position: relative; background: color-mix(in oklab, var(--fg) 4%, var(--surface)); border: none; overflow: hidden; transition: background 0.18s; }
+.team-face:has(a.team-face-link:hover) { background: color-mix(in oklab, var(--fg) 7%, var(--surface)); }
+.team-face-link { display: grid; justify-items: center; gap: 8px; padding: 14px 10px 12px; text-align: center; color: var(--fg); text-decoration: none; }
 a.team-face-link:hover strong { text-decoration: underline; }
 .team-face-avatar { display: inline-flex; border-radius: 50%; }
 .team-face-text { display: grid; gap: 2px; min-width: 0; max-width: 100%; }
-.team-face-text strong { font-size: 15px; font-weight: 600; }
-.team-face-email { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.team-face-lead { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px;
-  border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--fg); color: var(--surface); }
+.team-face-text strong { font-size: 13.5px; font-weight: 600; }
+.team-face-email { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-face-lead { position: absolute; top: 7px; right: 7px; display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px;
+  border-radius: 999px; font-size: 10.5px; font-weight: 600; background: var(--fg); color: var(--surface); }
 /* While an app is open the tiles become a row of overlapping faces. */
 .team-faces.compact { display: flex; gap: 0; padding-left: 4px; }
-.team-faces.compact .team-face { margin-left: -10px; border: none; background: transparent; overflow: visible; }
+.team-faces.compact .team-face, .team-faces.compact .team-face:has(a.team-face-link:hover) { margin-left: -10px; border: none; background: transparent; overflow: visible; }
 .team-faces.compact .team-face:first-child { margin-left: 0; }
 .team-faces.compact .team-face-link { padding: 0; }
 .team-faces.compact .team-face-avatar { box-shadow: 0 0 0 2px var(--surface); }
 
-.team-apps { display: grid; gap: 16px; }
+.team-apps { display: grid; gap: 12px; }
 .team-apps-title { margin: 4px 0 0; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .team-apps-title .small-text { font-weight: 400; }
 .liquid-card { overflow: hidden; }
-.liquid-hint { margin: 0 0 2px; font-size: 13px; color: var(--muted); }
-.liquid-card.open { box-shadow: var(--shadow-hover); }
+.liquid-hint { margin: 0 0 2px; font-size: 12.5px; color: var(--muted); }
+.liquid-card.open { border: none; }
 .liquid-item + .liquid-item { border-top: 1px solid var(--outline); }
-button.liquid-head { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: none; border-radius: 0;
+button.liquid-head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: none; border-radius: 0;
   background: transparent; color: var(--fg); text-align: left; font-weight: 400; }
 button.liquid-head:hover { opacity: 1; background: var(--layer); }
 button.liquid-head:active { transform: none; }
 button.liquid-head:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; }
 .liquid-name { display: grid; gap: 1px; flex: 1; min-width: 0; }
-.liquid-name strong { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
-.liquid-summary { font-size: 13px; color: var(--muted); }
+.liquid-name strong { font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; }
+.liquid-summary { font-size: 12.5px; color: var(--muted); }
 .liquid-chevron { display: inline-flex; color: var(--muted); }
 .liquid-body { overflow: hidden; }
-.liquid-inner { display: grid; gap: 6px; padding: 2px 18px 16px 68px; }
-.liquid-role { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 10px; font-weight: 500; font-size: 14px; }
+.liquid-inner { display: grid; gap: 4px; padding: 0 16px 14px 58px; }
+.liquid-role { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0 8px; font-weight: 500; font-size: 13.5px; }
+.liquid-role select { font-size: 13.5px; padding-top: 7px; padding-bottom: 7px; }
 .liquid-role select { max-width: 60%; }
 .liquid-actions { list-style: none; margin: 0; padding: 0; }
-.liquid-actions li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 0; border-top: 1px solid var(--outline); }
-.liquid-action-text { font-size: 14px; line-height: 1.4; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.liquid-actions li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; border-top: 1px solid var(--outline); }
+.liquid-action-text { font-size: 13.5px; line-height: 1.4; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .liquid-changed { font-size: 11px; padding: 1px 8px; }
 /* Allow or block one action: a soft pair of round buttons; the chosen one fills (green) or rings (red). */
 .allow-switch { display: inline-flex; flex: none; gap: 2px; padding: 3px; border-radius: 999px; background: var(--layer); }
-.allow-switch button { width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 50%; border: 1.5px solid transparent;
+.allow-switch button { width: 26px; height: 26px; padding: 0; justify-content: center; border-radius: 50%; border: 1.5px solid transparent;
   background: transparent; color: var(--muted); transition: background 0.18s, color 0.18s, border-color 0.18s, transform 0.15s var(--ease); }
 .allow-switch button:hover { opacity: 1; color: var(--fg); }
 .allow-switch button:active { transform: scale(0.88); }
@@ -979,6 +736,20 @@ button.liquid-head:focus-visible { outline: 2px solid var(--fg); outline-offset:
   .team-sheet-head { padding-right: 84px; }
   .team-faces { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }
+
+/* A team's "…" menu: Delete team is red. "Add people": everyone in a list with Add or Remove. */
+.menu-item.menu-danger { color: var(--error); }
+.menu-item.menu-danger svg { stroke: var(--error); }
+.menu-item.menu-danger:hover { background: var(--error-soft); }
+.menu-item.menu-danger:hover svg { stroke: var(--error); }
+dialog.people-dialog { width: min(480px, calc(100vw - 32px)); }
+.people-pick { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: min(420px, 60vh); overflow-y: auto; }
+.people-pick li { display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-radius: 10px; }
+.people-pick li:hover { background: var(--layer); }
+.people-pick-text { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.people-pick-text strong { font-size: 14px; font-weight: 600; }
+.people-pick-text span { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.people-pick button { flex: none; min-width: 78px; justify-content: center; }
 
 /* People: a person opens as a popup that grows out of their card (Buk, 2026-11-03), like a team. */
 .people-cards > li { display: grid; }

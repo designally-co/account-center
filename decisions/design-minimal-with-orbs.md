@@ -4,6 +4,7 @@ app: account-center
 decided: 2026-10-19
 author: ai
 sources:
+  - "Buk, 2026-11-03 (\"use f4f5f7 to be the undermost layer the bg color and card as ffffff\")"
   - "Buk, 2026-10-19 (make sure the design is minimal, modern and intentional, interesting and exciting, like ElevenLabs)"
   - "Buk, 2026-10-19 (access rows simple, like ClickUp's tool permissions; no extra explaining)"
   - src/app/globals.css
@@ -34,7 +35,7 @@ sources:
 ## Decision
 
 - Black and white with soft grey surfaces and rounded cards; dark mode follows the system.
-- The light colours come from Buk's design reference (2026-10-19), measured from the screenshots' pixels: page `--bg` #f8f8f8, cards `--surface` #ffffff, soft fills `--layer` #f3f3f3, dialog `--modal` #f8f8f8 on a 30% black `--overlay`, card edge `--outline` #f0f0f0, edge inside a dialog and between rows `--outline-strong` #e9e9e9, text #111111, card text #484848, quiet text #6d6d6d, button #1a1a1a, link #1880e3. Cards have an outline and no shadow (`--shadow: none`); only a dialog has one. The screenshots were lossy (WebP), so a value can be one or two steps off. Corners follow the reference too: 16px cards, 10px inner cards and tiles, 8px buttons, fields and menus; tags and the allowed/blocked switch stay pill-shaped.
+- The light colours come from Buk's design reference (2026-10-19), measured from the screenshots' pixels: page `--bg` #f8f8f8 (#f4f5f7 since 2026-11-03, Buk: "use f4f5f7 to be the undermost layer the bg color and card as ffffff"), cards `--surface` #ffffff, soft fills `--layer` #f3f3f3, dialog `--modal` #f8f8f8 (#ffffff since 2026-11-03, white like every card) on a 30% black `--overlay`, card edge `--outline` #f0f0f0, edge inside a dialog and between rows `--outline-strong` #e9e9e9, text #111111, card text #484848, quiet text #6d6d6d, button #1a1a1a, link #1880e3. Cards have an outline and no shadow (`--shadow: none`); only a dialog has one. The screenshots were lossy (WebP), so a value can be one or two steps off. Corners follow the reference too: 16px cards, 10px inner cards and tiles, 8px buttons, fields and menus; tags and the allowed/blocked switch stay pill-shaped.
 - Values the reference does not show are ours: field borders `--input-outline` #dcdcdc (a field must stay visible), green and red, and all of dark mode. The soft coloured glow at the top of every page was removed, because the reference page is plain.
 - The Inter font, shipped inside the app (`@fontsource-variable/inter`), so pages load no outside fonts.
 - **No orbs** (Buk, 2026-11-02: "I don't want to use the orb"). Account Center's mark is a keyhole in a tile in the text colour (`src/components/mark.tsx`), in the bar and on the sign-in pages; while signing in, the keyhole turns. An app without its own graphic shows its first letter on a soft tile in the app's colour (`account.apps.hue`, `src/components/app-icon.tsx`). Each person keeps their own drawn avatar (`decisions/avatars-made-by-each-person.md`).
