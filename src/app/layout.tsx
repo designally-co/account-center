@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "@fontsource-variable/inter";
 import "./globals.css";
 import { ToastHost } from "@/components/toast";
+import { DialogMotion } from "@/components/dialog-motion";
 
 export const metadata: Metadata = {
   title: "Account Center",
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <ToastHost />
+        <DialogMotion />
       </body>
     </html>
   );

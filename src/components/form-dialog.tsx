@@ -1,5 +1,6 @@
 "use client";
 
+import { closeDialog } from "@/components/motion";
 import { useEffect, useId, useRef } from "react";
 
 // A button at the top of a list page that opens its "add" form in a dialog, so the list stays the page's
@@ -21,7 +22,7 @@ export function FormDialog({ trigger, title, open = false, children }: { trigger
         <div className="stack">
           <div className="modal-head">
             <h2 id={`${id}-title`}>{title}</h2>
-            <button type="button" className="icon-button" aria-label="Close" onClick={() => dialog.current?.close()}>
+            <button type="button" className="icon-button" aria-label="Close" onClick={() => closeDialog(dialog.current)}>
               <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
             </button>
           </div>

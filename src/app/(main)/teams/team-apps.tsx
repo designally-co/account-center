@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useId, useState, useTransition } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { gsap, reducedMotion } from "@/components/motion";
 import { Ban, Check, ChevronDown } from "lucide-react";
 import { AppIcon } from "@/components/app-icon";
 import type { TeamDefault } from "@/lib/teams";
 import { setTeamActionNow, setTeamRoleNow } from "./actions";
 
-// One spring for every move in the popup, so the people and the apps move as one.
-export const LIQUID = { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.85 };
 
 const ERRORS: Record<string, string> = {
   "not-allowed": "Not saved: you can no longer manage Account Center. Ask another admin.",
@@ -44,6 +42,14 @@ export function TeamApps({ teamId, teamName, apps: fromServer, open, onOpen }: {
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const titleId = useId();  // names each open app's panel
+  // The open app's rows come in one after another, once its card has opened (the card's own move is the
+  // popup's Flip, in team-detail.tsx).
+  const section = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (!open || !section.current || reducedMotion()) return;
+    const rows = section.current.querySelectorAll(".liquid-body .liquid-hint, .liquid-body .liquid-role, .liquid-body .liquid-actions > li");
+    gsap.fromTo(rows, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out", stagger: 0.025, delay: 0.18, clearProps: "transform,opacity" });
+  }, [open]);
   // A save comes back with fresh data from the server; it replaces what the switches showed meanwhile.
   useEffect(() => { setApps(fromServer); }, [fromServer]);
 
@@ -78,20 +84,17 @@ export function TeamApps({ teamId, teamName, apps: fromServer, open, onOpen }: {
 
   if (!apps.length) return null;
   return (
-    <motion.section layout="position" transition={LIQUID} className="team-apps" aria-label={`Default access for ${teamName}`}>
-      {error ? <motion.p layout="position" className="stack-card notice error" role="alert">{error}</motion.p> : null}
-      <AnimatePresence initial={false} mode="popLayout">
+    <section className="team-apps" aria-label={`Default access for ${teamName}`} data-grow-follow ref={section}>
+      {error ? <p className="stack-card notice error" role="alert" data-flip-id="apps-error">{error}</p> : null}
           {groups.map((group) => {
             const single = group.length === 1 && group[0].app_key === open;
             return (
-              <motion.div key={group[0].app_key} layout transition={LIQUID} className={`stack-card liquid-card${single ? " open" : ""}`}
-                style={{ borderRadius: 20 }} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0, transition: { ...LIQUID, delay: 0.1 } }}
-                exit={{ opacity: 0, y: 12, transition: { duration: 0.12 } }}>
+              <div key={group[0].app_key} className={`stack-card liquid-card${single ? " open" : ""}`} data-flip-id={`card-${group[0].app_key}`}>
                 {group.map((app) => {
                   const isOpen = app.app_key === open;
                   const panel = `${titleId}-${app.app_key}`;
                   return (
-                    <motion.div key={app.app_key} layoutId={`app-${teamId}-${app.app_key}`} layout="position" transition={LIQUID} className="liquid-item">
+                    <div key={app.app_key} className="liquid-item" data-flip-id={`app-${app.app_key}`}>
                       <button type="button" className="liquid-head" aria-expanded={isOpen} aria-controls={panel}
                         onClick={() => onOpen(isOpen ? null : app.app_key)}>
                         <AppIcon appKey={app.app_key} name={app.app_name} icon={app.icon} hue={app.hue} size={30} />
@@ -99,15 +102,12 @@ export function TeamApps({ teamId, teamName, apps: fromServer, open, onOpen }: {
                           <strong>{app.app_name}</strong>
                           <span className="liquid-summary">{summary(app)}</span>
                         </span>
-                        <motion.span className="liquid-chevron" animate={{ rotate: isOpen ? 180 : 0 }} transition={LIQUID} aria-hidden="true">
+                        <span className={`liquid-chevron${isOpen ? " up" : ""}`} aria-hidden="true">
                           <ChevronDown size={16} strokeWidth={1.8} />
-                        </motion.span>
+                        </span>
                       </button>
-                      <AnimatePresence initial={false}>
-                        {isOpen ? (
-                          <motion.div id={panel} key="body" className="liquid-body" role="region" aria-label={`${app.app_name}: default access`}
-                            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                            transition={{ height: LIQUID, opacity: { duration: 0.18 } }}>
+                      {isOpen ? (
+                          <div id={panel} className="liquid-body" role="region" aria-label={`${app.app_name}: default access`}>
                             <div className="liquid-inner">
                               <p className="liquid-hint">Everyone in {teamName} gets this, unless a person has their own access in {app.app_name}.</p>
                               <label className="liquid-role">
@@ -118,11 +118,11 @@ export function TeamApps({ teamId, teamName, apps: fromServer, open, onOpen }: {
                                 </select>
                               </label>
                               <ul className="liquid-actions">
-                                {app.actions.map((a, i) => {
+                                {app.actions.map((a) => {
                                   const on = isOn(app, a.key);
                                   const changed = Object.hasOwn(app.changes, a.key);
                                   return (
-                                    <motion.li key={a.key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.04 * Math.min(i, 10) + 0.08 } }}>
+                                    <li key={a.key}>
                                       <span className="liquid-action-text">
                                         {a.description || a.key}
                                         {changed ? <span className="pill plain liquid-changed">Changed</span> : null}
@@ -137,21 +137,19 @@ export function TeamApps({ teamId, teamName, apps: fromServer, open, onOpen }: {
                                           <Ban size={14} strokeWidth={2} aria-hidden="true" />
                                         </button>
                                       </span>
-                                    </motion.li>
+                                    </li>
                                   );
                                 })}
                               </ul>
                             </div>
-                          </motion.div>
+                          </div>
                         ) : null}
-                      </AnimatePresence>
-                    </motion.div>
+                    </div>
                   );
                 })}
-              </motion.div>
+              </div>
             );
           })}
-      </AnimatePresence>
-    </motion.section>
+    </section>
   );
 }

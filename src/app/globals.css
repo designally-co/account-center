@@ -397,8 +397,8 @@ main.narrow-form { max-width: 520px; }
 .new-person { padding: 22px 24px; }
 .invite-link { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .invite-link input { flex: 1 1 240px; min-width: 0; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-/* Home is wider, like the reference, so each app card's line fits on two lines next to its picture. */
-main.home { max-width: 1160px; }
+/* Home has the same width as every other page, so the content does not jump sideways between pages. */
+main.home { max-width: 980px; }
 
 /* Toasts: success messages at the bottom of the screen; they go away by themselves */
 .toasts { position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50;
@@ -614,14 +614,14 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 
 
 /* Teams: a team opens as a popup that grows out of its card (Buk, 2026-11-03). The card and the popup are one
-   framer-motion layoutId, so only their box moves; the popup's words fade in once it has grown. */
+   box, so only the box moves (GSAP, src/components/popup.tsx); the popup's words fade in once it has grown. */
 .team-cards > li { display: grid; }
 .team-card { height: 100%; }
 .team-card-inner { display: grid; gap: 10px; align-content: start; }
-.team-card.placeholder { visibility: hidden; }
 .team-modal-layer { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; }
 .team-modal-backdrop { position: absolute; inset: 0; background: var(--overlay); }
 .team-modal {
+  border-radius: 16px;
   position: relative; width: min(760px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain;
   background: var(--surface); border: 1px solid var(--outline-strong); box-shadow: var(--shadow-modal);
 }
@@ -654,7 +654,7 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 .team-stack { display: grid; gap: 12px; }
 /* No shadows and no outlines (Buk, 2026-11-03: "do not use shadow"; "remove all container outlines"): a card is
    its surface on the soft veil, and what sits inside a card gets a soft fill instead of a line. */
-.stack-card { background: var(--surface); border: none; }
+.stack-card { background: var(--surface); border: none; border-radius: 20px; }
 .team-head-card { padding: 22px 24px 22px; }
 p.stack-card.notice { margin: 0; border-radius: 16px; }
 @media (max-width: 560px) {
@@ -680,11 +680,15 @@ dialog.people-dialog, .team-sheet dialog.modal { box-shadow: none; border: none;
 .team-people-label span { margin-left: 4px; font-weight: 500; }
 .team-people-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
 .team-faces { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
-.team-face { position: relative; background: color-mix(in oklab, var(--fg) 4%, var(--surface)); border: none; overflow: hidden; transition: background 0.18s; }
+.team-face { position: relative; border-radius: 14px; background: color-mix(in oklab, var(--fg) 4%, var(--surface)); border: none; overflow: hidden; transition: background 0.18s; }
 .team-face:has(a.team-face-link:hover) { background: color-mix(in oklab, var(--fg) 7%, var(--surface)); }
 .team-face-link { display: grid; justify-items: center; gap: 8px; padding: 14px 10px 12px; text-align: center; color: var(--fg); text-decoration: none; }
 a.team-face-link:hover strong { text-decoration: underline; }
-.team-face-avatar { display: inline-flex; border-radius: 50%; }
+/* The face's size is set here, not on the picture, so it can shrink smoothly into the row of faces. */
+.team-face-avatar { display: inline-flex; width: 48px; height: 48px; border-radius: 50%; }
+.team-face-avatar img { width: 100%; height: 100%; }
+.team-faces.compact .team-face-avatar { width: 30px; height: 30px; }
+.team-faces.compact .team-face { border-radius: 999px; }
 .team-face-text { display: grid; gap: 2px; min-width: 0; max-width: 100%; }
 .team-face-text strong { font-size: 13.5px; font-weight: 600; }
 .team-face-email { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -712,7 +716,8 @@ button.liquid-head:focus-visible { outline: 2px solid var(--fg); outline-offset:
 .liquid-name { display: grid; gap: 1px; flex: 1; min-width: 0; }
 .liquid-name strong { font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; }
 .liquid-summary { font-size: 12.5px; color: var(--muted); }
-.liquid-chevron { display: inline-flex; color: var(--muted); }
+.liquid-chevron { display: inline-flex; color: var(--muted); transition: transform 0.45s cubic-bezier(0.65, 0, 0.35, 1); }
+.liquid-chevron.up { transform: rotate(180deg); }
 .liquid-body { overflow: hidden; }
 .liquid-inner { display: grid; gap: 4px; padding: 0 16px 14px 58px; }
 .liquid-role { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0 8px; font-weight: 500; font-size: 13.5px; }
@@ -759,7 +764,6 @@ dialog.people-dialog { width: min(480px, calc(100vw - 32px)); }
 .person-card, .person-card-inner { justify-items: center; text-align: center; }
 .person-card-text { justify-items: center; max-width: 100%; }
 .person-card-meta { justify-content: center; }
-.person-card.placeholder { visibility: hidden; }
 .team-modal.person-modal { width: min(920px, 100%); }
 .person-popup { gap: 22px; }
 .person-popup .person-head { padding-right: 40px; margin: 0; }
@@ -777,3 +781,97 @@ dialog.people-dialog { width: min(480px, calc(100vw - 32px)); }
   .team-modal { max-height: calc(100dvh - 16px); }
   .team-modal-body { padding: 22px 16px 24px; }
 }
+
+/* A person's popup is separate cards, like a team's (Buk, 2026-11-03): their own card on top, grown out of their
+   card on the page, then one card per part. Inside a card, things get a soft fill, never a line around them. */
+.popup-stack.person-modal { width: min(760px, 100%); }
+.person-stack, .person-detail { display: grid; gap: 12px; }
+.person-head-card { padding: 22px 24px; }
+.person-sheet-head { position: relative; display: flex; align-items: center; gap: 16px; padding-right: 40px; }
+.person-sheet-words { display: grid; gap: 4px; min-width: 0; }
+.person-sheet-title { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 20px; font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; }
+.person-card-lead.inline { position: static; font-size: 11.5px; letter-spacing: 0; }
+.person-sheet-meta { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; font-size: 14px; color: var(--muted); }
+.person-sheet-meta > span:first-child { color: var(--fg-2); }
+.person-sheet-email { overflow-wrap: anywhere; }
+.person-sheet-close { position: absolute; top: -4px; right: -4px; }
+.person-notices { display: grid; gap: 8px; }
+.person-notices .notice { margin: 0; border-radius: 16px; }
+.person-section { display: grid; gap: 14px; align-content: start; padding: 18px 24px 20px; }
+.person-section.details { gap: 0; padding: 2px 24px; }
+.person-section-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.person-section-title span { margin-left: 4px; font-weight: 500; }
+.person-detail h3.person-section-title { font-size: 12px; letter-spacing: 0.04em; }
+.person-section .access-grid { gap: 8px; }
+.person-section .access-card { gap: 12px; padding: 14px; border: none; border-radius: 14px; box-shadow: none;
+  background: color-mix(in oklab, var(--fg) 4%, var(--surface)); transition: background 0.18s; }
+.person-section .access-card:hover { box-shadow: none; background: color-mix(in oklab, var(--fg) 7%, var(--surface)); }
+.person-section .access-card-link::after { border-radius: 14px; }
+.person-section .access-card-icon { width: 44px; height: 44px; border: none; border-radius: 11px; background: var(--surface); }
+.person-section .access-card-text strong { font-size: 14.5px; }
+.person-section .access-card-desc { font-size: 13px; line-height: 1.45; }
+.person-section .access-card-summary { font-size: 12.5px; }
+.person-section .access-card-state { width: 32px; height: 32px; background: var(--surface); }
+.person-subs { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.person-subs li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 10px 14px;
+  border-radius: 12px; background: color-mix(in oklab, var(--fg) 4%, var(--surface)); }
+.person-subs a { color: var(--fg); font-weight: 500; text-decoration: none; }
+.person-subs a:hover { text-decoration: underline; }
+.person-section.remove-zone { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; border-top: none; padding-top: 18px; }
+.remove-words { display: grid; gap: 4px; flex: 1 1 260px; }
+.remove-words p { margin: 0; }
+.person-waiting .person-section { gap: 12px; }
+.person-waiting .person-waiting-grid { gap: 8px; }
+@media (max-width: 560px) {
+  .person-head-card { padding: 18px 16px; }
+  .person-section { padding: 16px; }
+  .person-section.details { padding: 2px 16px; }
+  .person-sheet-head { align-items: flex-start; gap: 12px; }
+  .person-sheet-head .avatar { width: 52px; height: 52px; }
+}
+
+/* Flat everywhere (Buk, 2026-11-03: "do not use shadow"; "remove all container outlines"): a card is white on
+   the #f4f5f7 page with no edge and no shadow; a card that opens something tints a little under the pointer. */
+.panel, .app-panel, .app-panel.open, .app-card, .tablewrap, .person-card, .team-card, .access-card, .maker-preview, .tiles, .swatches,
+.tool-list li, .confirm, .team-modal, dialog.modal { border-color: transparent; box-shadow: none; }
+a.app-card:hover, .person-card:hover, .access-card:hover { transform: none; border-color: transparent; box-shadow: none; background: color-mix(in oklab, var(--fg) 3%, var(--surface)); }
+.person-card, .app-card, .access-card, .panel, .tablewrap, .tool-list li { border-radius: 20px; }
+.person-card-name::after, .access-card-link::after { border-radius: 20px; }
+.person-card { transition: background 0.18s; }
+a.app-card { transition: background 0.18s; }
+.access-card-icon { border: none; background: color-mix(in oklab, var(--fg) 4%, var(--surface)); }
+.confirm { background: color-mix(in oklab, var(--error) 6%, var(--surface)); }
+.tile { border-color: transparent; }
+.tile[aria-checked="true"] { border-color: var(--fg); }
+.view-switch a[aria-current="page"], .seg-tabs label.on { box-shadow: none; }
+/* A message at the bottom of the screen: dark, so it stands out from the page without a shadow. */
+.toast { border: none; box-shadow: none; background: var(--fg); color: var(--surface); }
+.toast svg { color: currentColor; }
+/* The "/" key hint is for a keyboard; a phone has none. */
+@media (hover: none), (max-width: 560px) { .search kbd { display: none; } .search input { padding-right: 14px; } }
+/* On a phone, people sit two to a row in small cards. */
+@media (max-width: 560px) {
+  .people-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .person-card { padding: 16px 10px 14px; border-radius: 16px; }
+  .person-card-inner { gap: 10px; }
+  .person-card .avatar { width: 48px; height: 48px; }
+  .person-card-name { font-size: 14.5px; }
+  .person-card-name::after { border-radius: 16px; }
+  .person-card-team { font-size: 12.5px; max-width: 100%; }
+  .person-card-lead { top: 8px; right: 8px; padding: 2px 7px; font-size: 11px; }
+  .person-card-lead svg { display: none; }
+}
+
+/* Person cards (Buk, 2026-11-03): wider, with more room inside, so "Lead" in the top right corner never sits over
+   the face; the tag is the word only, no icon. */
+.people-cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.person-card { padding: 36px 24px 26px; }
+.person-card-lead { top: 14px; right: 14px; padding: 3px 10px; font-size: 12px; letter-spacing: 0; }
+.team-face-lead { padding: 1px 7px; }
+@media (max-width: 560px) {
+  .people-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .person-card { padding: 32px 12px 16px; }
+  .person-card-lead { top: 9px; right: 9px; padding: 2px 8px; font-size: 11px; }
+}
+/* The popup itself takes focus when opened with a mouse or from a link; it never shows a ring for that. */
+.popup-stack:focus, .team-modal:focus { outline: none; }

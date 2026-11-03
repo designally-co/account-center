@@ -1,11 +1,11 @@
 "use client";
 
-import { Crown } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { gsap, OUT, reducedMotion } from "@/components/motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MotionConfig, motion } from "framer-motion";
 import { Avatar } from "@/components/avatar";
-import { GROW, Popup } from "@/components/popup";
+import { Popup } from "@/components/popup";
 import type { PersonRow } from "@/lib/people";
 
 type Show = "active" | "removed" | "all";
@@ -29,14 +29,18 @@ function words(p: PersonRow) {
   return [p.display_name, p.email, p.team ?? "", ...p.extra_teams, ...p.work_emails].join(" ").toLowerCase();
 }
 
-// While a person's details come from the server, their popup shows soft grey shapes where they will be.
+// While a person's details come from the server, their popup shows soft grey cards where theirs will be.
 function Waiting() {
   return (
-    <div className="stack person-waiting" aria-busy="true" aria-label="Loading">
-      <div className="skeleton" style={{ height: 180 }} />
-      <div className="skeleton" style={{ height: 22, width: 90 }} />
-      <div className="person-waiting-grid">
-        {[0, 1, 2, 3].map((n) => <div key={n} className="skeleton" style={{ height: 112 }} />)}
+    <div className="person-detail person-waiting" aria-busy="true" aria-label="Loading" data-waiting>
+      <div className="stack-card person-section" data-grow-follow>
+        {[0, 1, 2].map((n) => <div key={n} className="skeleton" style={{ height: 22, width: n === 1 ? "60%" : "80%" }} />)}
+      </div>
+      <div className="stack-card person-section" data-grow-follow>
+        <div className="skeleton" style={{ height: 18, width: 60 }} />
+        <div className="person-waiting-grid">
+          {[0, 1, 2, 3].map((n) => <div key={n} className="skeleton" style={{ height: 92 }} />)}
+        </div>
       </div>
     </div>
   );
@@ -64,8 +68,6 @@ export function PeopleBrowser({ people, view, detail }: {
   const person = openId ? people.find((p) => p.id === openId) ?? null : null;
   const lastOpen = useRef<string | null>(null);
   if (openId) lastOpen.current = openId;
-  // The card the popup is shrinking back into: its words wait until it has landed.
-  const [returning, setReturning] = useState<string | null>(null);
   const titleId = useId();
   const base = view === "list" ? "/people?view=list" : "/people";
   const hrefOf = (id: string) => `${base}${view === "list" ? "&" : "?"}person=${id}`;
@@ -76,12 +78,24 @@ export function PeopleBrowser({ people, view, detail }: {
     router.push(hrefOf(id), { scroll: false });
   };
   const close = () => {
-    if (openId) setReturning(openId);
     setPending(null);
     window.history.replaceState(null, "", base);
   };
   // The card came back as a new element, so it is found again by its link.
   const backToCard = () => document.querySelector<HTMLElement>(`[data-person="${lastOpen.current}"]`)?.focus();
+
+  // When the details arrive after the grey cards, the real cards rise in one after another in their place.
+  const stackRef = useRef<HTMLDivElement>(null);
+  const waited = useRef<string | null>(null);
+  const ready = openId !== null && detail?.id === openId;
+  useLayoutEffect(() => {
+    if (!openId) { waited.current = null; return; }
+    if (!ready) { waited.current = openId; return; }
+    if (waited.current !== openId || !stackRef.current || reducedMotion()) return;
+    waited.current = null;
+    const cards = stackRef.current.querySelectorAll(".person-detail > *");
+    gsap.fromTo(cards, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: OUT, stagger: 0.05, clearProps: "transform,opacity" });
+  }, [openId, ready]);
 
   const [query, setQuery] = useState("");
   const [show, setShow] = useState<Show>("active");
@@ -105,7 +119,7 @@ export function PeopleBrowser({ people, view, detail }: {
     (show === "all" || (show === "active") === p.is_active) && (!q || words(p).includes(q))), [people, show, q]);
 
   return (
-    <MotionConfig reducedMotion="user">
+    <>
     <div className="stack">
       <div className="people-tools">
         <label className="search">
@@ -141,7 +155,7 @@ export function PeopleBrowser({ people, view, detail }: {
             // right when they lead that team. No email and no app count; those are in the person's popup.
             const inner = (
               <>
-                {p.is_lead && p.team ? <span className="person-card-lead"><Crown size={12} strokeWidth={2} aria-hidden="true" />Lead</span> : null}
+                {p.is_lead && p.team ? <span className="person-card-lead">Lead</span> : null}
                 <Avatar avatar={p.avatar} seed={p.id} size={56} />
                 <div className="person-card-text">
                   <a href={hrefOf(p.id)} className="person-card-name" data-person={p.id} aria-haspopup="dialog" onClick={(e) => open(e, p.id)}>{p.display_name}</a>
@@ -152,18 +166,10 @@ export function PeopleBrowser({ people, view, detail }: {
             );
             return (
               <li key={p.id} style={{ "--i": Math.min(i, 12) } as React.CSSProperties}>
-                {p.id === openId ? (
-                  /* While the person is open their card is the popup; this keeps its place in the grid. */
-                  <div className="person-card placeholder" aria-hidden="true" inert>{inner}</div>
-                ) : (
-                  <motion.div layoutId={`person-${p.id}`} transition={GROW} className={`person-card${p.is_active ? "" : " faded"}`}
-                    style={{ borderRadius: 16 }} onLayoutAnimationComplete={() => { if (returning === p.id) setReturning(null); }}>
-                    <motion.div className="person-card-inner" initial={returning === p.id ? { opacity: 0 } : false}
-                      animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.16 } }}>
-                      {inner}
-                    </motion.div>
-                  </motion.div>
-                )}
+                {/* While the person is open, the popup hides this card and grows out of it (GSAP). */}
+                <div className={`person-card${p.is_active ? "" : " faded"}`} data-grow={`person-${p.id}`} inert={p.id === openId}>
+                  <div className="person-card-inner" data-grow-content>{inner}</div>
+                </div>
               </li>
             );
           })}
@@ -176,7 +182,7 @@ export function PeopleBrowser({ people, view, detail }: {
             </thead>
             <tbody>
               {shown.map((p) => (
-                <tr key={p.id} className={p.is_active ? undefined : "faded"}>
+                <tr key={p.id} className={p.is_active ? undefined : "faded"} data-grow={`person-${p.id}`}>
                   <td className="name"><a href={hrefOf(p.id)} data-person={p.id} aria-haspopup="dialog" onClick={(e) => open(e, p.id)}><Avatar avatar={p.avatar} seed={p.id} size={36} /><span>{p.display_name}</span></a></td>
                   <td>{p.email}</td>
                   <td>
@@ -189,7 +195,7 @@ export function PeopleBrowser({ people, view, detail }: {
                     ) : <span className="muted">None</span>}
                   </td>
                   <td>{p.kind}</td>
-                  <td><Status p={p} /></td>
+                  <td>{needsLook(p) ? <Status p={p} /> : <span className="muted">Active</span>}</td>
                   <td className="num"><a href={hrefOf(p.id)} aria-haspopup="dialog" onClick={(e) => open(e, p.id)} aria-label={`${p.app_count} ${p.app_count === 1 ? "app" : "apps"}: access list of ${p.display_name}`}>{p.app_count}</a></td>
                 </tr>
               ))}
@@ -199,25 +205,35 @@ export function PeopleBrowser({ people, view, detail }: {
       )}
     </div>
 
-      <Popup open={person !== null} layoutId={`person-${person?.id ?? lastOpen.current}`} labelledBy={titleId} onClose={close}
-        afterClose={backToCard} className="person-modal">
+      {/* Separate cards, like a team (Buk, 2026-11-03: "separated containers not inside one big container"): the
+          person's own card on top, grown out of their card on the page, then a card for each part below it. */}
+      <Popup open={person !== null} growFrom={`person-${person?.id ?? lastOpen.current}`} labelledBy={titleId} onClose={close}
+        afterClose={backToCard} className="person-modal" stack>
         {person ? (
-          <div className="stack person-popup">
-            <div className="person-head">
-              <Avatar avatar={person.avatar} seed={person.id} size={72} />
-              <div className="stack tight">
-                <h2 id={titleId} className="team-detail-title">{person.display_name}</h2>
-                <p className="meta">
-                  <span>{person.email}</span>
-                  <Status p={person} />
-                  <span>{person.app_count} {person.app_count === 1 ? "app" : "apps"}</span>
-                </p>
+          <div className="person-stack" ref={stackRef}>
+            <div className="stack-card person-head-card" data-grow-target>
+              <div className="person-sheet-head" data-grow-content>
+                <Avatar avatar={person.avatar} seed={person.id} size={64} />
+                <div className="person-sheet-words">
+                  <h2 id={titleId} className="person-sheet-title">
+                    {person.display_name}
+                    {person.is_lead && person.team ? <span className="person-card-lead inline">Lead</span> : null}
+                  </h2>
+                  <p className="person-sheet-meta">
+                    <span>{person.team ?? "No team"}{person.extra_teams.length ? `, also ${person.extra_teams.join(", ")}` : ""}</span>
+                    <span className="person-sheet-email">{person.email}</span>
+                    {needsLook(person) ? <Status p={person} /> : null}
+                  </p>
+                </div>
+                <button type="button" className="icon-button popup-close person-sheet-close" aria-label="Close" onClick={close}>
+                  <X size={18} strokeWidth={1.8} aria-hidden="true" />
+                </button>
               </div>
             </div>
             {detail?.id === person.id ? detail.node : <Waiting />}
           </div>
         ) : null}
       </Popup>
-    </MotionConfig>
+    </>
   );
 }

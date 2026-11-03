@@ -67,9 +67,8 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
         <div className="top">
           <div>
             <h1>Teams</h1>
-            <p className="muted">{canManage
-              ? "Each person has a primary team and can be in more. A team gives its people a default access in each app; you can still change it person by person."
-              : "Who is in each team at Designally."}</p>
+            {/* Page lines are short phrases in one style (Buk, 2026-11-03: "shorten it ... make all desc text consistent"). */}
+            <p className="muted">{canManage ? "Who is in each team and the access it gives" : "Who is in each team"}</p>
           </div>
           {canManage ? (
             <FormDialog trigger="New team" title="New team" open={formError}>

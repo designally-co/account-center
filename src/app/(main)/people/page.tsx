@@ -48,6 +48,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         <div className="top">
           <div>
             <h1>People</h1>
+            <p className="muted">Everyone at Designally and their access</p>
           </div>
           <div className="row">
             <nav className="view-switch" aria-label="View">

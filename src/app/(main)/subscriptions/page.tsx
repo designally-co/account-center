@@ -35,9 +35,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
         <div className="top">
           <div>
             <h1>Shared subscriptions</h1>
-            <p className="muted">{canManage
-              ? "Tools the company pays for, used by several people with one shared login. Who may use each one. Never the password."
-              : "Tools the company pays for, used by several people with one shared login, and who uses each one."}</p>
+            <p className="muted">{canManage ? "Shared company logins and who may use them" : "Shared company logins and who uses them"}</p>
           </div>
           {canManage ? (
             <FormDialog trigger="Add subscription" title="Add subscription" open={formError}>

@@ -1,5 +1,6 @@
 "use client";
 
+import { closeDialog } from "@/components/motion";
 import { useId, useRef } from "react";
 import { SubmitButton } from "./submit-button";
 
@@ -27,7 +28,7 @@ export function ConfirmAction({ action, fields, trigger, triggerClass = "seconda
           <h2 id={`${id}-title`}>{title}</h2>
           <p id={`${id}-body`} className="muted">{body}</p>
           <div className="row modal-actions">
-            <button type="button" className="secondary" onClick={() => dialog.current?.close()}>Cancel</button>
+            <button type="button" className="secondary" onClick={() => closeDialog(dialog.current)}>Cancel</button>
             <SubmitButton className="danger" pendingText={pending}>{confirm}</SubmitButton>
           </div>
         </form>
