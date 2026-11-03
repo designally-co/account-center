@@ -10,6 +10,8 @@ import { setTeamActiveAction, setTeamRoleAction, updateTeamAction } from "../act
 import { ConfirmAction } from "@/components/confirm-action";
 import { SubmitButton } from "@/components/submit-button";
 import { DefaultRole } from "./default-role";
+import { TeamMembers, type PickPerson } from "../team-members";
+import { listPeople } from "@/lib/people";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +35,11 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
   const { userId, me } = await requireAction(ACTIONS.view);
   const sql = db();
   const [{ id }, search] = await Promise.all([params, searchParams]);
-  const [team, canManage] = await Promise.all([getTeam(sql, id), canUser(sql, userId, ACTIONS.manage)]);
+  const [team, canManage, everyone] = await Promise.all([getTeam(sql, id), canUser(sql, userId, ACTIONS.manage), listPeople(sql)]);
   if (!team) notFound();
+  // Who can be put in this team: everyone active, with their current team (one team per person).
+  const pickable: PickPerson[] = everyone.filter((p) => p.is_active)
+    .map((p) => ({ id: p.id, name: p.display_name, team: p.team, is_lead: p.is_lead, avatar: p.avatar }));
   const key = typeof search.notice === "string" ? search.notice : "";
   const notice = Object.hasOwn(NOTICES, key) ? NOTICES[key] : null;
   const leads = team.members.filter((m) => m.is_lead);
@@ -78,8 +83,19 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
         </section>
 
         <section className="stack" aria-labelledby="members-title">
-          <h2 id="members-title">Members</h2>
-          <p className="muted small-text">To add someone, or move them here from another team, use this team's card on Teams, or open their page and choose this team.</p>
+          <div className="members-head">
+            <h2 id="members-title">Members</h2>
+            {/* Admins add and take off members here, inside the team (Buk, 2026-11-03: "user must go inside first
+                to add the team member"). */}
+            {canManage && team.is_active ? (
+              <TeamMembers teamId={team.id} teamName={team.name} people={pickable} members={team.members.map((m) => m.id)} />
+            ) : null}
+          </div>
+          <p className="muted small-text">
+            {canManage && team.is_active
+              ? "Press the faces to add someone or take them off. Adding someone from another team moves them here. A lead is set on the person's own page."
+              : "To add someone, or move them here from another team, open their page and choose this team."}
+          </p>
           {team.members.length === 0 ? <p className="empty">No active members.</p> : (
             <ul className="team-members">
               {team.members.map((m) => (

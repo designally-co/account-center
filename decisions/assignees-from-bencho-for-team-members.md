@@ -1,5 +1,5 @@
 ---
-title: A team card adds and takes off members with Bencho's Assignees pill (MIT), on framer-motion and lucide-react
+title: A team's page adds and takes off members with Bencho's Assignees pill (MIT), on framer-motion and lucide-react
 app: account-center
 decided: 2026-11-02
 author: ai
@@ -10,6 +10,7 @@ sources:
   - src/app/(main)/teams/actions.ts
   - src/lib/teams.ts
   - src/app/globals.css
+  - "Buk, 2026-11-03 (user must go inside first to add the team member)"
 ---
 
 ## Context
@@ -34,13 +35,13 @@ Before, a team's members could only be changed one person at a time, from each p
   - Bencho's `.rst-at` rule styles a different Bencho block and was not copied.
   - The app's own button look is kept off the pill and the rows.
   - In a page, the floating list gets a soft shadow and scrolls past about seven people.
-- **On the Teams page:** an admin sees the pill on every active team's card, with a list of every active person and their current team ("In this team", "In Digital: moves here", "No team").
+- **On a team's own page** (first on each card of the Teams list, 2026-11-02; moved inside the team's page on 2026-11-03, because Buk wants people to open the team first to add a member): an admin sees the pill next to "Members" on an active team, with a list of every active person and their current team ("In this team", "In Digital: moves here", "No team").
   - Ticking someone runs `addToTeam`: it puts them in this team, moving them out of their old one, and not as lead. Ticking someone already in the team changes nothing, so a lead stays a lead.
   - Unticking runs `takeOffTeam`: it removes them from this team only. If another admin moved them meanwhile, they stay where they are.
   - Both run through `withActor` like every other change, and the page refreshes after each save.
-  - Turned-off teams, and people who may only view, keep the plain row of faces.
-- **Avatars are drawn in the browser:** the cards get each person's small avatar choices, not the drawn pictures. A picture is about 23 KB and every card lists everyone.
+  - Turned-off teams, and people who may only view, see the members list only. The cards on Teams show the members' faces and open the team's page.
+- **Avatars are drawn in the browser:** the team's page gets each person's small avatar choices, not the drawn pictures. A picture is about 23 KB and the list holds everyone.
 
 ## Why
 
-Buk asked for this component and for it to be used to add team members from the team card (Buk, 2026-11-02). The reasons for the changes are in the "In Account Center:" notes in the code.
+Buk asked for this component and for it to be used to add team members (Buk, 2026-11-02), from inside the team's page (Buk, 2026-11-03). The reasons for the changes are in the "In Account Center:" notes in the code.
