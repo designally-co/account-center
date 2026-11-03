@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Ellipsis, PencilLine, Trash2, UserPlus, X } from "lucide-react";
+import { Ellipsis, LayoutGrid, PencilLine, Trash2, UserPlus, X } from "lucide-react";
 import { Flip, IN_OUT, closeDialog, gsap, reducedMotion } from "@/components/motion";
 import { Avatar } from "@/components/avatar";
 import { SubmitButton } from "@/components/submit-button";
@@ -10,63 +10,52 @@ import type { TeamDetail as Team } from "@/lib/teams";
 import { deleteTeamAction, updateTeamAction } from "./actions";
 import { TeamApps } from "./team-apps";
 import { TeamPeopleDialog, type PickPerson } from "./team-people";
+import { TeamAppPicker } from "./team-app-picker";
 
 // What a team's popup holds (Buk, 2026-11-03, from his layout: the team's name and description with a "…" menu,
 // its people as tiles, and its apps as an accordion). Opening an app shrinks the people into a row of faces, so
 // the app's switches have the room; closing it brings the tiles back. Every company person sees the team and its
-// people; only an admin sees the apps (the team's default access) and the "…" menu: Edit info, Add people and
-// Delete team (Buk, 2026-11-03).
+// people; only an admin sees the apps (the team's default access) and the "…" menu: Edit info, Add people,
+// Add app and Delete team (Buk, 2026-11-03).
 // A team is never turned off (Buk, 2026-11-03).
 export function TeamDetail({ team, people, canManage, canView, error, titleId, onClose }: {
   team: Team; people: PickPerson[]; canManage: boolean; canView: boolean; error: string | null; titleId: string; onClose: () => void;
 }) {
   const [openApp, setOpenApp] = useState<string | null>(null);
   const compact = openApp !== null;
-  // Opening or closing an app moves almost everything: the app cards split or join, the people's tiles become a
-  // row of faces or tiles again, and the column re-centres. GSAP's Flip notes where every marked part
-  // (data-flip-id) is just before the change and slides each one from there to its new place, all in one ease.
+  // Opening the first app shrinks the people's tiles into a row of faces, and closing the last one brings the
+  // tiles back (the apps' own moves are CSS, in team-apps.tsx). GSAP's Flip notes where the team's card and each
+  // face are just before, then moves them to their new place and size; the names fade out and back in.
+  // Going straight from one app to another changes nothing here.
   const stackRef = useRef<HTMLDivElement>(null);
   const before = useRef<Flip.FlipState | null>(null);
-  // Going straight from one open app to another first joins the cards, then splits them around the new app, so
-  // the two moves never cross over each other.
-  const next = useRef<string | null>(null);
-  const quick = useRef(false);
-  const capture = () => {
-    if (stackRef.current && !reducedMotion()) before.current = Flip.getState(stackRef.current.querySelectorAll("[data-flip-id]"));
-  };
+  const flipTargets = () => stackRef.current?.querySelectorAll("[data-flip-id]") ?? [];
   const toggleApp = (key: string | null) => {
-    if (openApp && key && key !== openApp && !reducedMotion()) {
-      next.current = key;
-      quick.current = true;
-      capture();
-      setOpenApp(null);
-      return;
+    // From the first app opened, the popup stays where it is on the screen and grows downward, so nothing above
+    // the open app moves while the rest opens.
+    const column = stackRef.current?.closest<HTMLElement>(".popup-stack");
+    if (column && !column.style.marginTop) {
+      const pad = parseFloat(getComputedStyle(column.parentElement!).paddingTop) || 0;
+      column.style.marginTop = `${Math.max(0, column.offsetTop - pad)}px`;
+      column.style.marginBottom = "auto";
     }
-    next.current = null;
-    capture();
+    if ((key !== null) !== compact && stackRef.current && !reducedMotion()) before.current = Flip.getState(flipTargets());
     setOpenApp(key);
   };
   useLayoutEffect(() => {
     const state = before.current;
     before.current = null;
     if (!state || !stackRef.current) return;
-    const joining = quick.current;
-    quick.current = false;
     Flip.from(state, {
-      targets: stackRef.current.querySelectorAll("[data-flip-id]"),
-      duration: joining ? 0.32 : 0.6, ease: IN_OUT, nested: true, prune: true,
-      onEnter: (els) => gsap.fromTo(els, { opacity: 0 }, { opacity: 1, duration: 0.35, delay: 0.2, ease: "power1.out" }),
-      onComplete: () => {
-        if (!joining || !next.current) return;
-        const key = next.current;
-        next.current = null;
-        capture();
-        setOpenApp(key);
-      },
+      targets: flipTargets(),
+      duration: 0.55, ease: IN_OUT, nested: true, prune: true, props: "backgroundColor,borderRadius",
+      onLeave: (els) => gsap.to(els, { opacity: 0, duration: 0.15, ease: "power1.in" }),
+      onEnter: (els) => gsap.fromTo(els, { opacity: 0 }, { opacity: 1, duration: 0.3, delay: 0.3, ease: "power1.out" }),
     });
-  }, [openApp]);
+  }, [compact]);
   const edit = useRef<HTMLDialogElement>(null);
   const add = useRef<HTMLDialogElement>(null);
+  const addApp = useRef<HTMLDialogElement>(null);
   const remove = useRef<HTMLDialogElement>(null);
   const removeTitle = useId();
   const menu = useRef<HTMLDivElement>(null);
@@ -105,6 +94,10 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
                 <UserPlus size={16} strokeWidth={1.6} aria-hidden="true" />
                 Add people
               </button>
+              <button type="button" className="menu-item" onClick={() => { menu.current?.hidePopover?.(); addApp.current?.showModal(); }}>
+                <LayoutGrid size={16} strokeWidth={1.6} aria-hidden="true" />
+                Add app
+              </button>
               <button type="button" className="menu-item menu-danger" onClick={() => { menu.current?.hidePopover?.(); remove.current?.showModal(); }}>
                 <Trash2 size={16} strokeWidth={1.6} aria-hidden="true" />
                 Delete team
@@ -112,6 +105,7 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
             </div>
             <TeamPeopleDialog ref={add} teamId={team.id} teamName={team.name} people={people}
               members={team.members.map((m) => m.id)} leads={team.members.filter((m) => m.is_lead).map((m) => m.id)} />
+            <TeamAppPicker ref={addApp} teamId={team.id} teamName={team.name} choices={team.choices} />
             <dialog ref={remove} className="modal" aria-labelledby={removeTitle}>
               <form action={deleteTeamAction} className="stack">
                 <input type="hidden" name="team_id" value={team.id} />
@@ -164,13 +158,11 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId, o
                     <span className="team-face-avatar" data-flip-id={`face-${m.id}`}>
                       <Avatar avatar={m.avatar} seed={m.id} size={48} />
                     </span>
-                    {compact ? null : (
-                      <span className="team-face-text" data-flip-id={`words-${m.id}`}>
-                        <strong>{m.display_name}</strong>
-                        {canView && m.email ? <span className="team-face-email">{m.email}</span> : null}
-                      </span>
-                    )}
-                    {!compact && m.is_lead ? <span className="team-face-lead" data-flip-id={`lead-${m.id}`}>Lead</span> : null}
+                    <span className="team-face-text" data-flip-id={`words-${m.id}`}>
+                      <strong>{m.display_name}</strong>
+                      {canView && m.email ? <span className="team-face-email">{m.email}</span> : null}
+                    </span>
+                    {m.is_lead ? <span className="team-face-lead" data-flip-id={`lead-${m.id}`}>Lead</span> : null}
                   </>
                 );
                 return (

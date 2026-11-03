@@ -30,12 +30,12 @@ const TEAM_NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
   "default-saved": { tone: "ok", text: "Default access saved. Every member gets it, unless they have their own access in that app." },
   "invalid-name": { tone: "error", text: "Not saved: give the team a name of up to 60 characters." },
   taken: { tone: "error", text: "Not saved: another team already has that name." },
-  "unknown-role": { tone: "error", text: "That role does not exist for this app. Reload the page and try again." },
+  "unknown-role": { tone: "error", text: "That app or action no longer exists. Reload the page and try again." },
   "not-found": { tone: "error", text: "That team was not found. Reload the page and try again." },
   "not-allowed": { tone: "error", text: "Not saved: you can no longer manage Account Center. Ask another admin." },
 };
 
-// Teams (Buk, 2026-10-19): one team per person; a team gives its members a default role in each app.
+// Teams (Buk, 2026-10-19): a team gives its members default access in each app on its list, action by action.
 // Every company person may open it and see the teams and who is in them (Buk, 2026-11-03: "only admin can see
 // the settings for team and subscriptions, members can see the overall view"). The settings (default access,
 // members to add or take off, the name) reach the page only for an admin, who may manage Account Center.
@@ -49,7 +49,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   // no settings at all.
   const details: Record<string, TeamDetail> = Object.fromEntries(
     (await Promise.all(teams.map((t) => getTeam(sql, t.id)))).filter((d): d is TeamDetail => d !== null)
-      .map((d) => [d.id, { ...d, members: d.members.map((m) => ({ ...m, email: canView ? m.email : "" })), defaults: canManage ? d.defaults : [] }]));
+      .map((d) => [d.id, { ...d, members: d.members.map((m) => ({ ...m, email: canView ? m.email : "" })), defaults: canManage ? d.defaults : [], choices: canManage ? d.choices : [] }]));
   const cards = teams.map((t) => ({ ...t, members: t.members.map((m) => ({ ...m, email: "" })), defaults: [] }));
   // Who can be put in a team: everyone active, with their primary and extra teams. Admins only.
   const pickable: PickPerson[] = canManage ? (await listPeople(sql)).filter((p) => p.is_active)

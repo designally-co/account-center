@@ -670,11 +670,8 @@ p.stack-card.notice { margin: 0; border-radius: 16px; }
 .team-sheet-desc { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; max-width: 52ch; }
 .team-sheet-more { position: absolute; top: -4px; right: 36px; }
 .team-sheet-close { position: absolute; top: -4px; right: -4px; }
-.team-sheet-menu { transform-origin: top right; box-shadow: none; border: none; background: color-mix(in oklab, var(--fg) 5%, var(--surface)); }
-.team-sheet-menu .menu-item:hover { background: color-mix(in oklab, var(--fg) 9%, var(--surface)); }
 /* No shadows in a team (Buk, 2026-11-03): its windows are a surface and a hairline too. */
 dialog.people-dialog, .team-sheet dialog.modal { box-shadow: none; border: none; }
-.team-sheet-menu:not(:popover-open) { transform: translateY(-4px) scale(0.97); }
 .team-people { display: grid; gap: 10px; }
 .team-people-label { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .team-people-label span { margin-left: 4px; font-weight: 500; }
@@ -704,10 +701,7 @@ a.team-face-link:hover strong { text-decoration: underline; }
 .team-apps { display: grid; gap: 12px; }
 .team-apps-title { margin: 4px 0 0; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .team-apps-title .small-text { font-weight: 400; }
-.liquid-card { overflow: hidden; }
 .liquid-hint { margin: 0 0 2px; font-size: 12.5px; color: var(--muted); }
-.liquid-card.open { border: none; }
-.liquid-item + .liquid-item { border-top: 1px solid var(--outline); }
 button.liquid-head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: none; border-radius: 0;
   background: transparent; color: var(--fg); text-align: left; font-weight: 400; }
 button.liquid-head:hover { opacity: 1; background: var(--layer); }
@@ -717,27 +711,9 @@ button.liquid-head:focus-visible { outline: 2px solid var(--fg); outline-offset:
 .liquid-name strong { font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; }
 .liquid-summary { font-size: 12.5px; color: var(--muted); }
 .liquid-chevron { display: inline-flex; color: var(--muted); transition: transform 0.45s cubic-bezier(0.65, 0, 0.35, 1); }
-.liquid-chevron.up { transform: rotate(180deg); }
-.liquid-body { overflow: hidden; }
-.liquid-inner { display: grid; gap: 4px; padding: 0 16px 14px 58px; }
-.liquid-role { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0 8px; font-weight: 500; font-size: 13.5px; }
-.liquid-role select { font-size: 13.5px; padding-top: 7px; padding-bottom: 7px; }
-.liquid-role select { max-width: 60%; }
 .liquid-actions { list-style: none; margin: 0; padding: 0; }
-.liquid-actions li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; border-top: 1px solid var(--outline); }
 .liquid-action-text { font-size: 13.5px; line-height: 1.4; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.liquid-changed { font-size: 11px; padding: 1px 8px; }
-/* Allow or block one action: a soft pair of round buttons; the chosen one fills (green) or rings (red). */
-.allow-switch { display: inline-flex; flex: none; gap: 2px; padding: 3px; border-radius: 999px; background: var(--layer); }
-.allow-switch button { width: 26px; height: 26px; padding: 0; justify-content: center; border-radius: 50%; border: 1.5px solid transparent;
-  background: transparent; color: var(--muted); transition: background 0.18s, color 0.18s, border-color 0.18s, transform 0.15s var(--ease); }
-.allow-switch button:hover { opacity: 1; color: var(--fg); }
-.allow-switch button:active { transform: scale(0.88); }
-.allow-switch .allow-yes.on { background: var(--ok); border-color: var(--ok); color: var(--on-ok, #ffffff); }
-.allow-switch .allow-no.on { background: var(--surface); border-color: var(--error); color: var(--error); }
-.allow-switch button:focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
 @media (max-width: 560px) {
-  .liquid-inner { padding-left: 18px; }
   .team-sheet-head { padding-right: 84px; }
   .team-faces { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }
@@ -875,3 +851,131 @@ a.app-card { transition: background 0.18s; }
 }
 /* The popup itself takes focus when opened with a mouse or from a link; it never shows a ring for that. */
 .popup-stack:focus, .team-modal:focus { outline: none; }
+
+
+/* A plain on/off switch (Buk, 2026-11-03): a soft grey track when off; dark with the knob slid across when on. */
+button.switch { position: relative; flex: none; width: 40px; height: 24px; padding: 0; border: none; border-radius: 999px;
+  background: #d9dce1; cursor: pointer; transition: background 0.2s ease; }
+button.switch:hover { opacity: 1; background: #ccd0d6; }
+button.switch:active { transform: none; }
+button.switch.on { background: var(--fg); }
+button.switch.on:hover { background: color-mix(in oklab, var(--fg) 85%, var(--surface)); }
+.switch-knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #ffffff;
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1); }
+button.switch.on .switch-knob { transform: translateX(16px); }
+button.switch:active .switch-knob { width: 21px; }
+button.switch.on:active .switch-knob { transform: translateX(13px); }
+button.switch:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+button.switch:disabled { cursor: default; opacity: 0.5; }
+@media (prefers-color-scheme: dark) {
+  button.switch { background: #3a3d42; }
+  button.switch:hover { background: #45484e; }
+  button.switch.on .switch-knob { background: #111111; }
+}
+.perm-state { font-size: 13px; font-weight: 500; color: var(--muted); }
+.perm-state.allow { color: var(--fg); }
+.perm-state.block { color: var(--muted); }
+
+/* The team's apps as a "liquid" accordion: one list of apps whose gaps, corners and open height move with CSS.
+   Closed, the apps touch and only the first and last have round corners; the open app pulls away with a gap above
+   and below and rounds off, and so do the apps next to it. */
+.liquid { display: grid; }
+.liquid-item { position: relative; overflow: hidden; background: var(--surface); border-radius: 0;
+  transition: margin 0.55s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.55s cubic-bezier(0.32, 0.72, 0, 1); }
+.liquid-item.round-top { border-top-left-radius: 20px; border-top-right-radius: 20px; }
+.liquid-item.round-bottom { border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; }
+.liquid-item.open { margin: 12px 0; }
+.liquid-item.open:first-child { margin-top: 0; }
+.liquid-item.open:last-child { margin-bottom: 0; }
+/* A hairline between two apps that touch; it fades while they are apart. */
+.liquid-item + .liquid-item::before { content: ""; position: absolute; top: 0; left: 58px; right: 16px; height: 1px; background: var(--outline);
+  transition: opacity 0.3s; z-index: 1; }
+.liquid-item.open::before, .liquid-item.open + .liquid-item::before { opacity: 0; }
+.liquid-chevron { transition: transform 0.55s cubic-bezier(0.32, 0.72, 0, 1); }
+.liquid-item.open .liquid-chevron { transform: rotate(180deg); }
+.liquid-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.55s cubic-bezier(0.32, 0.72, 0, 1); }
+.liquid-item.open .liquid-body { grid-template-rows: 1fr; }
+.liquid-clip { min-height: 0; overflow: hidden; }
+.liquid-inner { display: grid; gap: 2px; padding: 0 16px 14px 58px; opacity: 0; transform: translateY(-6px);
+  transition: opacity 0.2s ease, transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); }
+.liquid-item.open .liquid-inner { opacity: 1; transform: none; transition-delay: 0.12s; }
+.liquid-actions li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--outline); }
+.liquid-actions li:first-child { border-top: none; }
+.liquid-empty { margin: 0; padding: 18px 20px; font-size: 14px; color: var(--muted); }
+button.liquid-head:hover { background: var(--bg); }
+@media (max-width: 560px) { .liquid-inner { padding-left: 16px; } .liquid-item + .liquid-item::before { left: 16px; } }
+@media (prefers-reduced-motion: reduce) {
+  .liquid-item, .liquid-body, .liquid-inner, .liquid-chevron { transition: none; }
+}
+
+/* A team's people as tiles with room to breathe (Buk, 2026-11-03: "the employee card in the team modal is too
+   tight"): wider tiles, more padding, "Lead" in its own corner clear of the face, the name and email in full
+   width. The fill is the page colour, so tiles read as part of the same calm palette. */
+.team-faces { gap: 10px; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); }
+.team-face { border-radius: 16px; background: var(--bg); }
+.team-face:has(a.team-face-link:hover) { background: #eceef2; }
+.team-face-link { gap: 10px; padding: 30px 14px 18px; }
+.team-face-avatar { width: 56px; height: 56px; }
+.team-face-text { gap: 3px; width: 100%; }
+.team-face-text strong { font-size: 14px; }
+.team-face-email { font-size: 12px; }
+.team-face-lead { top: 10px; right: 10px; padding: 2px 8px; font-size: 11px; }
+/* While an app is open the tiles become a row of overlapping faces; their words wait, hidden. */
+.team-faces.compact .team-face-text, .team-faces.compact .team-face-lead { display: none; }
+.team-faces.compact .team-face-avatar { width: 32px; height: 32px; }
+@media (max-width: 560px) { .team-faces { grid-template-columns: repeat(2, minmax(0, 1fr)); } .team-face-link { padding: 28px 10px 14px; } }
+@media (prefers-color-scheme: dark) { .team-face:has(a.team-face-link:hover) { background: #262626; } }
+
+/* Cards that open something: no grey wash under the pointer (Buk: "the hover stage looks dirty"); the card lifts
+   a little and stays white. */
+.teams-grid .team-card:has(.team-card-name):hover, .person-card:hover, a.app-card:hover, .access-card:hover { background: var(--surface); }
+.teams-grid .team-card, .person-card, a.app-card { transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
+.teams-grid .team-card:has(.team-card-name):hover, .person-card:hover, a.app-card:hover { transform: translateY(-3px); }
+.teams-grid .team-card-avatars > span { transition: margin 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
+.teams-grid .team-card:has(.team-card-name):hover .team-card-avatars > span { margin-right: -4px; }
+.person-section .access-card:hover { background: #eceef2; }
+.person-section .access-card { background: var(--bg); }
+@media (prefers-reduced-motion: reduce) { .teams-grid .team-card:hover, .person-card:hover, a.app-card:hover { transform: none; } }
+
+/* The team's "…" menu: dark, so it stands clear of the white card without a shadow or an outline (Buk: "the
+   more dropdown looks dirty"). The "…" button is quiet until pointed at. */
+.team-sheet-menu { padding: 6px; border: none; border-radius: 14px; box-shadow: none; background: #16171a; color: #f5f5f5; transform-origin: top right;
+  transition: opacity 0.16s, transform 0.22s cubic-bezier(0.32, 0.72, 0, 1), overlay 0.22s allow-discrete, display 0.22s allow-discrete; }
+.team-sheet-menu:not(:popover-open) { opacity: 0; transform: translateY(-4px) scale(0.97); }
+@starting-style { .team-sheet-menu:popover-open { opacity: 0; transform: translateY(-4px) scale(0.97); } }
+.team-sheet-menu .menu-item { color: #f5f5f5; border-radius: 9px; }
+.team-sheet-menu .menu-item svg { stroke: #b9bcc2; }
+.team-sheet-menu .menu-item:hover { background: rgb(255 255 255 / 0.09); }
+.team-sheet-menu .menu-item:hover svg { stroke: #ffffff; }
+.team-sheet-menu .menu-item.menu-danger, .team-sheet-menu .menu-item.menu-danger svg { color: #ff8a80; stroke: #ff8a80; }
+.team-sheet-menu .menu-item.menu-danger:hover { background: rgb(255 138 128 / 0.12); }
+.team-sheet-menu .menu-sep { height: 1px; margin: 4px 6px; background: rgb(255 255 255 / 0.1); }
+button.icon-button.team-sheet-more:hover, button.icon-button.team-sheet-more[aria-expanded="true"] { background: var(--bg); }
+
+/* Scroll bars: a thin rounded bar with no track and no arrows (Buk: "the scroll bar need simplicity with round
+   ends"). Firefox gets its own thin bar. */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cdd0d6; border: 4px solid transparent; border-radius: 999px; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: #b3b7be; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+@supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: #cdd0d6 transparent; } }
+@media (prefers-color-scheme: dark) { ::-webkit-scrollbar-thumb { background-color: #3f4247; } ::-webkit-scrollbar-thumb:hover { background-color: #55585e; } }
+/* The picker windows: the list scrolls inside its own space, clear of the window's corner. */
+.people-pick { padding-right: 4px; margin-right: -4px; }
+.pick-confirm { display: inline-flex; gap: 6px; flex: none; }
+.pick-confirm button { min-width: 0; }
+.people-pick li.on { background: transparent; }
+.people-pick li.asking { background: var(--error-soft); }
+.people-pick li.asking .people-pick-text span { white-space: normal; color: var(--fg-2); }
+.people-pick button.switch { min-width: 0; }
+
+/* Behind a popup (Buk, 2026-11-03: "too blur and white, make it darker so that the white container pop up"): a
+   dark veil with only a light blur, so the white cards stand clear of the page. The same veil for windows. */
+.popup-stack-backdrop, .team-modal-backdrop { background: rgb(16 18 22 / 0.42); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+dialog.modal::backdrop { background: rgb(16 18 22 / 0.42); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+/* A window opened from inside a popup darkens only a little more, so the popup stays readable behind it. */
+.popup-stack dialog.modal::backdrop, .team-sheet dialog.modal::backdrop { background: rgb(16 18 22 / 0.22); -webkit-backdrop-filter: none; backdrop-filter: none; }
+@media (prefers-color-scheme: dark) {
+  .popup-stack-backdrop, .team-modal-backdrop, dialog.modal::backdrop { background: rgb(0 0 0 / 0.62); }
+}

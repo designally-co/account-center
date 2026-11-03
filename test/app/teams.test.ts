@@ -3,7 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPersonAccess } from "../../src/lib/access-lists";
 import { listPeople } from "../../src/lib/people";
-import { activeTeams, addToTeam, createTeam, deleteTeam, getTeam, listTeams, setExtraTeams, setPersonTeam, setTeamAction, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
+import { activeTeams, addTeamApp, addToTeam, removeTeamApp, createTeam, deleteTeam, getTeam, listTeams, setExtraTeams, setPersonTeam, setTeamAction, setTeamRole, takeOffTeam, updateTeam } from "../../src/lib/teams";
 import { ANN, createTestDb } from "./setup";
 
 let db: Awaited<ReturnType<typeof createTestDb>>;
@@ -60,7 +60,11 @@ describe("Teams", () => {
     expect(await setTeamRole(app, deeId, branding, "account_center", "admin")).toBe("unknown-role");
     expect(await setTeamRole(app, deeId, branding, "brand", "no-such-role")).toBe("unknown-role");
     const team = await getTeam(app, branding);
-    expect(team!.defaults.find((d) => d.app_key === "brand")!.role_key).toBe("editor");
+    const brandDefaults = team!.defaults.find((d) => d.app_key === "brand")!;
+    expect(brandDefaults.actions.find((a) => a.key === "brand.guideline.edit")!.on).toBe(true);
+    expect(brandDefaults.actions.find((a) => a.key === "brand.brand.delete")!.on).toBe(false);
+    expect(team!.choices.find((c) => c.key === "brand")!.on_list).toBe(true);
+    expect(team!.choices.some((c) => c.key === "account_center")).toBe(false);
     expect(team!.defaults.some((d) => d.app_key === "account_center")).toBe(false);
   });
 
@@ -164,17 +168,17 @@ describe("Teams", () => {
     expect(await canAnn("brand.view")).toBe(true);
     let team = await getTeam(app, branding);
     let brand = team!.defaults.find((d) => d.app_key === "brand")!;
-    expect(brand.role_key).toBe("editor");
-    expect(brand.changes).toEqual({ "brand.guideline.edit": false });
+    expect(brand.actions.find((a) => a.key === "brand.guideline.edit")!.on).toBe(false);
+    expect(brand.actions.find((a) => a.key === "brand.view")!.on).toBe(true);
     expect(brand.actions.some((a) => a.key === "brand.brand.delete")).toBe(true);
-    expect(brand.roles.find((r) => r.key === "editor")!.actions).toContain("brand.view");
     let ann = await getPersonAccess(app, annId);
     let row = ann!.apps.find((a) => a.key === "brand")!;
     expect(row.roles[0].name).toBe("Editor + changes (Branding default)");
     expect(row.actions.find((a) => a.key === "brand.guideline.edit")!.on).toBe(false);
     // Allowing it again is what the role gives: the single change goes.
     expect(await setTeamAction(app, deeId, branding, "brand", "brand.guideline.edit", true)).toBe("saved");
-    expect((await getTeam(app, branding))!.defaults.find((d) => d.app_key === "brand")!.changes).toEqual({});
+    expect((await getTeam(app, branding))!.defaults.find((d) => d.app_key === "brand")!.actions.find((a) => a.key === "brand.guideline.edit")!.on).toBe(true);
+    expect(await app`select count(*)::int as n from account.team_actions where team_id = ${branding}::uuid`.then((r) => r[0].n)).toBe(0);
     // An action the role does not give, allowed for the whole team.
     expect(await canAnn("brand.brand.delete")).toBe(false);
     expect(await setTeamAction(app, deeId, branding, "brand", "brand.brand.delete", true)).toBe("saved");
@@ -183,7 +187,7 @@ describe("Teams", () => {
     expect(await setTeamRole(app, deeId, branding, "brand", "editor")).toBe("saved");
     team = await getTeam(app, branding);
     brand = team!.defaults.find((d) => d.app_key === "brand")!;
-    expect(brand.changes).toEqual({});
+    expect(brand.actions.find((a) => a.key === "brand.brand.delete")!.on).toBe(false);
     expect(await canAnn("brand.brand.delete")).toBe(false);
     // Single actions with no role: the person's page names it.
     expect(await setTeamRole(app, deeId, branding, "brand", null)).toBe("saved");
@@ -197,6 +201,33 @@ describe("Teams", () => {
     expect(await setTeamAction(app, deeId, branding, "brand", "brand.nope", true)).toBe("unknown-role");
     expect(await setTeamAction(app, annId, branding, "brand", "brand.view", false)).toBe("not-allowed");
     // Back as before: Branding gives editor.
+    expect(await setTeamRole(app, deeId, branding, "brand", "editor")).toBe("saved");
+    expect(await canAnn("brand.guideline.edit")).toBe(true);
+  });
+
+  it("a team's own app list: Add app shows an app with nothing on; taking it off takes away what the team gave", async () => {
+    // Branding gives Brand Portal editor here; HR is not on its list yet.
+    let team = await getTeam(app, branding);
+    expect(team!.defaults.some((d) => d.app_key === "hr")).toBe(false);
+    expect(await addTeamApp(app, deeId, branding, "hr")).toBe("saved");
+    expect(await addTeamApp(app, deeId, branding, "hr")).toBe("saved");   // twice is fine
+    team = await getTeam(app, branding);
+    const hr = team!.defaults.find((d) => d.app_key === "hr")!;
+    expect(hr.actions.every((a) => !a.on)).toBe(true);
+    expect(team!.choices.find((c) => c.key === "hr")!.on_list).toBe(true);
+    // Refused: Account Center, an unknown app, someone who is not an admin.
+    expect(await addTeamApp(app, deeId, branding, "account_center")).toBe("unknown-role");
+    expect(await addTeamApp(app, deeId, branding, "nope")).toBe("unknown-role");
+    expect(await addTeamApp(app, annId, branding, "studio")).toBe("not-allowed");
+    // Taking the Brand Portal off removes what Branding gave there.
+    expect(await canAnn("brand.guideline.edit")).toBe(true);
+    expect(await removeTeamApp(app, deeId, branding, "brand")).toBe("saved");
+    expect(await canAnn("brand.guideline.edit")).toBe(false);
+    team = await getTeam(app, branding);
+    expect(team!.defaults.some((d) => d.app_key === "brand")).toBe(false);
+    expect(team!.choices.find((c) => c.key === "brand")).toMatchObject({ on_list: false, gives: 0 });
+    // Back as before.
+    expect(await removeTeamApp(app, deeId, branding, "hr")).toBe("saved");
     expect(await setTeamRole(app, deeId, branding, "brand", "editor")).toBe("saved");
     expect(await canAnn("brand.guideline.edit")).toBe(true);
   });

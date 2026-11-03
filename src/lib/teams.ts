@@ -2,26 +2,26 @@ import type postgres from "postgres";
 import { NotAllowed, withActor } from "./actor";
 import { isUuid } from "./ids";
 
-// Teams (Buk, 2026-10-19): one team per person, any member can be a lead, and each team gives a default role
-// per app. Account Center access is never given by a team (the database refuses it). Every change runs
+// Teams (Buk, 2026-10-19): any member can be a lead, and each team gives default access per app, action by
+// action (no ready roles since 2026-11-03). Account Center access is never given by a team (the database refuses it). Every change runs
 // through withActor, like every other change to people and access.
 
 export type TeamMember = { id: string; display_name: string; email: string; avatar: unknown; is_lead: boolean; is_active: boolean };
-// One app in a team's popup: the team's ready role there, the app's roles and actions, and the team's single
-// changes on top of its role (action key: allowed or blocked; Buk, 2026-11-03).
+// One app on a team's list: each action, on or off for everyone in the team (Buk, 2026-11-03: "remove ready role
+// across the site just keep manualy single access control"). `on` is what the team gives today: its own on/off
+// for that action when it has one, else what an older ready role gave (account.team_allows); no role is shown.
 export type TeamDefault = {
   app_key: string; app_name: string; icon: string | null; hue: number | null; art: string | null;
-  role_key: string | null;
-  roles: { key: string; name: string; actions: string[] }[];
-  actions: { key: string; description: string }[];
-  changes: Record<string, boolean>;
+  actions: { key: string; description: string; on: boolean }[];
 };
+// An app that can go on a team's list, for "Add app" (Buk chose "pick apps per team", 2026-11-03).
+export type TeamAppChoice = { key: string; name: string; icon: string | null; hue: number | null; on_list: boolean; actions: number; gives: number };
 export type TeamSummary = {
   id: string; name: string; description: string; is_active: boolean;
   members: TeamMember[];
   defaults: { app_name: string; role_name: string }[];
 };
-export type TeamDetail = Omit<TeamSummary, "defaults"> & { defaults: TeamDefault[] };
+export type TeamDetail = Omit<TeamSummary, "defaults"> & { defaults: TeamDefault[]; choices: TeamAppChoice[] };
 
 export async function listTeams(sql: postgres.Sql): Promise<TeamSummary[]> {
   return sql<TeamSummary[]>`
@@ -51,23 +51,24 @@ export async function getTeam(sql: postgres.Sql, teamId: string): Promise<TeamDe
                      where m.team_id = t.id and p.is_active), '[]'::jsonb) as members
     from account.teams t where t.id = ${teamId}::uuid`;
   if (!team) return null;
-  // Every app with actions, except Account Center itself (never given by a team).
+  // The apps on the team's own list (account.team_apps), never Account Center (never given by a team).
   const defaults = await sql<TeamDefault[]>`
     select a.key as app_key, a.name as app_name, a.icon, a.hue, a.art,
-           (select tr.role_key from account.team_roles tr where tr.team_id = ${teamId}::uuid and tr.app_key = a.key) as role_key,
-           coalesce((select jsonb_agg(jsonb_build_object('key', r.key, 'name', r.name, 'actions',
-                                        coalesce((select jsonb_agg(ra.action_key order by ra.action_key) from account.role_actions ra
-                                                  where ra.app_key = r.app_key and ra.role_key = r.key), '[]'::jsonb))
-                                      order by r.name)
-                     from account.roles r where r.app_key = a.key), '[]'::jsonb) as roles,
-           coalesce((select jsonb_agg(jsonb_build_object('key', x.key, 'description', x.description) order by x.key)
-                     from account.actions x where x.app_key = a.key), '[]'::jsonb) as actions,
-           coalesce((select jsonb_object_agg(c.action_key, c.allowed)
-                     from account.team_actions c where c.team_id = ${teamId}::uuid and c.app_key = a.key), '{}'::jsonb) as changes
-    from account.apps a
-    where a.key <> 'account_center' and exists (select 1 from account.actions x where x.app_key = a.key)
+           coalesce((select jsonb_agg(jsonb_build_object('key', x.key, 'description', x.description,
+                                                         'on', account.team_allows(${teamId}::uuid, x.key)) order by x.key)
+                     from account.actions x where x.app_key = a.key), '[]'::jsonb) as actions
+    from account.team_apps l join account.apps a on a.key = l.app_key
+    where l.team_id = ${teamId}::uuid and a.key <> 'account_center'
     order by a.is_prototype, a.name`;
-  return { ...team, defaults };
+  const choices = await sql<TeamAppChoice[]>`
+    select a.key, a.name, a.icon, a.hue,
+           exists (select 1 from account.team_apps l where l.team_id = ${teamId}::uuid and l.app_key = a.key) as on_list,
+           (select count(*)::int from account.actions x where x.app_key = a.key) as actions,
+           (select count(*)::int from account.actions x where x.app_key = a.key and account.team_allows(${teamId}::uuid, x.key)) as gives
+    from account.apps a
+    where a.key <> 'account_center'
+    order by a.is_prototype, a.name`;
+  return { ...team, defaults, choices };
 }
 
 export async function activeTeams(sql: postgres.Sql): Promise<{ id: string; name: string }[]> {
@@ -130,8 +131,37 @@ export async function updateTeam(sql: postgres.Sql, actorId: string, teamId: str
 // Teams are never turned off from the app (Buk, 2026-11-03: "team must not be turned off"), so there is no
 // action for it. The database still knows a team that is off (it gives nothing), for safety.
 
-// The team's default role in one app, or none. Choosing a role starts from that role: the team's single changes
-// in that app go. Account Center itself is refused (the database too).
+// Put an app on the team's list (Buk, 2026-11-03: "add app so that the new app can be seen in the access list").
+// It arrives with nothing on: the admin turns actions on one by one. Account Center is refused (the database too).
+export async function addTeamApp(sql: postgres.Sql, actorId: string, teamId: string, appKey: string): Promise<TeamResult> {
+  if (!isUuid(teamId)) return "not-found";
+  if (appKey === "account_center") return "unknown-role";
+  return guarded(() => withActor(sql, actorId, async (tx) => {
+    const [team] = await tx`select 1 from account.teams where id = ${teamId}::uuid for update`;
+    if (!team) return "not-found" as const;
+    const [app] = await tx`select 1 from account.apps where key = ${appKey}`;
+    if (!app) return "unknown-role" as const;
+    await tx`insert into account.team_apps (team_id, app_key) values (${teamId}::uuid, ${appKey}) on conflict do nothing`;
+    return "saved" as const;
+  }));
+}
+
+// Take an app off the team's list. What the team gave in it goes too (its on/off actions and any older ready
+// role), so nothing hidden keeps giving access. Access set for each person stays.
+export async function removeTeamApp(sql: postgres.Sql, actorId: string, teamId: string, appKey: string): Promise<TeamResult> {
+  if (!isUuid(teamId)) return "not-found";
+  return guarded(() => withActor(sql, actorId, async (tx) => {
+    const [team] = await tx`select 1 from account.teams where id = ${teamId}::uuid for update`;
+    if (!team) return "not-found" as const;
+    await tx`delete from account.team_actions where team_id = ${teamId}::uuid and app_key = ${appKey}`;
+    await tx`delete from account.team_roles where team_id = ${teamId}::uuid and app_key = ${appKey}`;
+    await tx`delete from account.team_apps where team_id = ${teamId}::uuid and app_key = ${appKey}`;
+    return "saved" as const;
+  }));
+}
+
+// The team's ready role in one app, or none. The screens no longer choose ready roles (Buk, 2026-11-03); this stays
+// for the access a team was given before, and for the tests that check it. Account Center itself is refused.
 export async function setTeamRole(sql: postgres.Sql, actorId: string, teamId: string, appKey: string, roleKey: string | null): Promise<TeamResult> {
   if (!isUuid(teamId)) return "not-found";
   if (appKey === "account_center") return "unknown-role";
@@ -147,6 +177,7 @@ export async function setTeamRole(sql: postgres.Sql, actorId: string, teamId: st
       await tx`delete from account.team_roles where team_id = ${teamId}::uuid and app_key = ${appKey}`;
       return "saved" as const;
     }
+    await tx`insert into account.team_apps (team_id, app_key) values (${teamId}::uuid, ${appKey}) on conflict do nothing`;
     await tx`insert into account.team_roles (team_id, app_key, role_key) values (${teamId}::uuid, ${appKey}, ${roleKey})
              on conflict (team_id, app_key) do update set role_key = excluded.role_key
              where account.team_roles.role_key is distinct from excluded.role_key`;
@@ -172,8 +203,9 @@ export async function deleteTeam(sql: postgres.Sql, actorId: string, teamId: str
   }));
 }
 
-// One action for the whole team (Buk, 2026-11-03): allowed or blocked. When that is what the team's role gives
-// anyway, the single change goes, so the row shows the role again.
+// One action for the whole team, on or off (Buk, 2026-11-03). Ready roles are no longer chosen; a team that still
+// has one from before keeps it underneath, and a switch that matches it needs no single change. The app goes on
+// the team's list if it was not there.
 export async function setTeamAction(sql: postgres.Sql, actorId: string, teamId: string, appKey: string, actionKey: string, allowed: boolean): Promise<TeamResult> {
   if (!isUuid(teamId)) return "not-found";
   if (appKey === "account_center") return "unknown-role";
@@ -186,6 +218,7 @@ export async function setTeamAction(sql: postgres.Sql, actorId: string, teamId: 
       select exists (select 1 from account.team_roles tr
                      join account.role_actions ra on ra.app_key = tr.app_key and ra.role_key = tr.role_key
                      where tr.team_id = ${teamId}::uuid and tr.app_key = ${appKey} and ra.action_key = ${actionKey}) as yes`;
+    await tx`insert into account.team_apps (team_id, app_key) values (${teamId}::uuid, ${appKey}) on conflict do nothing`;
     if (inRole.yes === allowed) {
       await tx`delete from account.team_actions where team_id = ${teamId}::uuid and action_key = ${actionKey}`;
     } else {

@@ -549,4 +549,18 @@ delete from account.team_actions;
 delete from account.team_members m using account.people p where m.person_id = p.id and p.email = 'uma@example.com';
 commit;
 
+-- A team's own list of apps (20261103140000): never Account Center; changes are logged; no app can read it.
+do $$ begin
+  insert into account.team_apps (team_id, app_key) select id, 'account_center' from account.teams where name = 'Digital';
+  raise exception 'FAILED: Account Center was put on a team''s list';
+exception when check_violation then raise notice 'ok: Account Center is never on a team''s list';
+end $$;
+begin;
+select set_config('account.actor', 'test-admin', true);
+insert into account.team_apps (team_id, app_key) select id, 'hr' from account.teams where name = 'Digital';
+delete from account.team_apps a using account.teams t where t.id = a.team_id and t.name = 'Digital' and a.app_key = 'hr';
+commit;
+select pg_temp.ok((select count(*) from account.log where table_name = 'team_apps' and actor = 'test-admin') = 2, 'a team''s app list changes are logged');
+select pg_temp.ok(not has_table_privilege('portal_check', 'account.team_apps', 'select'), 'no app can read a team''s app list');
+
 select 'ALL CHECKS PASSED' as result;

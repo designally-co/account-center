@@ -14,7 +14,7 @@ export function VisibilityToggle({ action, personId, personName, appKey, appName
   appName: string;
   version: string;
   on: boolean;
-  roleName: string | null;     // what turning on gives
+  roleName: string | null;     // what turning on gives: "team" (what their team gives) or basic access
   locked: string | null;       // why it cannot be pressed, or null
   from: "person" | "app";
   variant: "icon" | "full";
@@ -49,7 +49,7 @@ export function VisibilityToggle({ action, personId, personName, appKey, appName
           <p className="muted">
             {on
               ? `${personName} loses every action in ${appName} at once, and it no longer shows on their Home. You can turn it on again later.`
-              : `${personName} gets the ${roleName ?? "first"} role in ${appName}, and it shows on their Home. You can change the role on the app's page.`}
+              : `${personName} gets ${roleName === "team" ? "what their team gives" : "basic access"} in ${appName}, and it shows on their Home. You can turn single actions on or off on the app's page.`}
           </p>
           <div className="row modal-actions">
             <button type="button" className="secondary" onClick={() => closeDialog(dialog.current)}>Cancel</button>
