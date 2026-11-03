@@ -80,7 +80,7 @@ export function TeamBoard({ teams, details, people, canManage, canView, error }:
                   <div className="team-card placeholder" aria-hidden="true" inert>{inner}</div>
                 ) : (
                   <motion.div layoutId={`team-${t.id}`} transition={grow} className="team-card"
-                    style={{ borderRadius: 16 }} onLayoutAnimationComplete={() => { if (returning === t.id) setReturning(null); }}>
+                    style={{ borderRadius: 24 }} onLayoutAnimationComplete={() => { if (returning === t.id) setReturning(null); }}>
                     <motion.div className="team-card-inner" initial={returning === t.id ? { opacity: 0 } : false}
                       animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.16 } }}>
                       {inner}
@@ -93,8 +93,8 @@ export function TeamBoard({ teams, details, people, canManage, canView, error }:
         </ul>
       )}
 
-      <Popup open={team !== null} layoutId={`team-${team?.id ?? lastOpen.current}`} labelledBy={titleId} onClose={close} afterClose={backToCard}>
-        {team ? <Detail team={team} people={people} canManage={canManage} canView={canView} error={error} titleId={titleId} /> : null}
+      <Popup open={team !== null} layoutId={`team-${team?.id ?? lastOpen.current}`} labelledBy={titleId} onClose={close} afterClose={backToCard} stack>
+        {team ? <Detail team={team} people={people} canManage={canManage} canView={canView} error={error} titleId={titleId} onClose={close} /> : null}
       </Popup>
     </MotionConfig>
   );

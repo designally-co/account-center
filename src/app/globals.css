@@ -888,13 +888,29 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 .team-modal .panel { background: transparent; border-color: var(--outline-strong); }
 .team-modal .team-members li { border-color: var(--outline-strong); }
 /* Teams (Buk, 2026-11-03, his layout): the card is the team's name large, its description and a row of faces. */
-.teams-grid .team-card { gap: 8px; padding: 26px 28px 24px; border-radius: 20px; }
+.teams-grid .team-card { gap: 8px; padding: 26px 28px 24px; border-radius: 24px; }
 .teams-grid .team-card-name { font-size: 26px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.15; }
-.teams-grid .team-card-name::after { border-radius: 20px; }
+.teams-grid .team-card-name::after { border-radius: 24px; }
 .team-card-desc { margin: 0; color: var(--fg-2); font-size: 15px; line-height: 1.45; max-width: 36ch; }
 .teams-grid .team-card-avatars { margin-top: 18px; }
 .teams-grid .team-card-avatars > span { margin-right: -10px; position: relative; }
 .teams-grid .team-card-avatars .more { margin-left: 16px; font-size: 13px; color: var(--muted); }
+
+/* A popup made of separate cards (Buk, 2026-11-03, a team: "separated containers not inside one big
+   container"): the page fades behind a soft veil and the cards float in a column over it. */
+.popup-stack-layer { position: fixed; inset: 0; z-index: 40; overflow-y: auto; overscroll-behavior: contain; padding: 40px 16px 56px; }
+.popup-stack-backdrop { position: fixed; inset: 0; background: color-mix(in oklab, var(--bg) 78%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1); }
+.popup-stack { position: relative; width: min(880px, 100%); margin: 0 auto; }
+.team-stack { display: grid; gap: 16px; }
+.stack-card { background: var(--surface); border: 1px solid var(--outline);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 22px 48px -28px rgb(0 0 0 / 0.22); }
+.team-head-card { padding: 34px 38px 30px; }
+p.stack-card.notice { margin: 0; border-radius: 16px; }
+@media (max-width: 560px) {
+  .popup-stack-layer { padding: 12px 8px 32px; }
+  .team-head-card { padding: 24px 20px 22px; }
+}
 
 /* A team's popup: the name and description, its people as tiles that shrink into a row of faces while an app is
    open, and its default access as a stacked "liquid" accordion. */
@@ -902,13 +918,14 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 .team-sheet-head { position: relative; display: grid; gap: 6px; padding-right: 96px; }
 .team-sheet-title { margin: 0; font-size: 30px; line-height: 1.12; letter-spacing: -0.028em; }
 .team-sheet-desc { margin: 0; color: var(--fg-2); font-size: 15px; line-height: 1.45; max-width: 46ch; }
-.team-sheet-more { position: absolute; top: -10px; right: 44px; }
+.team-sheet-more { position: absolute; top: -8px; right: 40px; }
+.team-sheet-close { position: absolute; top: -8px; right: -4px; }
 .team-sheet-menu { transform-origin: top right; }
 .team-sheet-menu:not(:popover-open) { transform: translateY(-4px) scale(0.97); }
 .team-people { display: grid; gap: 12px; }
 .team-people-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
 .team-faces { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-.team-face { position: relative; background: var(--surface); border: 1px solid var(--outline-strong); overflow: hidden; }
+.team-face { position: relative; background: var(--surface); border: 1px solid var(--outline); overflow: hidden; }
 .team-face-link { display: grid; justify-items: center; gap: 10px; padding: 18px 12px 16px; text-align: center; color: var(--fg); text-decoration: none; }
 a.team-face-link:hover strong { text-decoration: underline; }
 .team-face-avatar { display: inline-flex; border-radius: 50%; }
@@ -924,10 +941,11 @@ a.team-face-link:hover strong { text-decoration: underline; }
 .team-faces.compact .team-face-link { padding: 0; }
 .team-faces.compact .team-face-avatar { box-shadow: 0 0 0 2px var(--surface); }
 
-.team-apps { display: grid; gap: 12px; }
+.team-apps { display: grid; gap: 16px; }
 .team-apps-title { margin: 4px 0 0; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .team-apps-title .small-text { font-weight: 400; }
-.liquid-card { background: var(--surface); border: 1px solid var(--outline-strong); overflow: hidden; }
+.liquid-card { overflow: hidden; }
+.liquid-hint { margin: 0 0 2px; font-size: 13px; color: var(--muted); }
 .liquid-card.open { box-shadow: var(--shadow-hover); }
 .liquid-item + .liquid-item { border-top: 1px solid var(--outline); }
 button.liquid-head { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: none; border-radius: 0;

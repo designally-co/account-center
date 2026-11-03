@@ -36,14 +36,14 @@ function summary(app: TeamDefault) {
 // slide apart (the apps above, the open app, the apps below), and closing it melts them back together. In the
 // open app: the team's ready role, then one allow/block switch per action (Buk chose a ready role plus single
 // changes, the same as a person's access). Every switch saves at once.
-export function TeamApps({ teamId, apps: fromServer, open, onOpen }: {
-  teamId: string; apps: TeamDefault[]; open: string | null; onOpen: (key: string | null) => void;
+export function TeamApps({ teamId, teamName, apps: fromServer, open, onOpen }: {
+  teamId: string; teamName: string; apps: TeamDefault[]; open: string | null; onOpen: (key: string | null) => void;
 }) {
   const router = useRouter();
   const [apps, setApps] = useState(fromServer);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  const titleId = useId();
+  const titleId = useId();  // names each open app's panel
   // A save comes back with fresh data from the server; it replaces what the switches showed meanwhile.
   useEffect(() => { setApps(fromServer); }, [fromServer]);
 
@@ -78,15 +78,15 @@ export function TeamApps({ teamId, apps: fromServer, open, onOpen }: {
 
   if (!apps.length) return null;
   return (
-    <motion.section layout="position" transition={LIQUID} className="team-apps" aria-labelledby={titleId}>
-      <h3 id={titleId} className="team-apps-title">Default access <span className="muted small-text">for everyone in the team, unless a person has their own</span></h3>
-      {error ? <p className="notice error" role="alert">{error}</p> : null}
+    <motion.section layout="position" transition={LIQUID} className="team-apps" aria-label={`Default access for ${teamName}`}>
+      {error ? <motion.p layout="position" className="stack-card notice error" role="alert">{error}</motion.p> : null}
       <AnimatePresence initial={false} mode="popLayout">
           {groups.map((group) => {
             const single = group.length === 1 && group[0].app_key === open;
             return (
-              <motion.div key={group[0].app_key} layout transition={LIQUID} className={`liquid-card${single ? " open" : ""}`}
-                style={{ borderRadius: 20 }} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}>
+              <motion.div key={group[0].app_key} layout transition={LIQUID} className={`stack-card liquid-card${single ? " open" : ""}`}
+                style={{ borderRadius: 24 }} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0, transition: { ...LIQUID, delay: 0.1 } }}
+                exit={{ opacity: 0, y: 12, transition: { duration: 0.12 } }}>
                 {group.map((app) => {
                   const isOpen = app.app_key === open;
                   const panel = `${titleId}-${app.app_key}`;
@@ -109,6 +109,7 @@ export function TeamApps({ teamId, apps: fromServer, open, onOpen }: {
                             initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                             transition={{ height: LIQUID, opacity: { duration: 0.18 } }}>
                             <div className="liquid-inner">
+                              <p className="liquid-hint">Everyone in {teamName} gets this, unless a person has their own access in {app.app_name}.</p>
                               <label className="liquid-role">
                                 <span>Ready role</span>
                                 <select value={app.role_key ?? ""} onChange={(e) => setRole(app, e.target.value)}>

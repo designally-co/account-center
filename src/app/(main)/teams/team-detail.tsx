@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { LayoutGroup, motion } from "framer-motion";
-import { Crown, Ellipsis, PencilLine } from "lucide-react";
+import { Crown, Ellipsis, PencilLine, X } from "lucide-react";
+import { GROW } from "@/components/popup";
 import { Avatar } from "@/components/avatar";
 import { SubmitButton } from "@/components/submit-button";
 import type { TeamDetail as Team } from "@/lib/teams";
@@ -16,8 +17,8 @@ import { TeamMembers, type PickPerson } from "./team-members";
 // the app's switches have the room; closing it brings the tiles back. Every company person sees the team and its
 // people; only an admin sees the apps (the team's default access), the member picker and the "…" menu.
 // A team is never turned off (Buk, 2026-11-03).
-export function TeamDetail({ team, people, canManage, canView, error, titleId }: {
-  team: Team; people: PickPerson[]; canManage: boolean; canView: boolean; error: string | null; titleId: string;
+export function TeamDetail({ team, people, canManage, canView, error, titleId, onClose }: {
+  team: Team; people: PickPerson[]; canManage: boolean; canView: boolean; error: string | null; titleId: string; onClose: () => void;
 }) {
   const [openApp, setOpenApp] = useState<string | null>(null);
   const compact = openApp !== null;
@@ -28,11 +29,17 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId }:
   // A save comes back with the new name (or an error shown in the popup): the edit window closes then.
   useEffect(() => { edit.current?.close(); }, [team.name, team.description, error]);
 
-  // One layout group for the whole sheet: when an app opens, the people, the heading and the app cards all move
-  // in the same spring, so nothing jumps while something else slides.
+  // Separate cards, no big box (Buk, 2026-11-03: "I want the view to be separated containers not inside one big
+  // container"): the team's card on top, which is the Teams page's card grown bigger, then the apps' cards.
+  // One layout group for all of them: when an app opens, the people, the team's card and the app cards move in
+  // the same spring, so nothing jumps while something else slides.
   return (
     <LayoutGroup id={`sheet-${team.id}`}>
-    <div className="stack team-sheet">
+    <div className="team-stack">
+      <motion.div layoutId={`team-${team.id}`} transition={GROW} className="stack-card team-head-card" style={{ borderRadius: 24 }}>
+      {/* The words arrive once the card has grown, so they are never seen stretched. */}
+      <motion.div className="stack team-sheet" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.2, delay: 0.14 } }}
+        exit={{ opacity: 0, transition: { duration: 0.08 } }}>
       <header className="team-sheet-head">
         <h2 id={titleId} className="team-sheet-title">{team.name}</h2>
         {team.description ? <p className="team-sheet-desc">{team.description}</p> : null}
@@ -70,6 +77,9 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId }:
             </dialog>
           </>
         ) : null}
+        <button type="button" className="icon-button popup-close team-sheet-close" aria-label="Close" onClick={onClose}>
+          <X size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
       </header>
 
       {error ? <p className="notice error" role="alert">{error}</p> : null}
@@ -112,7 +122,9 @@ export function TeamDetail({ team, people, canManage, canView, error, titleId }:
         )}
       </motion.section>
 
-      {canManage ? <TeamApps teamId={team.id} apps={team.defaults} open={openApp} onOpen={setOpenApp} /> : null}
+      </motion.div>
+      </motion.div>
+      {canManage ? <TeamApps teamId={team.id} teamName={team.name} apps={team.defaults} open={openApp} onOpen={setOpenApp} /> : null}
     </div>
     </LayoutGroup>
   );
