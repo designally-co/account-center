@@ -10,19 +10,18 @@ import { addToTeam, createTeam, setTeamActive, setTeamRole, takeOffTeam, updateT
 
 // Every action checks "manage" again on the server; the change itself checks once more inside its transaction.
 
-function backToTeam(teamId: string, notice: string, anchor = ""): never {
+function backToTeam(teamId: string, notice: string): never {
   if (!isUuid(teamId)) redirect("/teams?notice=not-found");
-  revalidatePath(`/teams/${teamId}`);
   revalidatePath("/teams");
-  redirect(`/teams/${teamId}?notice=${notice}${anchor}`);
+  // A team opens as a popup on the Teams page (Buk, 2026-11-03), so a save comes back to it there.
+  redirect(`/teams?team=${teamId}&notice=${notice}`);
 }
-
 export async function createTeamAction(form: FormData) {
   const { me } = await requireAction(ACTIONS.manage);
   const made = await createTeam(db(), me.person_id, { name: form.get("name"), description: form.get("description") });
   if (made.result !== "added") redirect(`/teams?notice=${made.result}`);
   revalidatePath("/teams");
-  redirect(`/teams/${made.id}?notice=team-added`);
+  redirect(`/teams?team=${made.id}&notice=team-added`);
 }
 
 export async function updateTeamAction(form: FormData) {
@@ -46,7 +45,7 @@ export async function setTeamRoleAction(form: FormData) {
   const app = String(form.get("app") ?? "");
   const role = String(form.get("role") ?? "");
   const result = await setTeamRole(db(), me.person_id, teamId, app, role === "" ? null : role);
-  backToTeam(teamId, result === "saved" ? "default-saved" : result, `#app-${encodeURIComponent(app)}`);
+  backToTeam(teamId, result === "saved" ? "default-saved" : result);
 }
 
 // A tick or an untick in a team card's Assignees list (Buk, 2026-11-02). Called straight from the card, not
@@ -56,7 +55,6 @@ export async function setTeamMemberAction(teamId: string, personId: string, on: 
   const { me } = await requireAction(ACTIONS.manage);
   const result = on ? await addToTeam(db(), me.person_id, personId, teamId) : await takeOffTeam(db(), me.person_id, personId, teamId);
   revalidatePath("/teams");
-  if (isUuid(teamId)) revalidatePath(`/teams/${teamId}`);
   if (isUuid(personId)) revalidatePath(`/people/${personId}`);
   return result;
 }

@@ -1,10 +1,11 @@
-import Link from "next/link";
-import { Avatar } from "@/components/avatar";
 import { Toast } from "@/components/toast";
 import { ACTIONS, canUser } from "@/lib/access";
 import { db } from "@/lib/db";
 import { requireAction } from "@/lib/session";
-import { listTeams } from "@/lib/teams";
+import { getTeam, listTeams, type TeamDetail } from "@/lib/teams";
+import { listPeople } from "@/lib/people";
+import { TeamBoard } from "./team-board";
+import type { PickPerson } from "./team-members";
 import { createTeamAction } from "./actions";
 import { FormDialog } from "@/components/form-dialog";
 import { SubmitButton } from "@/components/submit-button";
@@ -14,9 +15,23 @@ export const dynamic = "force-dynamic";
 type Search = Record<string, string | string[] | undefined>;
 
 // Messages come from this fixed list only; nothing from the address bar is shown as typed.
+// Adding a team: its errors show inside the "New team" dialog.
 const NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
   "invalid-name": { tone: "error", text: "Not added: give the team a name of up to 60 characters." },
   taken: { tone: "error", text: "Not added: a team with that name already exists." },
+  "not-found": { tone: "error", text: "That team was not found. Reload the page and try again." },
+  "not-allowed": { tone: "error", text: "Not saved: you can no longer manage Account Center. Ask another admin." },
+};
+// A save inside a team's popup comes back here with ?team=<id>: its errors show inside the popup.
+const TEAM_NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
+  "team-added": { tone: "ok", text: "Team added. Add its members and choose its default access here." },
+  "details-saved": { tone: "ok", text: "Saved." },
+  "default-saved": { tone: "ok", text: "Default access saved. Every member gets it, unless they have their own access in that app." },
+  "turned-on": { tone: "ok", text: "Turned on. Its members get the team's default access again." },
+  "turned-off": { tone: "ok", text: "Turned off. Its members keep only the access set for them personally." },
+  "invalid-name": { tone: "error", text: "Not saved: give the team a name of up to 60 characters." },
+  taken: { tone: "error", text: "Not saved: another team already has that name." },
+  "unknown-role": { tone: "error", text: "That role does not exist for this app. Reload the page and try again." },
   "not-found": { tone: "error", text: "That team was not found. Reload the page and try again." },
   "not-allowed": { tone: "error", text: "Not saved: you can no longer manage Account Center. Ask another admin." },
 };
@@ -25,11 +40,19 @@ const NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
 export default async function TeamsPage({ searchParams }: { searchParams: Promise<Search> }) {
   const { userId, me } = await requireAction(ACTIONS.view);
   const sql = db();
-  const [teams, canManage, search] = await Promise.all([listTeams(sql), canUser(sql, userId, ACTIONS.manage), searchParams]);
+  const [teams, canManage, search, everyone] = await Promise.all([listTeams(sql), canUser(sql, userId, ACTIONS.manage), searchParams, listPeople(sql)]);
+  // Every team's popup is ready on the page, so opening one asks nothing of the server.
+  const details: Record<string, TeamDetail> = Object.fromEntries(
+    (await Promise.all(teams.map((t) => getTeam(sql, t.id)))).filter((d): d is TeamDetail => d !== null).map((d) => [d.id, d]));
+  // Who can be put in a team: everyone active, with their current team (one team per person).
+  const pickable: PickPerson[] = everyone.filter((p) => p.is_active)
+    .map((p) => ({ id: p.id, name: p.display_name, team: p.team, is_lead: p.is_lead, avatar: p.avatar }));
   const key = typeof search.notice === "string" ? search.notice : "";
-  const notice = Object.hasOwn(NOTICES, key) ? NOTICES[key] : null;
+  const inTeam = typeof search.team === "string" && Object.hasOwn(details, search.team);
+  const teamNotice = inTeam && Object.hasOwn(TEAM_NOTICES, key) ? TEAM_NOTICES[key] : null;
+  const notice = !inTeam && Object.hasOwn(NOTICES, key) ? NOTICES[key] : null;
   // Errors about the new team's name are shown inside its dialog, which opens again by itself.
-  const formError = key === "invalid-name" || key === "taken";
+  const formError = !inTeam && (key === "invalid-name" || key === "taken");
 
   return (
     <>
@@ -53,34 +76,9 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
 
         {notice && !formError ? (notice.tone === "ok" ? <Toast text={notice.text} /> : <p className="notice error" role="alert">{notice.text}</p>) : null}
 
-        {teams.length === 0 ? <p className="empty">No teams yet.</p> : (
-          <ul className="team-cards" aria-label="Teams">
-            {teams.map((t, i) => (
-              <li key={t.id} className={`team-card${t.is_active ? "" : " faded"}`} style={{ "--i": i } as React.CSSProperties}>
-                <div className="team-card-head">
-                  <Link href={`/teams/${t.id}`} className="team-card-name">{t.name}</Link>
-                  {t.is_active ? null : <span className="pill muted">Turned off</span>}
-                </div>
-                {t.description ? <p className="muted small-text">{t.description}</p> : null}
-                <div className="team-card-avatars" aria-label={`${t.members.length} ${t.members.length === 1 ? "member" : "members"}`}>
-                  {t.members.slice(0, 8).map((m) => (
-                    <span key={m.id} title={`${m.display_name}${m.is_lead ? " (lead)" : ""}`} className={m.is_lead ? "lead" : undefined}>
-                      <Avatar avatar={m.avatar} seed={m.id} size={32} />
-                    </span>
-                  ))}
-                  {t.members.length > 8 ? <span className="more">+{t.members.length - 8}</span> : null}
-                  {t.members.length === 0 ? <span className="muted small-text">No active members</span> : null}
-                </div>
-                <p className="small-text">
-                  {t.defaults.length
-                    ? t.defaults.map((d) => `${d.app_name}: ${d.role_name}`).join(" · ")
-                    : <span className="muted">No default access yet</span>}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-
+        {teamNotice?.tone === "ok" ? <Toast text={teamNotice.text} /> : null}
+        <TeamBoard teams={teams} details={details} people={pickable} canManage={canManage}
+          error={teamNotice?.tone === "error" ? teamNotice.text : null} />
       </main>
     </>
   );
