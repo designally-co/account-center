@@ -49,7 +49,8 @@ export type PersonAccess = {
   login: LoginState;
   work_emails: string[];
   avatar: unknown;
-  team: { id: string; name: string; is_active: boolean; is_lead: boolean } | null;  // one team at most
+  team: { id: string; name: string; is_active: boolean; is_lead: boolean } | null;  // the primary team
+  extra_teams: { id: string; name: string }[];                                        // the other teams
   apps: AppAccess[];
 };
 
@@ -102,12 +103,19 @@ async function readApps(sql: postgres.TransactionSql, personId: string, kind: st
 
   return apps.map((app) => {
     // Where access starts (the same rule as account.base_allows): the person's own role in this app; else,
-    // unless an admin chose "no access" here, the team's default role.
+    // unless an admin chose "no access" here, their teams' default roles. A person can be in several teams
+    // (Buk, 2026-11-03): then they get the actions of every team's role, as the database does, and the
+    // biggest of those roles names it.
     const appRoles = roles.filter((r) => r.app_key === app.key).map(({ key, name, description, actions }) => ({ key, name, description, actions }));
     const roleKeys = grants.filter((g) => g.app_key === app.key).map((g) => g.role_key);
-    const teamRow = teamRoles.find((t) => t.app_key === app.key);
-    const teamRole = teamRow ? appRoles.find((r) => r.key === teamRow.role_key) : undefined;
-    const team = teamRow && teamRole ? { name: teamRow.team_name, roleName: teamRole.name } : null;
+    const fromTeams = teamRoles.filter((t) => t.app_key === app.key)
+      .map((t) => ({ team: t.team_name, role: appRoles.find((r) => r.key === t.role_key) }))
+      .filter((t): t is { team: string; role: (typeof appRoles)[number] } => t.role !== undefined)
+      .sort((a, b) => b.role.actions.length - a.role.actions.length || a.team.localeCompare(b.team));
+    const teamRole = fromTeams.length
+      ? { ...fromTeams[0].role, actions: [...new Set(fromTeams.flatMap((t) => t.role.actions))].sort() }
+      : undefined;
+    const team = teamRole ? { name: fromTeams[0].team, roleName: teamRole.name } : null;
     const optedOut = optOuts.some((o) => o.app_key === app.key);
     const baseKey = roleKeys.length ? roleKeys[0] : !optedOut && team ? TEAM_ROLE : "";
     const allByAdmin = isAdmin && app.key !== "account_center";
@@ -149,7 +157,10 @@ export async function getPersonAccess(sql: postgres.Sql, personId: string): Prom
     select p.id, p.display_name, p.email, p.kind, p.source, p.is_active, p.avatar, account.login_state(p.auth_user_id) as login,
            coalesce(array(select e.email from account.person_emails e where e.person_id = p.id order by e.email), '{}') as work_emails,
            (select jsonb_build_object('id', t.id, 'name', t.name, 'is_active', t.is_active, 'is_lead', m.is_lead)
-            from account.team_members m join account.teams t on t.id = m.team_id where m.person_id = p.id) as team
+            from account.team_members m join account.teams t on t.id = m.team_id where m.person_id = p.id and m.is_primary) as team,
+           coalesce((select jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name) order by lower(t.name))
+                     from account.team_members m join account.teams t on t.id = m.team_id
+                     where m.person_id = p.id and not m.is_primary), '[]'::jsonb) as extra_teams
     from account.people p where p.id = ${personId}::uuid`;
   if (!person) return null;
   const apps = await sql.begin("read only isolation level repeatable read",

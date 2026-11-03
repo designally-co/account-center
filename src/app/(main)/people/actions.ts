@@ -27,7 +27,7 @@ export async function workEmailAction(prev: FormNotice, form: FormData): Promise
     const result = await addWorkEmail(db(), me.person_id, personId, form.get("email"));
     notice = result === "added" ? "email-added" : result;
   }
-  if (isUuid(personId)) revalidatePath(`/people/${personId}`);
+  revalidatePath("/people");
   return { notice, n: (prev.n ?? 0) + 1 };
 }
 
@@ -37,7 +37,7 @@ export async function removePersonAction(form: FormData) {
   const personId = String(form.get("person_id") ?? "");
   const result = await removePerson(db(), me.person_id, personId);
   if (result === "removed") redirect("/people?notice=person-removed");
-  redirect(isUuid(personId) ? `/people/${personId}?notice=remove-${result}` : "/people?notice=remove-not-found");
+  redirect(isUuid(personId) ? `/people?person=${personId}&notice=remove-${result}` : "/people?notice=remove-not-found");
 }
 
 // Add a new company person and give them a login (Buk, 2026-10-19). The person is saved first, then the
@@ -52,8 +52,8 @@ export async function addPersonAction(_: AddState, form: FormData): Promise<AddS
   if (added.result !== "added") return { error: added.result };
   revalidatePath("/people");
   const sent = await sendInvite(added.id);
-  if ("error" in sent) redirect(`/people/${added.id}?notice=invite-${sent.error}`);
-  if (!("link" in sent)) redirect(`/people/${added.id}?notice=invite-${sent.result}`);
+  if ("error" in sent) redirect(`/people?person=${added.id}&notice=invite-${sent.error}`);
+  if (!("link" in sent)) redirect(`/people?person=${added.id}&notice=invite-${sent.result}`);
   return { personId: added.id, name: String(form.get("name") ?? "").trim(), mail: sent.result, link: sent.link };
 }
 
@@ -66,9 +66,9 @@ export async function sendInviteAction(prev: InviteState, form: FormData): Promi
   const n = (prev.n ?? 0) + 1;
   if (!isUuid(personId)) return { notice: "no-person", n };
   const sent = await sendInvite(personId, form.get("link_existing") === "1");
-  revalidatePath(`/people/${personId}`);
+  revalidatePath("/people");
   // Linking changes the person's sign-in state, so the row that sent it goes away: say it on the page.
-  if (!("error" in sent) && sent.result === "linked") redirect(`/people/${personId}?notice=invite-linked`);
+  if (!("error" in sent) && sent.result === "linked") redirect(`/people?person=${personId}&notice=invite-linked`);
   if ("error" in sent) return { notice: sent.error, n };
   return "link" in sent ? { notice: sent.result, link: sent.link, n } : { notice: sent.result, n };
 }

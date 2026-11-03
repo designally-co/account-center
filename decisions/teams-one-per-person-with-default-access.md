@@ -19,7 +19,7 @@ HR keeps teams (`public.hr_teams`, `public.hr_employee_teams`) with one lead eac
 ## Decision
 
 - **Teams belong to Account Center.** They were copied once from HR with the import (teams, members, leads; HR is only read), then are managed here. Apps such as HR ask `account.is_lead_of` later, when P Aek agrees.
-- **One team per person**; any member can be a lead, and a team can have more than one. HR's primary team wins at the import; an HR lead who ends up in another team is counted, so an admin can set it by hand.
+- **One team per person**; any member can be a lead, and a team can have more than one. **Changed 2026-11-03:** a person has a primary team and extra teams, and every team gives its default access (`decisions/primary-and-extra-teams.md`). HR's primary team wins at the import; an HR lead who ends up in another team is counted, so an admin can set it by hand.
 - **A team gives a default role per app** (`account.team_roles`). A person's own role in an app, or "No access" chosen for them there (`account.team_opt_outs`), wins over it; single allowed or blocked actions still apply on top. A team never gives Account Center access, and a team that is turned off gives nothing.
 - **An Account Center admin has every action in every app**, whatever their team; the person's kind still keeps them out of an app (an outsource admin never gets HR).
 - **Screens** (2026-10-20): Teams in the menu, each team's page (default role per app, members, on or off, name), and a Team row on each person's page. People are added to or moved between teams on their own page (AI's choice when building, 2026-10-20: one place changes a person, next to their access list; not discussed with Buk yet).

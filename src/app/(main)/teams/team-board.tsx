@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AnimatePresence, MotionConfig, motion } from "framer-motion";
+import { MotionConfig, motion } from "framer-motion";
+import { GROW, Popup } from "@/components/popup";
 import { Avatar } from "@/components/avatar";
 import type { TeamDetail, TeamSummary } from "@/lib/teams";
 import { TeamDetail as Detail } from "./team-detail";
@@ -29,8 +30,8 @@ export function TeamBoard({ teams, details, people, canManage, canView, error }:
   const openId = asked && details[asked] ? asked : null;
   const team = openId ? details[openId] : null;
   const titleId = useId();
-  const panel = useRef<HTMLDivElement>(null);
   const lastOpen = useRef<string | null>(null);
+  if (openId) lastOpen.current = openId;
   // The card the popup is shrinking back into: its words wait until it has landed.
   const [returning, setReturning] = useState<string | null>(null);
 
@@ -41,45 +42,10 @@ export function TeamBoard({ teams, details, people, canManage, canView, error }:
     if (openId) setReturning(openId);
     window.history.replaceState(null, "", "/teams");
   };
+  // The card came back as a new element, so it is found again by its link.
+  const backToCard = () => document.querySelector<HTMLElement>(`.team-cards a.team-card-name[href="/teams?team=${lastOpen.current}"]`)?.focus();
 
-  // While a team is open: the page behind does not scroll, Escape closes it (unless a list or a confirmation
-  // inside it is open, which Escape closes first), Tab stays inside, and focus goes back to the card after.
-  useEffect(() => {
-    if (!openId) return;
-    lastOpen.current = openId;
-    const body = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const first = window.setTimeout(() => panel.current?.querySelector<HTMLElement>(".team-modal-close")?.focus(), 30);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (document.querySelector("dialog[open]") || panel.current?.querySelector('.pik-pill[aria-expanded="true"]')) return;
-        e.preventDefault();
-        close();
-      }
-      if (e.key === "Tab" && panel.current) {
-        const items = [...panel.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')]
-          .filter((el) => el.offsetParent !== null);
-        if (!items.length) return;
-        const [a, z] = [items[0], items[items.length - 1]];
-        if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
-        else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = body;
-      window.clearTimeout(first);
-      document.removeEventListener("keydown", onKey);
-      // The card came back as a new element, so it is found again by its link.
-      const id = lastOpen.current;
-      window.setTimeout(() => document.querySelector<HTMLElement>(`.team-cards a.team-card-name[href="/teams?team=${id}"]`)?.focus(), 40);
-    };
-    // close() only reads openId, which is in the list
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openId]);
-
-  // How the card and the popup move: one spring for the box, so it grows out of the card and lands softly.
-  const grow = { type: "spring" as const, stiffness: 420, damping: 38, mass: 0.9 };
+  const grow = GROW;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -134,26 +100,9 @@ export function TeamBoard({ teams, details, people, canManage, canView, error }:
         </ul>
       )}
 
-      <AnimatePresence initial={false}>
-        {team ? (
-          <div className="team-modal-layer" key="team-modal">
-            <motion.div className="team-modal-backdrop" onClick={close}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
-            <motion.div ref={panel} layoutId={`team-${team.id}`} transition={grow} className="team-modal"
-              role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ borderRadius: 16 }}>
-              {/* The words arrive once the box has grown, so they are never seen stretched. */}
-              <motion.div className="team-modal-body"
-                initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.2, delay: 0.14 } }}
-                exit={{ opacity: 0, transition: { duration: 0.08 } }}>
-                <button type="button" className="icon-button team-modal-close" aria-label="Close" onClick={close}>
-                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
-                </button>
-                <Detail team={team} people={people} canManage={canManage} canView={canView} error={error} titleId={titleId} />
-              </motion.div>
-            </motion.div>
-          </div>
-        ) : null}
-      </AnimatePresence>
+      <Popup open={team !== null} layoutId={`team-${team?.id ?? lastOpen.current}`} labelledBy={titleId} onClose={close} afterClose={backToCard}>
+        {team ? <Detail team={team} people={people} canManage={canManage} canView={canView} error={error} titleId={titleId} /> : null}
+      </Popup>
     </MotionConfig>
   );
 }

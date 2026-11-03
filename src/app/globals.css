@@ -419,7 +419,7 @@ main.home { max-width: 1160px; }
 .people-cards { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
 .person-card { position: relative; display: grid; gap: 14px; align-content: start; padding: 20px; background: var(--surface);
   border: 1px solid var(--outline); border-radius: var(--radius); transition: transform 0.2s var(--ease), border-color 0.2s, box-shadow 0.2s; }
-.person-card:hover { transform: translateY(-2px); border-color: var(--outline-strong); box-shadow: var(--shadow-hover); }
+.person-card:hover { border-color: var(--outline-strong); box-shadow: var(--shadow-hover); }
 .person-card.faded { opacity: 0.6; }
 .person-card-text { display: grid; gap: 2px; min-width: 0; }
 .person-card-name { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--fg); text-decoration: none; }
@@ -428,6 +428,11 @@ main.home { max-width: 1160px; }
 .person-card-name:focus-visible { outline: none; }
 .person-card:has(.person-card-name:focus-visible) { outline: 2px solid var(--fg); outline-offset: 2px; }
 .person-card-email { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-card-team { font-size: 13px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-card-team.none { color: var(--muted); }
+/* "Lead" sits in the card's top right corner (Buk, 2026-11-03). */
+.person-card-lead { position: absolute; top: 16px; right: 16px; display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--fg); color: var(--surface); }
 .person-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; color: var(--fg-2); }
 
 /* Removing someone: at the bottom of their page, behind a confirm step */
@@ -440,6 +445,17 @@ a.button.danger-outline:hover { background: var(--error-soft); }
 label.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
 label.check input[type="checkbox"] { width: 18px; height: 18px; padding: 0; margin: 0; accent-color: var(--primary); cursor: pointer; }
 label.check:has(input:disabled) { cursor: default; color: var(--muted); }
+/* Extra teams on a person's page: one soft pill per team, filled when ticked. */
+.team-toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+.team-toggle { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--outline-strong); color: var(--fg-2); cursor: pointer; user-select: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s var(--ease); }
+.team-toggle:hover { border-color: var(--fg-2); color: var(--fg); }
+.team-toggle:active { transform: scale(0.96); }
+.team-toggle.on { background: var(--fg); border-color: var(--fg); color: var(--surface); }
+button.team-toggle { background: transparent; font: inherit; font-size: 13px; font-weight: 500; }
+button.team-toggle.on { background: var(--fg); }
+.team-toggle:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 
 /* Teams: cards on the list, members on a team's page. */
 .team-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
@@ -871,6 +887,27 @@ button.copy:hover { opacity: 1; background: var(--layer); }
 /* Cards inside the popup take the dialog's stronger edge and no fill of their own. */
 .team-modal .panel { background: transparent; border-color: var(--outline-strong); }
 .team-modal .team-members li { border-color: var(--outline-strong); }
+/* People: a person opens as a popup that grows out of their card (Buk, 2026-11-03), like a team. */
+.people-cards > li { display: grid; }
+.person-card { height: 100%; }
+.person-card-inner { display: grid; gap: 14px; align-content: start; }
+/* Everything on a person's card sits in the middle (Buk, 2026-11-03: "make the employee card center aligned"). */
+.person-card, .person-card-inner { justify-items: center; text-align: center; }
+.person-card-text { justify-items: center; max-width: 100%; }
+.person-card-meta { justify-content: center; }
+.person-card.placeholder { visibility: hidden; }
+.team-modal.person-modal { width: min(920px, 100%); }
+.person-popup { gap: 22px; }
+.person-popup .person-head { padding-right: 40px; margin: 0; }
+.person-detail { gap: 22px; }
+.person-detail h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
+.person-waiting { gap: 16px; }
+.person-waiting-grid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 720px) { .person-waiting-grid { grid-template-columns: 1fr; } }
+.skeleton { border-radius: var(--radius-inner); background: linear-gradient(90deg, var(--layer) 0%, color-mix(in oklab, var(--layer) 40%, var(--surface)) 50%, var(--layer) 100%);
+  background-size: 200% 100%; animation: skeleton-shine 1.2s ease-in-out infinite; }
+@keyframes skeleton-shine { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 @media (max-width: 560px) {
   .team-modal-layer { padding: 8px; }
   .team-modal { max-height: calc(100dvh - 16px); }

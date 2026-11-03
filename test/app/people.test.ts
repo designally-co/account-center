@@ -33,7 +33,8 @@ describe("People", () => {
     expect(ann).toMatchObject({ email: "ann@example.com", source: "hr", is_active: true, login: "ok", work_emails: [], app_count: 0, team: "Branding", is_lead: true });
     expect(ben.login).toBe("blocked");
     expect(cat.is_active).toBe(false);
-    expect(Object.keys(ann).sort()).toEqual(["app_count", "avatar", "display_name", "email", "id", "is_active", "is_lead", "kind", "login", "source", "team", "work_emails"]);
+    expect(Object.keys(ann).sort()).toEqual(["app_count", "avatar", "display_name", "email", "extra_teams", "id", "is_active", "is_lead", "kind", "login", "source", "team", "work_emails"]);
+    expect(ann.extra_teams).toEqual([]);
     expect(ann.kind).toBe("Employee");
     annId = ann.id;
     benId = ben.id;

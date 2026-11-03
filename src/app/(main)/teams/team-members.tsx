@@ -6,7 +6,7 @@ import { Assignees } from "@/components/assignees";
 import { avatarDataUri, defaultAvatar, parseAvatar } from "@/lib/avatar";
 import { setTeamMemberAction } from "./actions";
 
-export type PickPerson = { id: string; name: string; team: string | null; is_lead: boolean; avatar: unknown };
+export type PickPerson = { id: string; name: string; team: string | null; extra_teams: string[]; avatar: unknown };
 
 const ERRORS: Record<string, string> = {
   "not-allowed": "Not saved: you can no longer manage Account Center. Ask another admin.",
@@ -17,10 +17,12 @@ const ERRORS: Record<string, string> = {
 
 // A team's members, as Bencho's Assignees pill, on the team's own page (Buk, 2026-11-02: "use this for the
 // team card adding team members"; 2026-11-03: "user must go inside first to add the team member", so it moved
-// from the card on Teams into the team's page). Ticking someone puts them in this team, moving them out of
-// their old one; unticking takes them off. The pill changes at once; the save runs behind it and the page
-// refreshes when it is done.
-export function TeamMembers({ teamId, teamName, people, members }: { teamId: string; teamName: string; people: PickPerson[]; members: string[] }) {
+// from the card on Teams into the team's page). Ticking someone adds this team: as an extra team when they
+// already have a primary team, else as their primary team (Buk, 2026-11-03). Unticking takes them off this
+// team only. The pill changes at once; the save runs behind it and the page refreshes when it is done.
+export function TeamMembers({ teamId, teamName, people, members, leads }: {
+  teamId: string; teamName: string; people: PickPerson[]; members: string[]; leads: string[];
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -29,9 +31,12 @@ export function TeamMembers({ teamId, teamName, people, members }: { teamId: str
   const list = useMemo(() => people.map((p) => ({
     id: p.id,
     name: p.name,
-    role: p.team === teamName ? (p.is_lead ? "Lead of this team" : "In this team") : p.team ? `In ${p.team}: moves here` : "No team",
+    role: leads.includes(p.id) ? "Lead of this team"
+      : p.team === teamName ? "Primary team"
+      : p.extra_teams.includes(teamName) ? `Extra team · primary ${p.team}`
+      : p.team ? `In ${p.team} · joins as extra team` : "No team · becomes primary team",
     avatar: avatarDataUri(parseAvatar(p.avatar) ?? defaultAvatar(p.id)),
-  })), [people, teamName]);
+  })), [people, teamName, leads]);
 
   const onToggle = (personId: string, on: boolean) => {
     setError(null);

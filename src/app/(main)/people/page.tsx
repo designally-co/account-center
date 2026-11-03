@@ -5,6 +5,8 @@ import { listPeople } from "@/lib/people";
 import { PeopleBrowser } from "./people-browser";
 import { requireAction } from "@/lib/session";
 import Link from "next/link";
+import { isUuid } from "@/lib/ids";
+import { PersonView } from "./[id]/person-view";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,7 @@ const NOTICES: Record<string, { tone: "ok" | "error"; text: string }> = {
 };
 
 function Notice({ search }: { search: Search }) {
+  if (typeof search.person === "string") return null;   // a notice about the open person shows inside their popup
   const key = typeof search.notice === "string" ? search.notice : "";
   const n = Object.hasOwn(NOTICES, key) ? NOTICES[key] : null;
   if (!n) return null;
@@ -31,6 +34,13 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
   const [people, canManage, search] = await Promise.all([listPeople(sql), canUser(sql, userId, ACTIONS.manage), searchParams]);
   // Cards by default; the list (a table) is one click away (Buk, 2026-10-19).
   const view = search.view === "list" ? "list" : "grid";
+  // A person opens as a popup over the list (Buk, 2026-11-03), at /people?person=<id>. Only that one person's
+  // details are read; the popup shows their face and name from the list at once, and these when they arrive.
+  const asked = typeof search.person === "string" && isUuid(search.person) && people.some((p) => p.id === search.person) ? search.person : null;
+  const detail = asked ? {
+    id: asked,
+    node: <PersonView id={asked} userId={userId} meId={me.person_id} notice={typeof search.notice === "string" ? search.notice : ""} />,
+  } : null;
 
   return (
     <>
@@ -58,7 +68,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
 
         {people.length === 0 ? (
           <p className="empty">Nobody here yet. The people from HR are imported once, when Account Center is set up in Project Friday.</p>
-        ) : <PeopleBrowser people={people} view={view} />}
+        ) : <PeopleBrowser people={people} view={view} detail={detail} />}
       </main>
     </>
   );

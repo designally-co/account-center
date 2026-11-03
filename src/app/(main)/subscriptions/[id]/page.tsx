@@ -67,7 +67,7 @@ export default async function SubscriptionPage({ params, searchParams }: { param
             <ul className="team-members">
               {sub.members.map((m) => (
                 <li key={m.id}>
-                  <Link href={`/people/${m.id}`}>
+                  <Link href={`/people?person=${m.id}`}>
                     <Avatar avatar={m.avatar} seed={m.id} size={36} />
                     <span>{m.display_name}</span>
                   </Link>

@@ -135,47 +135,108 @@ export async function setTeamRole(sql: postgres.Sql, actorId: string, teamId: st
   }));
 }
 
-// Put a person in a team (moving them out of their old one), or in no team. Moving ends being a lead.
+// A person has one primary team (shown under their name) and any number of extra teams (Buk, 2026-11-03:
+// "each person can have primary team and extra team"). Every team they are in gives its default access; the
+// database keeps exactly one primary team for anyone in a team (migration 20261103100000).
+
+// The person's page: their primary team and whether they lead it. Choosing another team moves the primary
+// there (the old primary team is left; if the new one was an extra team, it simply becomes the primary).
+// "No team" takes them off every team, extra teams too.
 export async function setPersonTeam(sql: postgres.Sql, actorId: string, personId: string, teamId: string | null, isLead = false): Promise<TeamResult> {
   if (!isUuid(personId)) return "not-found";
   if (teamId !== null && !isUuid(teamId)) return "unknown-team";
   return guarded(() => withActor(sql, actorId, async (tx) => putInTeam(tx, personId, teamId, isLead)));
 }
 
-// From a team's card on the Teams page (Buk, 2026-11-02): tick someone to put them in this team (moving them
-// out of their old one, and not as lead), untick to take them off. Taking off only removes them from THIS team:
-// if another admin has moved them meanwhile, they stay where they are now. Ticking someone already in the team
-// changes nothing, so a lead stays a lead.
+// The person's page: their extra teams, as a whole list. Their primary team is never in it, and a person
+// with no primary team gets no extra team (the page offers extra teams only after a primary one).
+export async function setExtraTeams(sql: postgres.Sql, actorId: string, personId: string, teamIds: string[]): Promise<TeamResult | "no-primary"> {
+  if (!isUuid(personId)) return "not-found";
+  if (!teamIds.every(isUuid)) return "unknown-team";
+  const wanted = [...new Set(teamIds.map((id) => id.toLowerCase()))];
+  return guarded(() => withActor(sql, actorId, async (tx) => {
+    const person = await lockPerson(tx, personId);
+    if (person !== "ok") return person;
+    const [primary] = await tx<{ team_id: string }[]>`
+      select team_id::text from account.team_members where person_id = ${personId}::uuid and is_primary`;
+    if (!primary) return wanted.length ? "no-primary" as const : "saved" as const;
+    const extras = wanted.filter((id) => id !== primary.team_id);
+    if (extras.length) {
+      const found = await tx`select id from account.teams where id = any(${extras}::uuid[]) and is_active`;
+      if (found.length !== extras.length) return "unknown-team" as const;
+    }
+    await tx`delete from account.team_members
+             where person_id = ${personId}::uuid and not is_primary and not (team_id = any(${extras}::uuid[]))`;
+    for (const id of extras) {
+      await tx`insert into account.team_members (person_id, team_id, is_primary) values (${personId}::uuid, ${id}::uuid, false)
+               on conflict (person_id, team_id) do nothing`;
+    }
+    return "saved" as const;
+  }));
+}
+
+// From a team's popup on the Teams page: tick someone to add them to this team, untick to take them off.
+// Someone already in another team gets this one as an extra team; someone in no team gets it as their
+// primary team (Buk, 2026-11-03). Ticking someone already in the team changes nothing, so a lead stays a lead.
+// Taking off removes them from THIS team only; if it was their primary team, their oldest other team becomes
+// their primary team.
 export async function addToTeam(sql: postgres.Sql, actorId: string, personId: string, teamId: string): Promise<TeamResult> {
   if (!isUuid(personId)) return "not-found";
   if (!isUuid(teamId)) return "unknown-team";
   return guarded(() => withActor(sql, actorId, async (tx) => {
+    const person = await lockPerson(tx, personId);
+    if (person !== "ok") return person;
     const [here] = await tx`select 1 from account.team_members where person_id = ${personId}::uuid and team_id = ${teamId}::uuid`;
-    return here ? "saved" as const : putInTeam(tx, personId, teamId, false);
+    if (here) return "saved" as const;
+    const [team] = await tx`select 1 from account.teams where id = ${teamId}::uuid and is_active`;
+    if (!team) return "unknown-team" as const;
+    const [hasPrimary] = await tx`select 1 from account.team_members where person_id = ${personId}::uuid and is_primary`;
+    await tx`insert into account.team_members (person_id, team_id, is_primary) values (${personId}::uuid, ${teamId}::uuid, ${!hasPrimary})`;
+    return "saved" as const;
   }));
 }
 
 export async function takeOffTeam(sql: postgres.Sql, actorId: string, personId: string, teamId: string): Promise<TeamResult> {
   if (!isUuid(personId) || !isUuid(teamId)) return "not-found";
   return guarded(() => withActor(sql, actorId, async (tx) => {
-    await tx`delete from account.team_members where person_id = ${personId}::uuid and team_id = ${teamId}::uuid`;
+    await tx`select 1 from account.people where id = ${personId}::uuid for update`;
+    const [gone] = await tx<{ is_primary: boolean }[]>`
+      delete from account.team_members where person_id = ${personId}::uuid and team_id = ${teamId}::uuid returning is_primary`;
+    if (gone?.is_primary) await promoteOldest(tx, personId);
     return "saved" as const;
   }));
 }
 
-// The same step inside a change that is already running (adding a new person).
+// The same step as setPersonTeam inside a change that is already running (adding a new person).
 export async function putInTeam(tx: postgres.TransactionSql, personId: string, teamId: string | null, isLead: boolean): Promise<TeamResult> {
-  const [person] = await tx<{ is_active: boolean }[]>`select is_active from account.people where id = ${personId}::uuid for update`;
-  if (!person) return "not-found";
-  if (!person.is_active) return "inactive";
+  const person = await lockPerson(tx, personId);
+  if (person !== "ok") return person;
   if (teamId === null) {
     await tx`delete from account.team_members where person_id = ${personId}::uuid`;
     return "saved";
   }
   const [team] = await tx`select 1 from account.teams where id = ${teamId}::uuid and is_active`;
   if (!team) return "unknown-team";
-  await tx`insert into account.team_members (person_id, team_id, is_lead) values (${personId}::uuid, ${teamId}::uuid, ${isLead})
-           on conflict (person_id) do update set team_id = excluded.team_id, is_lead = excluded.is_lead
-           where (account.team_members.team_id, account.team_members.is_lead) is distinct from (excluded.team_id, excluded.is_lead)`;
+  // The old primary team is left first, so the unique "one primary" rule never sees two.
+  await tx`delete from account.team_members where person_id = ${personId}::uuid and is_primary and team_id <> ${teamId}::uuid`;
+  await tx`insert into account.team_members (person_id, team_id, is_lead, is_primary) values (${personId}::uuid, ${teamId}::uuid, ${isLead}, true)
+           on conflict (person_id, team_id) do update set is_lead = excluded.is_lead, is_primary = true
+           where (account.team_members.is_lead, account.team_members.is_primary) is distinct from (excluded.is_lead, true)`;
   return "saved";
+}
+
+// One change at a time per person; a removed person's teams are never changed.
+async function lockPerson(tx: postgres.TransactionSql, personId: string): Promise<"ok" | "not-found" | "inactive"> {
+  const [person] = await tx<{ is_active: boolean }[]>`select is_active from account.people where id = ${personId}::uuid for update`;
+  if (!person) return "not-found";
+  return person.is_active ? "ok" : "inactive";
+}
+
+// After a person left their primary team: their oldest other team becomes the primary one.
+async function promoteOldest(tx: postgres.TransactionSql, personId: string) {
+  await tx`update account.team_members set is_primary = true
+           where person_id = ${personId}::uuid
+             and team_id = (select m.team_id from account.team_members m join account.teams t on t.id = m.team_id
+                            where m.person_id = ${personId}::uuid
+                            order by m.created_at, lower(t.name) limit 1)`;
 }

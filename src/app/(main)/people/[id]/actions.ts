@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ACTIONS } from "@/lib/access";
 import { getPersonAccess, saveAppAccess, setKind, visibleRoleFor } from "@/lib/access-lists";
-import { setPersonTeam } from "@/lib/teams";
+import { setExtraTeams, setPersonTeam } from "@/lib/teams";
 import { db } from "@/lib/db";
 import { isUuid } from "@/lib/ids";
 import { requireAction } from "@/lib/session";
@@ -16,8 +16,8 @@ import { requireAction } from "@/lib/session";
 function back(personId: string, notice: string, app: string): never {
   const id = isUuid(personId) ? personId : "";
   if (!id) redirect(`/people?notice=no-person`);
-  revalidatePath(`/people/${id}`);
-  if (!/^[a-z][a-z0-9_]*$/.test(app)) redirect(`/people/${id}?notice=${notice}`);
+  revalidatePath("/people");
+  if (!/^[a-z][a-z0-9_]*$/.test(app)) redirect(`/people?person=${id}&notice=${notice}`);
   redirect(`/people/${id}/apps/${app}?notice=${notice}`);
 }
 
@@ -29,7 +29,7 @@ export async function setKindAction(prev: KindNotice, form: FormData): Promise<K
   const { me } = await requireAction(ACTIONS.manage);
   const personId = String(form.get("person_id") ?? "");
   const { result, app } = await setKind(db(), me.person_id, personId, String(form.get("kind") ?? ""));
-  if (isUuid(personId)) revalidatePath(`/people/${personId}`);
+  revalidatePath("/people");
   return { notice: result === "saved" ? "kind-saved" : result === "yourself" ? "kind-yourself" : result, app, n: (prev.n ?? 0) + 1 };
 }
 
@@ -56,8 +56,18 @@ export async function setTeamAction(prev: TeamNotice, form: FormData): Promise<T
   const personId = String(form.get("person_id") ?? "");
   const team = String(form.get("team") ?? "");
   const result = await setPersonTeam(db(), me.person_id, personId, team === "" ? null : team, team !== "" && form.get("is_lead") === "on");
-  if (isUuid(personId)) revalidatePath(`/people/${personId}`);
+  revalidatePath("/people");
   return { notice: result === "saved" ? "team-saved" : result, n: (prev.n ?? 0) + 1 };
+}
+
+// The person's extra teams (Buk, 2026-11-03), as the whole list of ticked teams.
+export async function setExtraTeamsAction(prev: TeamNotice, form: FormData): Promise<TeamNotice> {
+  const { me } = await requireAction(ACTIONS.manage);
+  const personId = String(form.get("person_id") ?? "");
+  const teams = form.getAll("team").map(String);
+  const result = await setExtraTeams(db(), me.person_id, personId, teams);
+  revalidatePath("/people");
+  return { notice: result === "saved" ? "extra-teams-saved" : result, n: (prev.n ?? 0) + 1 };
 }
 
 // The app's visible / hidden button (Buk, 2026-10-26), after the admin confirmed it. On gives the team's default
@@ -83,6 +93,6 @@ export async function setAppVisibleAction(form: FormData) {
   if (from === "app") back(personId, notice, app);
   const id = isUuid(personId) ? personId : "";
   if (!id) redirect("/people?notice=no-person");
-  revalidatePath(`/people/${id}`);
-  redirect(`/people/${id}?notice=${notice}`);
+  revalidatePath("/people");
+  redirect(`/people?person=${id}&notice=${notice}`);
 }
